@@ -1,0 +1,21 @@
+{
+  "projects": {
+    "default": "beauty-salon-booking-app"
+  },
+  "targets": {
+    "client": {
+      "hosting": {
+        "client": [
+          "beauty-salon-booking-app"
+        ]
+      }
+    },
+    "admin": {
+      "hosting": {
+        "admin": [
+          "beauty-salon-booking-app"
+        ]
+      }
+    }
+  }
+}

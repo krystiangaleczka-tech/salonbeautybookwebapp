@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['staff', 'manager', 'owner'];
+    }
+    
+    function isManager() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['manager', 'owner'];
+    }
+    
+    function isOwner() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role == 'owner';
+    }
+    
+    // Staff collection - only owners can create/manage staff
+    match /staff/{staffId} {
+      allow read: if isStaff();
+      allow create: if isOwner();
+      allow update: if isOwner() || request.auth.uid == staffId;
+      allow delete: if isOwner();
+    }
+    
+    // Services collection - managers and owners can manage
+    match /services/{serviceId} {
+      allow read: if isStaff();
+      allow create: if isManager();
+      allow update: if isManager();
+      allow delete: if isManager();
+    }
+    
+    // Customers collection - all staff can read/write
+    match /customers/{customerId} {
+      allow read, write: if isStaff();
+    }
+    
+    // Appointments collection - staff can manage their own, managers can manage all
+    match /appointments/{appointmentId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update: if isStaff() && 
+                   (resource.data.staffId == request.auth.uid || isManager());
+      allow delete: if isManager();
+    }
+    
+    // Blocks collection - time blocks for staff availability
+    match /blocks/{blockId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update: if isStaff() && resource.data.staffId == request.auth.uid;
+      allow delete: if isStaff() && resource.data.staffId == request.auth.uid;
+    }
+    
+    // Settings collection - only owners can modify
+    match /settings/{settingId} {
+      allow read: if isStaff();
+      allow write: if isOwner();
+    }
+    
+    // Notifications collection - system generated
+    match /notifications/{notificationId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
