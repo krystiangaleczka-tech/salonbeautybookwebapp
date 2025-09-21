@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salon Piękności - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="beauty_salon_theme.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background) !important;
+            color: var(--foreground) !important;
+        }
+        
+        .card {
+            background: var(--card) !important;
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius) !important;
+            border: 1px solid var(--border) !important;
+            box-shadow: var(--shadow-sm) !important;
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--shadow-lg) !important;
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary) !important;
+            color: var(--primary-foreground) !important;
+            border-radius: var(--radius) !important;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: oklch(0.82 0.15 350) !important;
+            transform: translateY(-1px);
+        }
+        
+        .sidebar {
+            background-color: var(--sidebar) !important;
+            border-right: 1px solid var(--sidebar-border) !important;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, var(--card) 0%, rgba(255,255,255,0.8) 100%) !important;
+            backdrop-filter: blur(12px);
+        }
+        
+        .appointment-card {
+            border-left: 4px solid var(--primary);
+        }
+        
+        .urgent {
+            border-left: 4px solid var(--destructive);
+        }
+        
+        .calendar-day {
+            transition: all 0.2s ease;
+        }
+        
+        .calendar-day:hover {
+            background-color: var(--accent) !important;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex">
+    <!-- Sidebar -->
+    <div class="sidebar w-64 min-h-screen p-6 hidden md:block">
+        <div class="flex items-center justify-center mb-8">
+            <div class="w-12 h-12 bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] rounded-full flex items-center justify-center">
+                <i data-lucide="sparkles" class="text-white"></i>
+            </div>
+            <h1 class="text-xl font-semibold ml-3" style="font-family: 'Playfair Display', serif;">Salon Piękności</h1>
+        </div>
+        
+        <nav class="space-y-2">
+            <a href="#" class="flex items-center p-3 rounded-lg bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)]">
+                <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i>
+                Dashboard
+            </a>
+            <a href="#" class="flex items-center p-3 rounded-lg text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)]">
+                <i data-lucide="calendar" class="w-5 h-5 mr-3"></i>
+                Kalendarz
+            </a>
+            <a href="#" class="flex items-center p-3 rounded-lg text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)]">
+                <i data-lucide="users" class="w-5 h-5 mr-3"></i>
+                Klienci
+            </a>
+            <a href="#" class="flex items-center p-3 rounded-lg text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)]">
+                <i data-lucide="scissors" class="w-5 h-5 mr-3"></i>
+                Usługi
+            </a>
+            <a href="#" class="flex items-center p-3 rounded-lg text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)]">
+                <i data-lucide="bar-chart-3" class="w-5 h-5 mr-3"></i>
+                Raporty
+            </a>
+        </nav>
+        
+        <div class="mt-8 pt-6 border-t border-[var(--sidebar-border)]">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] rounded-full"></div>
+                <div>
+                    <p class="font-medium">Maja Flak</p>
+                    <p class="text-sm text-[var(--muted-foreground)]">Profesjonalistka</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-6 overflow-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold" style="font-family: 'Playfair Display', serif;">Witaj, Maja!</h1>
+                <p class="text-[var(--muted-foreground)]">Dzisiaj jest poniedziałek, 15 stycznia 2024</p>
+            </div>
+            <div class="flex space-x-4">
+                <button class="btn-primary px-6 py-2 flex items-center">
+                    <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                    Nowa rezerwacja
+                </button>
+                <div class="relative">
+                    <div class="w-10 h-10 bg-[var(--accent)] rounded-full flex items-center justify-center cursor-pointer">
+                        <i data-lucide="bell" class="w-5 h-5"></i>
+                        <span class="absolute -top-1 -right-1 w-4 h-4 bg-[var(--destructive)] text-white text-xs rounded-full flex items-center justify-center">3</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="card stat-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[var(--muted-foreground)]">Dzisiejsze wizyty</p>
+                        <h2 class="text-3xl font-bold text-[var(--primary)]">8</h2>
+                    </div>
+                    <div class="w-12 h-12 bg-[var(--primary)] bg-opacity-20 rounded-full flex items-center justify-center">
+                        <i data-lucide="calendar" class="w-6 h-6 text-[var(--primary)]"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card stat-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[var(--muted-foreground)]">Oczekujące</p>
+                        <h2 class="text-3xl font-bold text-[var(--chart-3)]">3</h2>
+                    </div>
+                    <div class="w-12 h-12 bg-[var(--chart-3)] bg-opacity-20 rounded-full flex items-center justify-center">
+                        <i data-lucide="clock" class="w-6 h-6 text-[var(--chart-3)]"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card stat-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[var(--muted-foreground)]">Przychód</p>
+                        <h2 class="text-3xl font-bold text-[var(--chart-4)]">1,240 zł</h2>
+                    </div>
+                    <div class="w-12 h-12 bg-[var(--chart-4)] bg-opacity-20 rounded-full flex items-center justify-center">
+                        <i data-lucide="dollar-sign" class="w-6 h-6 text-[var(--chart-4)]"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card stat-card p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[var(--muted-foreground)]">Zajętość</p>
+                        <h2 class="text-3xl font-bold text-[var(--chart-5)]">75%</h2>
+                    </div>
+                    <div class="w-12 h-12 bg-[var(--chart-5)] bg-opacity-20 rounded-full flex items-center justify-center">
+                        <i data-lucide="trending-up" class="w-6 h-6 text-[var(--chart-5)]"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Today's Appointments -->
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-semibold">Dzisiejsze wizyty</h2>
+                    <span class="text-sm text-[var(--primary)] font-medium">8 rezerwacji</span>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="appointment-card card p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] rounded-full"></div>
+                                <div>
+                                    <p class="font-medium">Anna Kowalska</p>
+                                    <p class="text-sm text-[var(--muted-foreground)]">Manicure hybrydowy</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-semibold">09:00</p>
+                                <p class="text-sm text-[var(--muted-foreground)]">120 zł</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="appointment-card card p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-r from-[var(--chart-3)] to-[var(--chart-4)] rounded-full"></div>
+                                <div>
+                                    <p class="font-medium">Katarzyna Nowak</p>
+                                    <p class="text-sm text-[var(--muted-foreground)]">Stylizacja brwi</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-semibold">10:30</p>
+                                <p class="text-sm text-[var(--muted-foreground)]">80 zł</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="appointment-card urgent card p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-r from-[var(--destructive)] to-orange-400 rounded-full"></div>
+                                <div>
+                                    <p class="font-medium">Maria Wiśniewska</p>
+                                    <p class="text-sm text-[var(--muted-foreground)]">Konsultacja + zabieg</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-semibold text-[var(--destructive)]">11:45</p>
+                                <p class="text-sm text-[var(--muted-foreground)]">250 zł</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="appointment-card card p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-r from-[var(--chart-5)] to-purple-400 rounded-full"></div>
+                                <div>
+                                    <p class="font-medium">Joanna Lewandowska</p>
+                                    <p class="text-sm text-[var(--muted-foreground)]">Masaż twarzy</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-semibold">13:15</p>
+                                <p class="text-sm text-[var(--muted-foreground)]">150 zł</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="w-full mt-6 btn-primary py-2 flex items-center justify-center">
+                    <i data-lucide="eye" class="w-4 h-4 mr-2"></i>
+                    Zobacz wszystkie rezerwacje
+                </button>
+            </div>
+
+            <!-- Calendar & Quick Actions -->
+            <div class="space-y-6">
+                <!-- Mini Calendar -->
+                <div class="card p-6">
+                    <h2 class="text-xl font-semibold mb-4">Kalendarz</h2>
+                    <div class="grid grid-cols-7 gap-2">
+                        <div class="text-center text-sm text-[var(--muted-foreground)]">Pn</div>
+                        <div class="text-center text-sm text-[var(--muted-foreground)]">Wt</div>
+                        <div class="text-center text-sm text-[var(--muted-foreground)]">Śr</div>
+                        <div class="text-center text-sm text-[var(--muted-foreground)]">Cz</div>
+                        <div class="text-center text-sm text-[var(--muted-foreground)]">Pt</div>
+                        <div class="text-center text-sm text-[var(--muted-foreground)]">So</div>
+                        <div class="text-center text-sm text-[var(--muted-foreground)]">Nd</div>
+                        
+                        <!-- Calendar days -->
+                        <div class="calendar-day text-center p-2 rounded-lg">8</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">9</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">10</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">11</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">12</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">13</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">14</div>
+                        
+                        <div class="calendar-day text-center p-2 rounded-lg bg-[var(--primary)] text-white">15</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">16</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">17</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">18</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">19</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">20</div>
+                        <div class="calendar-day text-center p-2 rounded-lg">21</div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card p-6">
+                    <h2 class="text-xl font-semibold mb-4">Szybkie akcje</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button class="flex flex-col items-center justify-center p-4 rounded-lg bg-[var(--accent)] bg-opacity-20 hover:bg-opacity-30 transition-all">
+                            <i data-lucide="user-plus" class="w-6 h-6 text-[var(--accent)] mb-2"></i>
+                            <span class="text-sm font-medium">Nowy klient</span>
+                        </button>
+                        <button class="flex flex-col items-center justify-center p-4 rounded-lg bg-[var(--chart-3)] bg-opacity-20 hover:bg-opacity-30 transition-all">
+                            <i data-lucide="scissors" class="w-6 h-6 text-[var(--chart-3)] mb-2"></i>
+                            <span class="text-sm font-medium">Dodaj usługę</span>
+                        </button>
+                        <button class="flex flex-col items-center justify-center p-4 rounded-lg bg-[var(--chart-4)] bg-opacity-20 hover:bg-opacity-30 transition-all">
+                            <i data-lucide="calendar-plus" class="w-6 h-6 text-[var(--chart-4)] mb-2"></i>
+                            <span class="text-sm font-medium">Blokada terminu</span>
+                        </button>
+                        <button class="flex flex-col items-center justify-center p-4 rounded-lg bg-[var(--chart-5)] bg-opacity-20 hover:bg-opacity-30 transition-all">
+                            <i data-lucide="bar-chart-3" class="w-6 h-6 text-[var(--chart-5)] mb-2"></i>
+                            <span class="text-sm font-medium">Raport dnia</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+        
+        // Add some interactive effects
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.addEventListener('mouseenter', () => {
+                    card.style.transform = 'translateY(-4px)';
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'translateY(0)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
