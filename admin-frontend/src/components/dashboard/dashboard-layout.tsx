@@ -57,13 +57,11 @@ export function DashboardLayout({ active, header, children }: DashboardLayoutPro
           })}
         </nav>
 
-        <div className="mt-auto pt-6">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-primary to-accent" />
-            <div>
-              <p className="font-medium text-foreground">Maja Flak</p>
-              <p className="text-sm text-muted-foreground">Profesjonalistka</p>
-            </div>
+        <div className="mt-6 flex items-center space-x-3 border-t border-sidebar-border pt-6">
+          <div className="h-10 w-10 rounded-full bg-gradient-to-r from-primary to-accent" />
+          <div>
+            <p className="font-medium text-foreground">Maja Flak</p>
+            <p className="text-sm text-muted-foreground">Profesjonalistka</p>
           </div>
         </div>
       </aside>
