@@ -1,13 +1,4 @@
 {
   "/page": "app/page.js",
-  "/raporty/page": "app/raporty/page.js",
-  "/ustawienia/page": "app/ustawienia/page.js",
-  "/ustawienia/profil-salonu/page": "app/ustawienia/profil-salonu/page.js",
-  "/ustawienia/zespol-roles/page": "app/ustawienia/zespol-roles/page.js",
-  "/ustawienia/godziny-pracy/page": "app/ustawienia/godziny-pracy/page.js",
-  "/ustawienia/swieta-wyjatki/page": "app/ustawienia/swieta-wyjatki/page.js",
-  "/ustawienia/bufory/page": "app/ustawienia/bufory/page.js",
-  "/ustawienia/powiadomienia/page": "app/ustawienia/powiadomienia/page.js",
-  "/ustawienia/prywatnosc/page": "app/ustawienia/prywatnosc/page.js",
-  "/ustawienia/integracje/page": "app/ustawienia/integracje/page.js"
+  "/kalendarz/page": "app/kalendarz/page.js"
 }
