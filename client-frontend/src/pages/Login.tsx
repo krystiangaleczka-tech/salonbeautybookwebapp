@@ -23,7 +23,8 @@ const Login: React.FC = () => {
 
     try {
       await signInWithEmailAndPassword(auth, email, password)
-    } catch (err) {
+    } catch (error) {
+      console.error("Nie udało się zalogować użytkownika", error)
       setError("Nieprawidłowy email lub hasło")
       setLoading(false)
     }

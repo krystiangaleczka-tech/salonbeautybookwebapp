@@ -6,6 +6,7 @@ import {
   Coffee,
   Crown,
   LayoutDashboard,
+  Settings,
   Scissors,
   TrendingDown,
   TrendingUp,
@@ -15,7 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ToneKey } from "./dashboard-theme";
 
-export type NavKey = "dashboard" | "calendar" | "clients" | "services" | "reports";
+export type NavKey = "dashboard" | "calendar" | "clients" | "services" | "reports" | "settings";
 
 export interface SidebarNavItem {
   key: NavKey;
@@ -31,6 +32,7 @@ export const sidebarNavItems: SidebarNavItem[] = [
   { key: "clients", label: "Klienci", icon: Users, href: "/klienci" },
   { key: "services", label: "Usługi", icon: Scissors, href: "/uslugi" },
   { key: "reports", label: "Raporty", icon: BarChart3, href: "/raporty" },
+  { key: "settings", label: "Ustawienia", icon: Settings, href: "/ustawienia" },
 ];
 
 export interface StatCardData {
