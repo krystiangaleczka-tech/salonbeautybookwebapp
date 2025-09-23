@@ -1,0 +1,6 @@
+=== WORK DONE LOG ===
+2025-09-23
+- Utworzono codebase `booking-functions` (TypeScript) wraz z konfiguracją ESLint oraz plikami szablonowymi Cloud Functions
+- Skonfigurowano hosting Firebase dla klienta i panelu admina, dodając statyczny katalog `public/` z podstawowymi plikami
+- Zaktualizowano `.firebaserc`, `firebase.json`, `firestore.rules` oraz indeksy, dostosowując routing i targety dla obu frontendów
+- Dodano workflowy GitHub Actions do automatycznych deployów (merge/pull-request) na Firebase Hosting

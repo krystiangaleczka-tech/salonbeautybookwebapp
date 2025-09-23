@@ -29,7 +29,7 @@ salon-booking-app/
 - **Wysokiej jakości, eleganckie rozwiązania**
 - **Human-in-the-loop po 2 nieudanych próbach**
 - **Multi-stage builds w Dockerfile**
-- **Log postępu**: Po każdym wykonanym zadaniu tworzymy nowy plik `.log` z datą i listą czynności (np. 2025-09-23-Git_repository_cleanup.log) w katalogu `progress`
+- **Log postępu**: Po każdym wykonanym zadaniu tworzymy nowy plik `.log` z datą i listą czynności (np. 2025-09-23-16:34-Git_repository_cleanup.log) w katalogu `progress`
 
 ## Stack technologiczny
 
