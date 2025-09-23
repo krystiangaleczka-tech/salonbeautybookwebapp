@@ -1,0 +1,5 @@
+=== WORK DONE LOG ===
+2025-09-23-17:12
+- Dodano moduły klienckie do pracy z Firestore: `customers.ts`, `services.ts`, `staff.ts`, `blocks.ts` oraz helper `availability.ts` z generowaniem slotów i walidacją godzin/kolizji
+- Przebudowano modal rezerwacji w `client-frontend/src/pages/Calendar.tsx:1` na 3-krokowy proces (klient → usługa → slot) z autocomplete, quick-add i inteligentnymi defaultami
+- Wprowadzono walidację slotu (godziny pracy, bufory, blokady) oraz listę alternatywnych terminów, a także możliwość ustawienia statusu i ceny przed zapisem

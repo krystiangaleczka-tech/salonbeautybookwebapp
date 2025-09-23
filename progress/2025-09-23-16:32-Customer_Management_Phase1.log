@@ -1,5 +1,5 @@
 === WORK DONE LOG ===
-2025-09-23
+2025-09-23-16:32
 - Podłączono widok klientów w panelu admina do Firestore z aktualizacjami w czasie rzeczywistym
 - Utworzono serwis CRUD (`admin-frontend/src/lib/customers-service.ts`) oraz formularz modala do dodawania i edycji klientów
 - Dodano potwierdzenie usuwania klienta oraz filtr wyszukiwania po imieniu, telefonie i emailu
