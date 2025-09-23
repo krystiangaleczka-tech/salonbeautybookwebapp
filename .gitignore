@@ -2,3 +2,9 @@ node_modules
 .next
 .DS_Store
 .opencode/
+.env*
+.config/
+.firebase/
+.cache/
+.npm/
+firebase-debug.log

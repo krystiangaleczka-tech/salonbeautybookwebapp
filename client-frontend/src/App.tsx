@@ -1,8 +1,8 @@
 import { Provider } from "react-redux"
-import { store } from "./store"
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+import { store } from "./store"
 import { AuthProvider } from "./contexts/AuthContext"
-import Layout from "./components/Layout"
+import ProtectedLayout from "./components/ProtectedLayout"
 import Dashboard from "./pages/Dashboard"
 import Login from "./pages/Login"
 import Booking from "./pages/Booking"
@@ -14,15 +14,16 @@ function App() {
     <Provider store={store}>
       <Router>
         <AuthProvider>
-          <Layout>
-            <Routes>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/login" element={<Login />} />
               <Route path="/booking" element={<Booking />} />
               <Route path="/customers" element={<Customers />} />
               <Route path="/calendar" element={<Calendar />} />
-            </Routes>
-          </Layout>
+              <Route path="*" element={<Dashboard />} />
+            </Route>
+          </Routes>
         </AuthProvider>
       </Router>
     </Provider>

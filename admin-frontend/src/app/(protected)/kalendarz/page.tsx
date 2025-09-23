@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlarmClock,
   CalendarDays,
@@ -13,16 +13,99 @@ import {
   Trash2,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import {
-  baseSalonHours,
-  calendarEvents,
-  calendarServices,
-  dailyOverrides,
-  type CalendarEvent,
-  type CalendarService,
-  type CalendarStatus,
-  type WorkingHours,
-} from "@/lib/calendar-mock-data";
+import type { ToneKey } from "@/lib/dashboard-theme";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
+
+type CalendarStatus = "confirmed" | "pending" | "no-show" | "cancelled";
+
+export interface CalendarService {
+  id: string;
+  name: string;
+  durationMin: number;
+  noParallel?: boolean;
+  bufferAfterMin?: number;
+  tone: ToneKey;
+}
+
+export interface CalendarEvent {
+  id: string;
+  serviceId: string;
+  clientName: string;
+  staffName: string;
+  start: string; // ISO string
+  end: string; // ISO string
+  status: CalendarStatus;
+  price?: string;
+  offline?: boolean;
+  notes?: string;
+}
+
+export interface WorkingHours {
+  start: string; // HH:mm
+  end: string; // HH:mm
+}
+
+export type WeeklyHours = Record<number, WorkingHours | null>;
+
+const baseSalonHours: WeeklyHours = {
+  0: null,
+  1: { start: "09:00", end: "17:00" },
+  2: { start: "09:00", end: "17:00" },
+  3: { start: "09:00", end: "17:00" },
+  4: { start: "09:00", end: "17:30" },
+  5: { start: "10:00", end: "16:00" },
+  6: null,
+};
+
+const dailyOverrides: Record<string, WorkingHours> = {
+  "2024-01-17": { start: "11:00", end: "17:00" },
+  "2024-01-18": { start: "09:00", end: "15:00" },
+};
+
+function toIsoString(value: unknown) {
+  if (!value) {
+    return new Date().toISOString();
+  }
+
+  if (value instanceof Timestamp) {
+    return value.toDate().toISOString();
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return new Date(value).toISOString();
+  }
+
+  if (typeof value === "object" && value !== null && "toDate" in value && typeof (value as { toDate: () => Date }).toDate === "function") {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+
+  return new Date().toISOString();
+}
+
+function toCalendarStatus(value: unknown): CalendarStatus {
+  const candidate = typeof value === "string" ? value : "";
+  if (candidate === "confirmed" || candidate === "pending" || candidate === "no-show" || candidate === "cancelled") {
+    return candidate;
+  }
+  return "pending";
+}
+
+function formatPrice(value: unknown): string | undefined {
+  if (typeof value === "number") {
+    return value.toLocaleString("pl-PL", { style: "currency", currency: "PLN" });
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+
+  return undefined;
+}
 
 const VIEW_OPTIONS = [
   { value: "day", label: "Dzień", icon: CalendarDays },
@@ -591,12 +674,80 @@ function CalendarToolbar() {
 
 export default function CalendarPage() {
   const [view, setView] = useState<typeof VIEW_OPTIONS[number]["value"]>("week");
-  const [referenceDate, setReferenceDate] = useState(() => new Date("2024-01-15T00:00:00"));
+  const [referenceDate, setReferenceDate] = useState(() => new Date());
+  const [calendarServices, setCalendarServices] = useState<CalendarService[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [servicesLoaded, setServicesLoaded] = useState(false);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const servicesQuery = collection(db, "services");
+    const unsubscribeServices = onSnapshot(
+      servicesQuery,
+      (snapshot) => {
+        const fetchedServices = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: typeof data.name === "string" && data.name.trim() ? data.name : "Usługa",
+            durationMin: Number(data.durationMin ?? data.duration ?? 60),
+            noParallel: Boolean(data.noParallel ?? false),
+            bufferAfterMin: typeof data.bufferAfterMin === "number" ? data.bufferAfterMin : undefined,
+            tone: (data.tone ?? "primary") as ToneKey,
+          } satisfies CalendarService;
+        });
+        setCalendarServices(fetchedServices);
+        setServicesLoaded(true);
+      },
+      (error) => {
+        console.error("Nie udało się pobrać listy usług", error);
+        setServicesLoaded(true);
+        setDataError((current) => current ?? "Nie udało się pobrać listy usług");
+      }
+    );
+
+    const appointmentsQuery = query(collection(db, "appointments"), orderBy("start"));
+    const unsubscribeAppointments = onSnapshot(
+      appointmentsQuery,
+      (snapshot) => {
+        const fetchedEvents = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            serviceId: typeof data.serviceId === "string" ? data.serviceId : "",
+            clientName: typeof data.clientName === "string" ? data.clientName : "Klient",
+            staffName: typeof data.staffName === "string" ? data.staffName : "Pracownik",
+            start: toIsoString(data.start),
+            end: toIsoString(data.end),
+            status: toCalendarStatus(data.status),
+            price: formatPrice(data.price),
+            offline: Boolean(data.offline ?? false),
+            notes: typeof data.notes === "string" ? data.notes : undefined,
+          } satisfies CalendarEvent;
+        });
+        setCalendarEvents(fetchedEvents);
+        setEventsLoaded(true);
+      },
+      (error) => {
+        console.error("Nie udało się pobrać listy wizyt", error);
+        setEventsLoaded(true);
+        setDataError((current) => current ?? "Nie udało się pobrać listy wizyt");
+      }
+    );
+
+    return () => {
+      unsubscribeServices();
+      unsubscribeAppointments();
+    };
+  }, []);
+
+  const loadingData = !servicesLoaded || !eventsLoaded;
 
   const { start, days } = useWeek(referenceDate);
   const positionedEvents = useMemo(
     () => buildEventsForRange(calendarEvents, start, calendarServices, minutesWindow),
-    [start]
+    [calendarEvents, calendarServices, start]
   );
 
   const monthInfo = useMonth(referenceDate);
@@ -623,6 +774,8 @@ export default function CalendarPage() {
     [positionedEvents, referenceDate]
   );
 
+  const isEmpty = !loadingData && calendarEvents.length === 0;
+
   return (
     <DashboardLayout
       active="calendar"
@@ -632,6 +785,16 @@ export default function CalendarPage() {
       }}
     >
       <div className="space-y-6">
+        {dataError ? (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+            {dataError}
+          </div>
+        ) : null}
+        {loadingData ? (
+          <div className="rounded-xl border border-border bg-background p-4 text-sm text-muted-foreground">
+            Ładujemy dane kalendarza z Firestore...
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-4 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -754,6 +917,12 @@ export default function CalendarPage() {
 
           <DayAgenda events={dayEvents} />
         </div>
+
+        {isEmpty ? (
+          <div className="rounded-3xl border border-dashed border-border/60 bg-background p-6 text-center text-sm text-muted-foreground">
+            Brak zaplanowanych wizyt. Dodaj pierwszą rezerwację, aby wypełnić kalendarz.
+          </div>
+        ) : null}
 
         <div className="rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-6 text-sm text-muted-foreground">
           <div className="flex flex-wrap items-center gap-4">

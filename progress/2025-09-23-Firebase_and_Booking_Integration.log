@@ -1,0 +1,7 @@
+=== WORK DONE LOG ===
+2025-09-23
+- Dodano wzorce konfiguracji środowiska (`client-frontend/.env.example`, `admin-frontend/.env.local.example`) i rozszerzono `.gitignore`, aby zabezpieczyć sekrety podczas pracy lokalnej
+- Wprowadzono pełne wsparcie Firebase w panelu admina: wspólny provider (`admin-frontend/src/lib/firebase.ts`), kontekst `AuthProvider`, hook `useAuth`, strażnik `AuthGuard` oraz widok logowania `/(auth)/login`
+- Przeniesiono ekrany admina do grupy tras `(protected)` i zaktualizowano layout nawigacji, aby pokazywał relewantnego użytkownika oraz umożliwiał wylogowanie
+- Zamieniono mocki kalendarza w adminie na strumienie z kolekcji `services` i `appointments` w Firestore, dodając stany ładowania, błędów i komunikat pustego grafiku
+- W kliencie dodano `ProtectedLayout`, zabezpieczono routing i rozbudowano kalendarz o modal rezerwacji, który zapisuje wizyty do Firestore i prezentuje nadchodzące spotkania
