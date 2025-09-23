@@ -1,0 +1,5 @@
+=== WORK DONE LOG ===
+2025-09-23
+- Dodano serwis Firestore dla usług (`admin-frontend/src/lib/services-service.ts`) z obsługą subskrypcji i operacji CRUD
+- Przebudowano widok `admin-frontend/src/app/(protected)/uslugi/page.tsx`, aby korzystał z danych w czasie rzeczywistym i posiadał formularz dodawania/edycji oraz usuwanie z potwierdzeniem
+- Wprowadzono wyszukiwanie po nazwie/kategorii/opisie, filtr kategorii oraz odświeżone statystyki katalogu usług

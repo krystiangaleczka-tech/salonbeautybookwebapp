@@ -1,0 +1,6 @@
+=== WORK DONE LOG ===
+2025-09-23
+- Wprowadziłem serwis `services-service.ts`, który kapsułkuje subskrypcję realtime i operacje CRUD na kolekcji `services`, łącznie z bezpiecznym mapowaniem pól i walidacją tonów (`admin-frontend/src/lib/services-service.ts:17`)
+- Widok usług korzysta teraz z Firestore: ma realtime listę, formularz dodawania/edycji, potwierdzanie usuwania i aktualizowane statystyki (`admin-frontend/src/app/(protected)/uslugi/page.tsx:3`)
+- Dodałem wyszukiwarkę po nazwie/kategorii/opisie oraz filtr kategorii, a lista prezentuje dodatkowe szczegóły (bufor, równoległe wizyty, liczby rezerwacji) (`admin-frontend/src/app/(protected)/uslugi/page.tsx:131`, `admin-frontend/src/app/(protected)/uslugi/page.tsx:217`)
+- Zgodnie z procedurą logowania powstał wpis `progress/2025-09-23-Services_Management_Phase2.log:1`
