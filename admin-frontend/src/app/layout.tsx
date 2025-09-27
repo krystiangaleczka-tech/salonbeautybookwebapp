@@ -10,6 +10,9 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrai
 export const metadata: Metadata = {
   title: "Salon Piękności – Panel zarządzania",
   description: "Panel administracyjny do zarządzania rezerwacjami w salonie piękności.",
+  icons: {
+    icon: '/favicon.ico'
+  }
 };
 
 export default function RootLayout({
@@ -22,6 +25,9 @@ export default function RootLayout({
       lang="pl"
       className={`${inter.variable} ${playfair.variable} ${jetbrains.variable}`}
     >
+<head>
+        <link rel="icon" href="/favicon.ico" />
+      </head>
       <body className="min-h-screen font-sans antialiased">
         <Providers>{children}</Providers>
       </body>

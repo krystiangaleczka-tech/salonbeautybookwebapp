@@ -31,10 +31,14 @@
     "deploy:functions": "firebase deploy --only functions"
   },
   "devDependencies": {
+    "chrome-devtools-mcp": "^0.4.0",
     "concurrently": "^8.2.2",
     "firebase-tools": "^13.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.55.1"
   }
 }
