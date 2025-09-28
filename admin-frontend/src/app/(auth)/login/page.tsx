@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
@@ -38,7 +38,7 @@ export default function LoginPage() {
     }
   };
 
-  if (loading || user) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <span className="text-sm text-muted-foreground">Ładowanie...</span>
@@ -46,9 +46,18 @@ export default function LoginPage() {
     );
   }
 
+  if (user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <span className="text-sm text-muted-foreground">Przekierowywanie...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
+      <div className="w-full max-w-md space-y-4">
+        <div className="rounded-xl bg-white p-8 shadow-lg">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-semibold text-foreground">Panel salonu</h1>
           <p className="text-sm text-muted-foreground">Zaloguj się, aby zarządzać rezerwacjami</p>
@@ -96,6 +105,19 @@ export default function LoginPage() {
           </button>
         </form>
       </div>
+      </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <span className="text-sm text-muted-foreground">Ładowanie...</span>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

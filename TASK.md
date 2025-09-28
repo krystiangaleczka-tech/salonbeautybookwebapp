@@ -10,9 +10,9 @@ Zgodnie z [ARCHITECTURE.md][1], projekt składa się z:
 
 ```
 salon-booking-app/
-├── client-frontend/     # React app (port 3000)
-├── admin-frontend/      # Next.js admin (port 3001) 
+├── admin-frontend/      # Next.js admin (port 3001)
 ├── functions/          # Cloud Functions
+├── archives/           # Archived frontend snapshots
 ├── firebase.json       # Firebase config
 └── firestore.rules     # Database security
 ```
@@ -36,18 +36,12 @@ Zgodnie z zasadami logowania powstał wpis progress/2025-09-23-Services_Manageme
 
 ## Stack technologiczny
 
-### Frontend (Client)
-- **Framework**: React 18+ z TypeScript
-- **Build**: Vite
-- **UI**: Tailwind CSS + shadcn/ui
-- **State**: Redux Toolkit
-- **Routing**: React Router v6
-- **Formularze**: React Hook Form z Zod validation
-
-### Frontend (Admin)  
+### Frontend (Admin)
 - **Framework**: Next.js z TypeScript
 - **UI**: Tailwind CSS + shadcn/ui
 - **Deployment**: Firebase Hosting
+
+_Notatka:_ Moduł `client-frontend` został zarchiwizowany w katalogu `archives/`. Nowa implementacja powstanie po ustaleniu docelowych wymagań.
 
 ### Backend
 - **Platform**: Firebase

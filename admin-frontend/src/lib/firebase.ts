@@ -1,6 +1,6 @@
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -15,9 +15,24 @@ if (!firebaseConfig.apiKey) {
   throw new Error("Missing Firebase configuration. Please set NEXT_PUBLIC_FIREBASE_* environment variables.");
 }
 
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const app: FirebaseApp = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
+
+let dbInstance: Firestore;
+
+if (typeof window !== "undefined") {
+  try {
+    dbInstance = initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+    });
+  } catch (error) {
+    console.warn("Falling back to default Firestore initialization", error);
+    dbInstance = getFirestore(app);
+  }
+} else {
+  dbInstance = getFirestore(app);
+}
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = dbInstance;
 
 export default app;

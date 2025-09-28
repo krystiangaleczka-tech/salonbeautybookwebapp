@@ -1,32 +1,16 @@
 Salon Booking Application
 Przegląd systemu
-Aplikacja do rezerwacji terminów w salonie piękności oparta na Firebase i TypeScript. System składa się z trzech głównych komponentów komunikujących się przez Firebase backend.
+Aplikacja do rezerwacji terminów w salonie piękności oparta na Firebase i TypeScript. Aktywny system obejmuje panel administracyjny oraz warstwę backendową opartą na Firebase.
 Architektura wysokiego poziomu
 
-Client App (React) ←→ Firebase ←→ Admin Panel (Next.js)
-                         ↕
-                    Cloud Functions
-                         ↕
-                     Firestore DB
+Admin Panel (Next.js) ←→ Firebase
+                     ↕
+               Cloud Functions
+                     ↕
+                 Firestore DB
 
 
 Komponenty systemu
-
-Client Frontend
-
-Technologia: React + TypeScript + Vite
-
-Port: 3000 (development)
-
-UI: Tailwind CSS + shadcn/ui
-
-State: Redux Toolkit
-
-Routing: React Router
-
-Deployment: Firebase Hosting
-
-Funkcje: Rezerwacja terminów, przeglądanie usług, profil klienta
 
 Admin Panel
 
@@ -89,19 +73,19 @@ Maintenance: Managed infrastructure
 Struktura katalogów
 
 salon-booking-app/
-├── client-frontend/     # React app
 ├── admin-frontend/      # Next.js admin
 ├── functions/          # Cloud Functions
 ├── firebase.json       # Firebase config
+├── archives/           # Zarchiwizowane frontendowe snapshoty
 └── firestore.rules     # Database security
 
 
 Wymagania aplikacji
-
-Klienci: Rezerwacja bez rejestracji, SMS powiadomienia
 
 Staff: Zarządzanie kalendarzem, klientami, usługami
 
 Właściciel: Raporty, ustawienia, finanse
 
 System: Real-time dostępność, offline support
+
+Notatka: Poprzedni moduł `client-frontend` został zarchiwizowany. Nowe wdrożenie aplikacji klienckiej powstanie od podstaw, aby uniknąć konfliktów konfiguracyjnych.

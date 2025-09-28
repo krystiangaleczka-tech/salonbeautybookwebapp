@@ -4,31 +4,19 @@
   "description": "Beauty salon booking and management system",
   "private": true,
   "workspaces": [
-    "client-frontend",
-    "admin-frontend",
-    "functions"
+    "admin-frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:client\" \"npm run dev:admin\" \"npm run dev:functions\"",
-    "dev:client": "cd client-frontend && npm run dev",
+    "dev": "npm run dev:admin",
     "dev:admin": "cd admin-frontend && npm run dev",
-    "dev:functions": "cd functions && npm run dev",
-    "build": "npm run build:client && npm run build:admin && npm run build:functions",
-    "build:client": "cd client-frontend && npm run build",
+    "build": "npm run build:admin",
     "build:admin": "cd admin-frontend && npm run build",
-    "build:functions": "cd functions && npm run build",
-    "test": "npm run test:client && npm run test:admin && npm run test:functions",
-    "test:client": "cd client-frontend && npm run test",
+    "test": "npm run test:admin",
     "test:admin": "cd admin-frontend && npm run test",
-    "test:functions": "cd functions && npm run test",
-    "lint": "npm run lint:client && npm run lint:admin && npm run lint:functions",
-    "lint:client": "cd client-frontend && npm run lint",
+    "lint": "npm run lint:admin",
     "lint:admin": "cd admin-frontend && npm run lint",
-    "lint:functions": "cd functions && npm run lint",
-    "deploy": "firebase deploy",
-    "deploy:client": "firebase deploy --only hosting:client",
-    "deploy:admin": "firebase deploy --only hosting:admin",
-    "deploy:functions": "firebase deploy --only functions"
+    "deploy": "firebase deploy --only hosting:admin",
+    "deploy:admin": "firebase deploy --only hosting:admin"
   },
   "devDependencies": {
     "chrome-devtools-mcp": "^0.4.0",

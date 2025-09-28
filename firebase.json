@@ -5,14 +5,12 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
-  "hosting": {
-    "public": "client-frontend/dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ]
-  },
+  "hosting": [
+    {
+      "target": "admin",
+      "source": "admin-frontend"
+    }
+  ],
   "functions": [
     {
       "codebase": "default",

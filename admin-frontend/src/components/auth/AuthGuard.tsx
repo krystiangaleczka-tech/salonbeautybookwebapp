@@ -14,16 +14,24 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && pathname !== "/login") {
       const redirectParam = pathname ? `?redirect=${encodeURIComponent(pathname)}` : "";
       router.replace(`/login${redirectParam}`);
     }
   }, [user, loading, router, pathname]);
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <span className="text-sm text-muted-foreground">Ładowanie...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <span className="text-sm text-muted-foreground">Przekierowywanie do logowania...</span>
       </div>
     );
   }

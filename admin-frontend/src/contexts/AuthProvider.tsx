@@ -15,12 +15,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      setUser(authUser);
-      setLoading(false);
-    });
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (authUser) => {
+        setUser(authUser);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Failed to observe auth state", error);
+        setUser(null);
+        setLoading(false);
+      },
+    );
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const value = useMemo(

@@ -626,7 +626,7 @@ function DayAgenda({ events }: { events: PositionedEvent[] }) {
   );
 }
 
-function ViewSwitcher({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function ViewSwitcher({ value, onChange }: { value: typeof VIEW_OPTIONS[number]["value"]; onChange: (value: typeof VIEW_OPTIONS[number]["value"]) => void }) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-[#f2dcd4] bg-[#fdf7f3] p-1 shadow-sm">
       {VIEW_OPTIONS.map(({ value: option, label, icon: Icon }) => {

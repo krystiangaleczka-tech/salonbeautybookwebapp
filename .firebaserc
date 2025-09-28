@@ -3,13 +3,6 @@
     "default": "beauty-salon-booking-app-b5393"
   },
   "targets": {
-    "client": {
-      "hosting": {
-        "client": [
-          "beauty-salon-booking-app"
-        ]
-      }
-    },
     "admin": {
       "hosting": {
         "admin": [

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Inter, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
-const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
+const inter = Inter({ subsets: ["latin" as const], variable: "--font-inter" });
+const playfair = Playfair_Display({ subsets: ["latin" as const], variable: "--font-playfair" });
+const jetbrains = JetBrains_Mono({ subsets: ["latin" as const], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
   title: "Salon Piękności – Panel zarządzania",
@@ -15,19 +16,13 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+interface RootLayoutProps {
+  children: ReactNode;
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html
-      lang="pl"
-      className={`${inter.variable} ${playfair.variable} ${jetbrains.variable}`}
-    >
-<head>
-        <link rel="icon" href="/favicon.ico" />
-      </head>
+    <html lang="pl" className={`${inter.variable} ${playfair.variable} ${jetbrains.variable}`}>
       <body className="min-h-screen font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
