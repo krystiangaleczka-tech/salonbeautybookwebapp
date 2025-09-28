@@ -19,9 +19,13 @@
     "deploy:admin": "firebase deploy --only hosting:admin"
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.21",
     "chrome-devtools-mcp": "^0.4.0",
     "concurrently": "^8.2.2",
-    "firebase-tools": "^13.0.0"
+    "firebase-tools": "^13.0.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": ">=18.0.0"

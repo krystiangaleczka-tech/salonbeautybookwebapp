@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Inter, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { StyledJsxRegistry } from "@/components/styled-jsx-registry";
 
 const inter = Inter({ subsets: ["latin" as const], variable: "--font-inter" });
 const playfair = Playfair_Display({ subsets: ["latin" as const], variable: "--font-playfair" });
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="pl" className={`${inter.variable} ${playfair.variable} ${jetbrains.variable}`}>
       <body className="min-h-screen font-sans antialiased">
-        <Providers>{children}</Providers>
+        <StyledJsxRegistry>
+          <Providers>{children}</Providers>
+        </StyledJsxRegistry>
       </body>
     </html>
   );
