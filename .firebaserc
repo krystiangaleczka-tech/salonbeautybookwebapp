@@ -1,14 +1,15 @@
 {
   "projects": {
-    "default": "beauty-salon-booking-app-b5393"
+    "default": "salonbeautybookwebapp"
   },
   "targets": {
-    "admin": {
+    "salonbeautybookwebapp": {
       "hosting": {
         "admin": [
-          "beauty-salon-booking-app"
+          "salonbeautybookwebapp-f12cf"
         ]
       }
     }
-  }
+  },
+  "etags": {}
 }

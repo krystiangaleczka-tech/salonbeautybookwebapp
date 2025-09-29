@@ -19,6 +19,7 @@ export interface Customer {
   phone: string;
   email?: string;
   notes?: string;
+  blacklisted?: boolean;
   lastVisit?: Timestamp | null;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
@@ -29,6 +30,7 @@ export interface CustomerPayload {
   phone: string;
   email?: string;
   notes?: string;
+  blacklisted?: boolean;
   lastVisit?: Date | null;
 }
 
@@ -41,6 +43,7 @@ function mapCustomer(docData: DocumentData, id: string): Customer {
     phone: typeof docData.phone === "string" ? docData.phone : "",
     email: typeof docData.email === "string" ? docData.email : "",
     notes: typeof docData.notes === "string" ? docData.notes : "",
+    blacklisted: typeof docData.blacklisted === "boolean" ? docData.blacklisted : false,
     lastVisit: docData.lastVisit instanceof Timestamp ? docData.lastVisit : null,
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt : null,
     updatedAt: docData.updatedAt instanceof Timestamp ? docData.updatedAt : null,
@@ -71,6 +74,7 @@ export async function createCustomer(payload: CustomerPayload) {
     phone: payload.phone,
     email: payload.email ?? "",
     notes: payload.notes ?? "",
+    blacklisted: Boolean(payload.blacklisted),
     lastVisit: payload.lastVisit ? Timestamp.fromDate(payload.lastVisit) : null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -84,6 +88,7 @@ export async function updateCustomer(id: string, payload: CustomerPayload) {
     phone: payload.phone,
     email: payload.email ?? "",
     notes: payload.notes ?? "",
+    blacklisted: Boolean(payload.blacklisted),
     lastVisit: payload.lastVisit ? Timestamp.fromDate(payload.lastVisit) : null,
     updatedAt: serverTimestamp(),
   });

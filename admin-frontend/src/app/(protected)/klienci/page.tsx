@@ -27,11 +27,21 @@ interface CustomerFormState {
   email: string;
   notes: string;
   lastVisit: string;
+  blacklisted: boolean;
 }
 
 type FormMode = "create" | "edit";
 
-const tableHeaders = ["", "Imię i nazwisko", "Telefon", "Email", "Ostatnia wizyta", ""];
+const tableHeaders = [
+  "",
+  "Imię i nazwisko",
+  "Telefon",
+  "Email",
+  "Ostatnia wizyta",
+  "Notatki",
+  "Czarna lista",
+  "",
+];
 
 const initialFormState: CustomerFormState = {
   fullName: "",
@@ -39,6 +49,7 @@ const initialFormState: CustomerFormState = {
   email: "",
   notes: "",
   lastVisit: "",
+  blacklisted: false,
 };
 
 function toDateInputValue(timestamp?: Customer["lastVisit"]): string {
@@ -99,7 +110,7 @@ export default function ClientsPage() {
     }
     const query = searchTerm.trim().toLowerCase();
     return customers.filter((customer) => {
-      const values = [customer.fullName, customer.phone, customer.email];
+      const values = [customer.fullName, customer.phone, customer.email, customer.notes];
       return values.some((value) => value?.toLowerCase().includes(query));
     });
   }, [customers, searchTerm]);
@@ -121,6 +132,7 @@ export default function ClientsPage() {
       email: customer.email ?? "",
       notes: customer.notes ?? "",
       lastVisit: toDateInputValue(customer.lastVisit),
+      blacklisted: Boolean(customer.blacklisted),
     });
     setIsFormOpen(true);
     setFeedback(null);
@@ -144,6 +156,7 @@ export default function ClientsPage() {
       phone: formState.phone.trim(),
       email: formState.email.trim() || undefined,
       notes: formState.notes.trim() || undefined,
+      blacklisted: formState.blacklisted,
       lastVisit: formState.lastVisit ? new Date(formState.lastVisit) : null,
     };
 
@@ -172,6 +185,7 @@ export default function ClientsPage() {
       email: customer.email ?? "",
       notes: customer.notes ?? "",
       lastVisit: toDateInputValue(customer.lastVisit),
+      blacklisted: Boolean(customer.blacklisted),
     });
     setIsDeleteConfirmOpen(true);
     setFeedback(null);
@@ -247,7 +261,7 @@ export default function ClientsPage() {
         ) : null}
 
         <div className="card border border-border">
-          <div className="grid grid-cols-[48px_minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {tableHeaders.map((header, index) => (
               <span key={`${header}-${index}`}>{header}</span>
             ))}
@@ -267,18 +281,23 @@ export default function ClientsPage() {
             {filteredCustomers.map((customer) => (
               <div
                 key={customer.id}
-                className="grid grid-cols-[48px_minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-colors hover:bg-muted/60"
+                className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-colors hover:bg-muted/60"
               >
                 <span className="text-xs text-muted-foreground">{customer.fullName ? customer.fullName[0]?.toUpperCase() : "?"}</span>
-                <div className="flex flex-col">
-                  <span className="font-medium text-foreground">{customer.fullName || "Bez nazwy"}</span>
-                  {customer.notes ? (
-                    <span className="text-xs text-muted-foreground">{customer.notes}</span>
-                  ) : null}
-                </div>
+                <span className="font-medium text-foreground">{customer.fullName || "Bez nazwy"}</span>
                 <span className="text-sm font-medium text-foreground">{customer.phone || "–"}</span>
                 <span className="text-sm text-muted-foreground">{customer.email || "–"}</span>
                 <span className="text-sm text-muted-foreground">{formatTimestamp(customer.lastVisit)}</span>
+                <span className="text-sm text-muted-foreground">{customer.notes || "–"}</span>
+                <span
+                  className={`justify-self-start inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold leading-none min-w-[2.5rem] mr-8 ${
+                    customer.blacklisted
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  }`}
+                >
+                  {customer.blacklisted ? "Tak" : "Nie"}
+                </span>
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
@@ -357,6 +376,24 @@ export default function ClientsPage() {
                     onChange={(event) => setFormState((state) => ({ ...state, lastVisit: event.target.value }))}
                     className="rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
                   />
+                </label>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-3 text-sm shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={formState.blacklisted}
+                    onChange={(event) =>
+                      setFormState((state) => ({ ...state, blacklisted: event.target.checked }))
+                    }
+                    className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  <span className="flex flex-col gap-1">
+                    <span className="font-medium text-foreground">Czarna lista</span>
+                    <span className="text-xs text-muted-foreground">
+                      Zablokuj klienta przed rezerwacją nowych wizyt.
+                    </span>
+                  </span>
                 </label>
               </div>
               <label className="flex flex-col gap-2 text-sm">
