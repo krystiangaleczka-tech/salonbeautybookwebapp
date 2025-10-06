@@ -1,28 +1,9 @@
-import { BadgeCheck, LockKeyhole, ShieldHalf, UserPlus, Users2 } from "lucide-react";
+'use client';
 
-const teamMembers = [
-  {
-    name: "Maja Flak",
-    role: "Właścicielka",
-    email: "maja@salonmaja.pl",
-    status: "Aktywna",
-    twoFactor: "Włączone",
-  },
-  {
-    name: "Ilona Flak",
-    role: "Manager",
-    email: "ilona@salonmaja.pl",
-    status: "Aktywna",
-    twoFactor: "Zaproszenie wysłane",
-  },
-  {
-    name: "Agnieszka Nowicka",
-    role: "Stylistka",
-    email: "agnieszka@salonmaja.pl",
-    status: "W trakcie wdrożenia",
-    twoFactor: "Opcjonalne",
-  },
-];
+import { BadgeCheck, LockKeyhole, Loader2, ShieldHalf, UserPlus, Users2, X, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { subscribeToEmployees, createEmployee, updateEmployee, deleteEmployee, type Employee } from "@/lib/employees-service";
+import { initializeEmployees } from "@/lib/init-employees";
 
 const roleTemplates = [
   {
@@ -40,8 +21,150 @@ const roleTemplates = [
 ];
 
 export default function TeamAndRolesPage() {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    role: "",
+    email: "",
+    phone: "",
+    isActive: true,
+  });
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToEmployees(
+      (fetchedEmployees) => {
+        setEmployees(fetchedEmployees);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Nie udało się pobrać listy pracowników", error);
+        setError("Nie udało się pobrać listy pracowników");
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleInitializeEmployees = async () => {
+    setLoading(true);
+    const success = await initializeEmployees();
+    if (success) {
+      setFeedback("Pracownicy zostali pomyślnie zainicjalizowani.");
+    } else {
+      setError("Nie udało się zainicjalizować pracowników.");
+    }
+    setLoading(false);
+  };
+
+  const handleOpenForm = (employee?: Employee) => {
+    if (employee) {
+      setEditingEmployee(employee);
+      setFormData({
+        name: employee.name,
+        role: employee.role,
+        email: employee.email,
+        phone: employee.phone || "",
+        isActive: employee.isActive,
+      });
+    } else {
+      setEditingEmployee(null);
+      setFormData({
+        name: "",
+        role: "",
+        email: "",
+        phone: "",
+        isActive: true,
+      });
+    }
+    setIsFormOpen(true);
+    setFeedback(null);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingEmployee(null);
+    setFormData({
+      name: "",
+      role: "",
+      email: "",
+      phone: "",
+      isActive: true,
+    });
+    setFeedback(null);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.role || !formData.email) {
+      setError("Wszystkie pola oznaczone gwiazdką są wymagane.");
+      return;
+    }
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        if (editingEmployee) {
+          await updateEmployee(editingEmployee.id, formData);
+          setFeedback("Pracownik został zaktualizowany.");
+        } else {
+          await createEmployee(formData);
+          setFeedback("Pracownik został dodany.");
+        }
+        handleCloseForm();
+      } catch (error) {
+        console.error("Błąd podczas zapisywania pracownika:", error);
+        setError("Nie udało się zapisać pracownika. Spróbuj ponownie.");
+      }
+    });
+  };
+
+  const confirmDelete = (employeeId: string) => {
+    setDeletingEmployeeId(employeeId);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!deletingEmployeeId) {
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await deleteEmployee(deletingEmployeeId);
+        setFeedback("Pracownik został usunięty.");
+        setIsDeleteConfirmOpen(false);
+        setDeletingEmployeeId(null);
+      } catch (error) {
+        console.error("Błąd podczas usuwania pracownika:", error);
+        setError("Nie udało się usunąć pracownika. Spróbuj ponownie.");
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
+      {feedback ? (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+          <BadgeCheck className="h-4 w-4" />
+          {feedback}
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <X className="h-4 w-4" />
+          {error}
+        </div>
+      ) : null}
+
       <section className="card rounded-2xl border border-border bg-card p-6 shadow-sm">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
@@ -56,13 +179,22 @@ export default function TeamAndRolesPage() {
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button className="inline-flex items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
-              <ShieldHalf className="mr-2 h-4 w-4" />
-              Konfiguruj role
-            </button>
-            <button className="btn-primary">
+            {employees.length === 0 && (
+              <button
+                className="inline-flex items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                onClick={handleInitializeEmployees}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                Zainicjuj pracowników
+              </button>
+            )}
+            <button
+              className="btn-primary"
+              onClick={() => handleOpenForm()}
+            >
               <UserPlus className="mr-2 h-4 w-4" />
-              Zaproś pracownika
+              Dodaj pracownika
             </button>
           </div>
         </header>
@@ -74,25 +206,67 @@ export default function TeamAndRolesPage() {
                 <th className="px-4 py-3">Imię i nazwisko</th>
                 <th className="px-4 py-3">Rola</th>
                 <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Telefon</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">2FA</th>
+                <th className="px-4 py-3">Akcje</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-card">
-              {teamMembers.map(({ name, role, email, status, twoFactor }) => (
-                <tr key={email} className="hover:bg-muted/40">
-                  <td className="px-4 py-3 font-medium text-foreground">{name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{role}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{email}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                      <BadgeCheck className="h-3.5 w-3.5" />
-                      {status}
-                    </span>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center">
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Ładujemy pracowników...
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{twoFactor}</td>
                 </tr>
-              ))}
+              ) : employees.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center">
+                    <div className="text-sm text-muted-foreground">
+                      Brak pracowników. Kliknij "Zainicjuj pracowników", aby dodać przykładowych pracowników.
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                employees.map((employee) => (
+                  <tr key={employee.id} className="hover:bg-muted/40">
+                    <td className="px-4 py-3 font-medium text-foreground">{employee.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{employee.role}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{employee.email}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{employee.phone || "–"}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                        employee.isActive
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted/50 text-muted-foreground"
+                      }`}>
+                        <BadgeCheck className="h-3.5 w-3.5" />
+                        {employee.isActive ? "Aktywny" : "Nieaktywny"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-md border border-border p-1.5 text-foreground transition-transform hover:-translate-y-0.5 hover:bg-accent"
+                          onClick={() => handleOpenForm(employee)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-md border border-destructive p-1.5 text-destructive transition-transform hover:-translate-y-0.5 hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={() => confirmDelete(employee.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -139,6 +313,148 @@ export default function TeamAndRolesPage() {
           </button>
         </div>
       </section>
+
+      {/* Formularz dodawania/edycji pracownika */}
+      {isFormOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="text-lg font-semibold text-foreground">
+                {editingEmployee ? "Edytuj pracownika" : "Dodaj pracownika"}
+              </h2>
+              <button
+                type="button"
+                onClick={handleCloseForm}
+                className="rounded-md p-1 text-muted-foreground transition hover:bg-muted"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Imię i nazwisko *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Rola *
+                </label>
+                <input
+                  type="text"
+                  value={formData.role}
+                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Telefon
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <label htmlFor="isActive" className="ml-2 text-sm font-medium text-foreground">
+                  Aktywny
+                </label>
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={handleCloseForm}
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+                  disabled={isPending}
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow transition hover:bg-primary/90 disabled:opacity-70"
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    editingEmployee ? <Pencil className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />
+                  )}
+                  {editingEmployee ? "Zapisz zmiany" : "Dodaj pracownika"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal potwierdzenia usunięcia */}
+      {isDeleteConfirmOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              <h2 className="text-lg font-semibold text-foreground">Usuń pracownika</h2>
+            </div>
+            <div className="space-y-4 px-6 py-6 text-sm text-muted-foreground">
+              <p>
+                Czy na pewno chcesz usunąć tego pracownika? Tej operacji nie można cofnąć.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDeleteConfirmOpen(false);
+                    setDeletingEmployeeId(null);
+                  }}
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+                  disabled={isPending}
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground shadow transition hover:bg-destructive/90 disabled:opacity-70"
+                  disabled={isPending}
+                >
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Usuń
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   AlarmClock,
   CalendarDays,
@@ -8,14 +8,19 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutList,
+  Loader2,
   Pencil,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import type { ToneKey } from "@/lib/dashboard-theme";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
+import { createAppointment, subscribeToAppointments, type Appointment } from "@/lib/appointments-service";
+import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
+import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
 
 type CalendarStatus = "confirmed" | "pending" | "no-show" | "cancelled";
 
@@ -649,10 +654,13 @@ function ViewSwitcher({ value, onChange }: { value: typeof VIEW_OPTIONS[number][
   );
 }
 
-function CalendarToolbar() {
+function CalendarToolbar({ onOpenAppointmentModal }: { onOpenAppointmentModal: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button className="inline-flex h-11 min-w-[120px] items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md transition-transform hover:-translate-y-0.5">
+      <button
+        className="inline-flex h-11 min-w-[120px] items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-md transition-transform hover:-translate-y-0.5"
+        onClick={onOpenAppointmentModal}
+      >
         <Plus className="h-4 w-4" />
         Dodaj wizytę
       </button>
@@ -680,6 +688,26 @@ export default function CalendarPage() {
   const [servicesLoaded, setServicesLoaded] = useState(false);
   const [eventsLoaded, setEventsLoaded] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
+  
+  // Stan dla modalu dodawania wizyty
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [appointmentForm, setAppointmentForm] = useState({
+    serviceId: "",
+    clientId: "",
+    staffName: "",
+    date: "",
+    time: "",
+    notes: ""
+  });
+  const [appointmentFormError, setAppointmentFormError] = useState<string | null>(null);
+  const [appointmentFormSuccess, setAppointmentFormSuccess] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  
+  // Dane dla formularza
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [customersLoaded, setCustomersLoaded] = useState(false);
+  const [employeesLoaded, setEmployeesLoaded] = useState(false);
 
   useEffect(() => {
     const servicesQuery = collection(db, "services");
@@ -707,23 +735,29 @@ export default function CalendarPage() {
       }
     );
 
-    const appointmentsQuery = query(collection(db, "appointments"), orderBy("start"));
-    const unsubscribeAppointments = onSnapshot(
-      appointmentsQuery,
-      (snapshot) => {
-        const fetchedEvents = snapshot.docs.map((doc) => {
-          const data = doc.data();
+    // Pobierz listę wizyt z nowego serwisu
+    const unsubscribeAppointments = subscribeToAppointments(
+      (fetchedAppointments) => {
+        // Mapowanie z Appointment na CalendarEvent
+        const fetchedEvents = fetchedAppointments.map((appointment) => {
+          // Znajdź nazwę klienta
+          const customer = customers.find(c => c.id === appointment.clientId);
+          const clientName = customer ? customer.fullName : "Nieznany klient";
+          
+          // Znajdź nazwę usługi
+          const service = calendarServices.find(s => s.id === appointment.serviceId);
+          
           return {
-            id: doc.id,
-            serviceId: typeof data.serviceId === "string" ? data.serviceId : "",
-            clientName: typeof data.clientName === "string" ? data.clientName : "Klient",
-            staffName: typeof data.staffName === "string" ? data.staffName : "Pracownik",
-            start: toIsoString(data.start),
-            end: toIsoString(data.end),
-            status: toCalendarStatus(data.status),
-            price: formatPrice(data.price),
-            offline: Boolean(data.offline ?? false),
-            notes: typeof data.notes === "string" ? data.notes : undefined,
+            id: appointment.id,
+            serviceId: appointment.serviceId,
+            clientName,
+            staffName: appointment.staffName,
+            start: appointment.start.toDate().toISOString(),
+            end: appointment.end.toDate().toISOString(),
+            status: appointment.status,
+            price: appointment.price ? formatPrice(appointment.price) : undefined,
+            offline: false, // Nowe wizyty nie są offline
+            notes: appointment.notes,
           } satisfies CalendarEvent;
         });
         setCalendarEvents(fetchedEvents);
@@ -736,11 +770,37 @@ export default function CalendarPage() {
       }
     );
 
+    // Pobierz listę klientów
+    const unsubscribeCustomers = subscribeToCustomers(
+      (fetchedCustomers) => {
+        setCustomers(fetchedCustomers);
+        setCustomersLoaded(true);
+      },
+      (error) => {
+        console.error("Nie udało się pobrać listy klientów", error);
+        setCustomersLoaded(true);
+      }
+    );
+
+    // Pobierz listę pracowników
+    const unsubscribeEmployees = subscribeToEmployees(
+      (fetchedEmployees) => {
+        setEmployees(fetchedEmployees);
+        setEmployeesLoaded(true);
+      },
+      (error) => {
+        console.error("Nie udało się pobrać listy pracowników", error);
+        setEmployeesLoaded(true);
+      }
+    );
+
     return () => {
       unsubscribeServices();
       unsubscribeAppointments();
+      unsubscribeCustomers();
+      unsubscribeEmployees();
     };
-  }, []);
+  }, [customers, calendarServices]);
 
   const loadingData = !servicesLoaded || !eventsLoaded;
 
@@ -850,7 +910,7 @@ export default function CalendarPage() {
             setView(next);
             setReferenceDate((prev) => new Date(prev));
           }} />
-          <CalendarToolbar />
+          <CalendarToolbar onOpenAppointmentModal={() => setIsAppointmentModalOpen(true)} />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1.1fr)]">
@@ -949,6 +1009,234 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal dodawania wizyty */}
+      {isAppointmentModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="text-lg font-semibold text-foreground">Dodaj nową wizytę</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAppointmentModalOpen(false);
+                  setAppointmentFormError(null);
+                  setAppointmentFormSuccess(null);
+                }}
+                className="rounded-md p-1 text-muted-foreground transition hover:bg-muted"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="px-6 py-6">
+              {appointmentFormError ? (
+                <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {appointmentFormError}
+                </div>
+              ) : null}
+              
+              {appointmentFormSuccess ? (
+                <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+                  {appointmentFormSuccess}
+                </div>
+              ) : null}
+
+              <div className="space-y-4">
+                {/* Wybór usługi */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Usługa *
+                  </label>
+                  <select
+                    value={appointmentForm.serviceId}
+                    onChange={(e) => setAppointmentForm(prev => ({ ...prev, serviceId: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                    required
+                  >
+                    <option value="">Wybierz usługę</option>
+                    {calendarServices.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name} ({service.durationMin} min)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Wybór klienta */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Klient *
+                  </label>
+                  <select
+                    value={appointmentForm.clientId}
+                    onChange={(e) => setAppointmentForm(prev => ({ ...prev, clientId: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                    required
+                  >
+                    <option value="">Wybierz klienta</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.fullName} {customer.phone ? `(${customer.phone})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Wybór pracownika */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Pracownik *
+                  </label>
+                  <select
+                    value={appointmentForm.staffName}
+                    onChange={(e) => setAppointmentForm(prev => ({ ...prev, staffName: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                    required
+                  >
+                    <option value="">Wybierz pracownika</option>
+                    {employees.filter(emp => emp.isActive).map((employee) => (
+                      <option key={employee.id} value={employee.name}>
+                        {employee.name} ({employee.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Wybór daty i godziny */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Data *
+                    </label>
+                    <input
+                      type="date"
+                      value={appointmentForm.date}
+                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Godzina *
+                    </label>
+                    <input
+                      type="time"
+                      value={appointmentForm.time}
+                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, time: e.target.value }))}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Notatki */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Notatki
+                  </label>
+                  <textarea
+                    value={appointmentForm.notes}
+                    onChange={(e) => setAppointmentForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Dodatkowe informacje o wizycie"
+                    rows={3}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAppointmentModalOpen(false);
+                    setAppointmentFormError(null);
+                    setAppointmentFormSuccess(null);
+                  }}
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+                  disabled={isPending}
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Walidacja formularza
+                    if (!appointmentForm.serviceId || !appointmentForm.clientId || !appointmentForm.staffName || !appointmentForm.date || !appointmentForm.time) {
+                      setAppointmentFormError("Wszystkie pola oznaczone gwiazdką są wymagane.");
+                      return;
+                    }
+                    
+                    setAppointmentFormError(null);
+                    
+                    // Znajdź wybraną usługę, aby obliczyć czas trwania
+                    const selectedService = calendarServices.find(service => service.id === appointmentForm.serviceId);
+                    if (!selectedService) {
+                      setAppointmentFormError("Wybrana usługa jest nieprawidłowa.");
+                      return;
+                    }
+                    
+                    // Znajdź wybranego klienta
+                    const selectedCustomer = customers.find(customer => customer.id === appointmentForm.clientId);
+                    if (!selectedCustomer) {
+                      setAppointmentFormError("Wybrany klient jest nieprawidłowy.");
+                      return;
+                    }
+                    
+                    // Utwórz obiekt daty początkowej i końcowej
+                    const startDateTime = new Date(`${appointmentForm.date}T${appointmentForm.time}`);
+                    const endDateTime = new Date(startDateTime.getTime() + selectedService.durationMin * 60000);
+                    
+                    startTransition(async () => {
+                      try {
+                        // Utwórz wizytę w Firebase
+                        await createAppointment({
+                          serviceId: appointmentForm.serviceId,
+                          clientId: appointmentForm.clientId,
+                          staffName: appointmentForm.staffName,
+                          start: startDateTime,
+                          end: endDateTime,
+                          status: "confirmed",
+                          notes: appointmentForm.notes.trim() || undefined,
+                        });
+                        
+                        setAppointmentFormSuccess("Wizyta została pomyślnie dodana.");
+                        
+                        // Czyszczenie formularza po 2 sekundach
+                        setTimeout(() => {
+                          setIsAppointmentModalOpen(false);
+                          setAppointmentForm({
+                            serviceId: "",
+                            clientId: "",
+                            staffName: "",
+                            date: "",
+                            time: "",
+                            notes: ""
+                          });
+                          setAppointmentFormSuccess(null);
+                        }, 2000);
+                      } catch (error) {
+                        console.error("Błąd podczas dodawania wizyty:", error);
+                        setAppointmentFormError("Nie udało się dodać wizyty. Spróbuj ponownie.");
+                      }
+                    });
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow transition hover:bg-primary/90 disabled:opacity-70"
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  Dodaj wizytę
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DashboardLayout>
   );
 }
