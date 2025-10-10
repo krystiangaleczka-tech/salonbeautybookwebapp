@@ -5,12 +5,14 @@ import {
   AlarmClock,
   CalendarDays,
   CalendarRange,
+  Check,
   ChevronLeft,
   ChevronRight,
   LayoutList,
   Loader2,
   Pencil,
   Plus,
+  RotateCcw,
   Trash2,
   X,
 } from "lucide-react";
@@ -21,6 +23,7 @@ import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/fire
 import { createAppointment, subscribeToAppointments, updateAppointment, deleteAppointment, type Appointment } from "@/lib/appointments-service";
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
+import { usePendingTimeChanges } from "@/hooks/usePendingTimeChanges";
 
 type CalendarStatus = "confirmed" | "pending" | "no-show" | "cancelled";
 
@@ -470,9 +473,13 @@ function WeekBoard({
 function DayBoard({
   date,
   events,
+  onSelectAppointment,
+  selectedAppointmentId,
 }: {
   date: Date;
   events: PositionedEvent[];
+  onSelectAppointment: (appointmentId: string) => void;
+  selectedAppointmentId: string;
 }) {
   const hours = useMemo(() => {
     const range: number[] = [];
@@ -534,9 +541,14 @@ function DayBoard({
                 {horizontalEvents.map((event) => (
                   <div
                     key={event.id}
-                    className={`absolute top-10 flex h-24 w-48 flex-col justify-between overflow-hidden rounded-2xl border bg-card p-3 text-left text-xs shadow-lg transition-transform hover:-translate-y-1 ${
+                    onClick={() => onSelectAppointment(event.id)}
+                    className={`absolute top-10 flex h-24 w-48 flex-col justify-between overflow-hidden rounded-2xl border bg-card p-3 text-left text-xs shadow-lg transition-all cursor-pointer hover:-translate-y-1 ${
                         STATUS_CLASSNAME[event.status].border
-                      } ${event.isOutsideWorkingHours ? "ring-2 ring-amber-400" : ""}`}
+                      } ${event.isOutsideWorkingHours ? "ring-2 ring-amber-400" : ""} ${
+                        selectedAppointmentId === event.id
+                          ? "bg-red-50 border-red-400 shadow-[inset_0_1px_3px_rgba(239,68,68,0.2)]"
+                          : ""
+                      }`}
                     style={{
                       left: clamp(event.left, 0, Math.max(0, timelineWidth - 160)),
                       width: clamp(event.width, 90, 200),
@@ -577,17 +589,31 @@ function DayBoard({
   );
 }
 
-function DayAgenda({ 
-  events, 
-  onEditAppointment, 
+function DayAgenda({
+  events,
+  onEditAppointment,
   onDeleteAppointment,
-  onAdjustTime
-}: { 
-  events: PositionedEvent[]; 
+  onAdjustTime,
+  onCommitTimeChange,
+  onRevertChange,
+  hasPendingChange,
+  getPendingChange,
+  selectedAppointmentId,
+  onSelectAppointment
+}: {
+  events: PositionedEvent[];
   onEditAppointment: (event: CalendarEvent) => void;
   onDeleteAppointment: (appointmentId: string) => void;
   onAdjustTime: (appointmentId: string, minutesDelta: number) => void;
+  onCommitTimeChange: (appointmentId: string) => void;
+  onRevertChange: (appointmentId: string) => void;
+  hasPendingChange: (appointmentId: string) => boolean;
+  getPendingChange: (appointmentId: string) => any;
+  selectedAppointmentId: string;
+  onSelectAppointment: (appointmentId: string) => void;
 }) {
+  // Stan dla tooltipu
+  const [tooltipAppointmentId, setTooltipAppointmentId] = useState<string | null>(null);
   return (
     <aside className="flex h-full flex-col gap-4 rounded-3xl border border-border bg-card/90 p-4">
       <div>
@@ -603,10 +629,69 @@ function DayAgenda({
         {events.map((event) => (
           <div
             key={event.id}
-            className={`flex w-full flex-col gap-2 rounded-2xl border px-4 py-3 text-left shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md ${
+            onClick={() => onSelectAppointment(event.id)}
+            className={`relative flex w-full flex-col gap-2 rounded-2xl border px-4 py-3 text-left shadow-sm transition-all cursor-pointer hover:-translate-y-0.5 hover:shadow-md ${
               STATUS_CLASSNAME[event.status].border
+            } ${
+              selectedAppointmentId === event.id
+                ? "bg-red-50 border-red-400 shadow-[inset_0_1px_3px_rgba(239,68,68,0.2)]"
+                : ""
             }`}
           >
+            {/* Przyciski zatwierdzenia/cofania zmian w prawym górnym rogu */}
+            {hasPendingChange(event.id) && (
+              <div className="absolute top-2 right-2 flex gap-1 z-10">
+                {/* Przycisk zatwierdzenia - zielony ptaszek */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCommitTimeChange(event.id);
+                    setTooltipAppointmentId(null);
+                  }}
+                  onMouseEnter={() => setTooltipAppointmentId(`commit-${event.id}`)}
+                  onMouseLeave={() => setTooltipAppointmentId(null)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500 text-white shadow-md transition-all hover:bg-green-600 hover:scale-110 animate-pulse"
+                  aria-label="Zatwierdź zmianę czasu"
+                  title={`Zatwierdź zmianę: ${getPendingChange(event.id)?.minutesDelta > 0 ? '+' : ''}${getPendingChange(event.id)?.minutesDelta} min`}
+                >
+                  <Check className="h-4 w-4" />
+                </button>
+                
+                {/* Przycisk cofania - czerwona strzałka */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRevertChange(event.id);
+                    setTooltipAppointmentId(null);
+                  }}
+                  onMouseEnter={() => setTooltipAppointmentId(`revert-${event.id}`)}
+                  onMouseLeave={() => setTooltipAppointmentId(null)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white shadow-md transition-all hover:bg-red-600 hover:scale-110"
+                  aria-label="Cofnij zmianę czasu"
+                  title="Cofnij zmianę"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            
+            {/* Tooltip dla przycisku zatwierdzenia */}
+            {tooltipAppointmentId === `commit-${event.id}` && (
+              <div className="absolute top-10 right-2 z-20 rounded-md bg-gray-900 text-white text-xs px-2 py-1 shadow-lg whitespace-nowrap">
+                Zatwierdź zmianę: {getPendingChange(event.id)?.minutesDelta > 0 ? '+' : ''}{getPendingChange(event.id)?.minutesDelta} min
+                <div className="absolute -top-1 right-3 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+              </div>
+            )}
+            
+            {/* Tooltip dla przycisku cofania */}
+            {tooltipAppointmentId === `revert-${event.id}` && (
+              <div className="absolute top-10 right-10 z-20 rounded-md bg-gray-900 text-white text-xs px-2 py-1 shadow-lg whitespace-nowrap">
+                Cofnij zmianę
+                <div className="absolute -top-1 right-3 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+              </div>
+            )}
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end))}</span>
               {event.price ? <span className="font-semibold text-foreground">{event.price}</span> : null}
@@ -655,22 +740,29 @@ function DayAgenda({
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => onEditAppointment(event)}
-                  className="inline-flex items-center justify-center rounded-md border border-border p-1.5 text-foreground transition-transform hover:-translate-y-0.5 hover:bg-accent"
-                  title="Edytuj wizytę"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (selectedAppointmentId === event.id) {
+                      onEditAppointment(event);
+                    }
+                  }}
+                  disabled={selectedAppointmentId !== event.id}
+                  className={`inline-flex items-center justify-center rounded-md border p-1.5 transition-transform hover:-translate-y-0.5 ${
+                    selectedAppointmentId === event.id
+                      ? "border-border text-foreground hover:bg-accent"
+                      : "border-gray-300 text-gray-400 cursor-not-allowed"
+                  }`}
+                  title={selectedAppointmentId === event.id ? "Edytuj wizytę" : "Kliknij w wizytę, aby zaznaczyć"}
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onDeleteAppointment(event.id)}
-                  className="inline-flex items-center justify-center rounded-md border border-destructive p-1.5 text-destructive transition-transform hover:-translate-y-0.5 hover:bg-destructive hover:text-destructive-foreground"
-                  title="Usuń wizytę"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
               </div>
             </div>
+            {hasPendingChange(event.id) && (
+              <div className="mt-2 text-xs text-amber-600 font-medium">
+                Oczekująca zmiana: {getPendingChange(event.id)?.minutesDelta > 0 ? '+' : ''}{getPendingChange(event.id)?.minutesDelta} min
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -701,7 +793,17 @@ function ViewSwitcher({ value, onChange }: { value: typeof VIEW_OPTIONS[number][
   );
 }
 
-function CalendarToolbar({ onOpenAppointmentModal }: { onOpenAppointmentModal: () => void }) {
+function CalendarToolbar({
+  onOpenAppointmentModal,
+  onEditAppointment,
+  onDeleteAppointment,
+  selectedAppointmentId
+}: {
+  onOpenAppointmentModal: () => void;
+  onEditAppointment: () => void;
+  onDeleteAppointment: () => void;
+  selectedAppointmentId: string;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button
@@ -711,11 +813,29 @@ function CalendarToolbar({ onOpenAppointmentModal }: { onOpenAppointmentModal: (
         <Plus className="h-4 w-4" />
         Dodaj wizytę
       </button>
-      <button className="inline-flex h-11 min-w-[120px] items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground shadow-sm transition-transform hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+      <button
+        className={`inline-flex h-11 min-w-[120px] items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 ${
+          selectedAppointmentId
+            ? "border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+            : "border-gray-300 text-gray-400 cursor-not-allowed"
+        }`}
+        onClick={onEditAppointment}
+        disabled={!selectedAppointmentId}
+        title={selectedAppointmentId ? "Edytuj zaznaczoną wizytę" : "Kliknij w wizytę, aby zaznaczyć"}
+      >
         <Pencil className="h-4 w-4" />
         Edytuj
       </button>
-      <button className="inline-flex h-11 min-w-[120px] items-center justify-center gap-2 rounded-xl border border-destructive px-4 text-sm font-semibold text-destructive shadow-sm transition-transform hover:-translate-y-0.5 hover:bg-destructive hover:text-destructive-foreground">
+      <button
+        className={`inline-flex h-11 min-w-[120px] items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 ${
+          selectedAppointmentId
+            ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            : "border-gray-300 text-gray-400 cursor-not-allowed"
+        }`}
+        onClick={onDeleteAppointment}
+        disabled={!selectedAppointmentId}
+        title={selectedAppointmentId ? "Usuń zaznaczoną wizytę" : "Kliknij w wizytę, aby zaznaczyć"}
+      >
         <Trash2 className="h-4 w-4" />
         Usuń
       </button>
@@ -728,6 +848,15 @@ function CalendarToolbar({ onOpenAppointmentModal }: { onOpenAppointmentModal: (
 }
 
 export default function CalendarPage() {
+  // Hook do zarządzania oczekującymi zmianami czasu
+  const {
+    addTimeChange,
+    commitChange,
+    revertChange,
+    hasPendingChange,
+    getPendingChange
+  } = usePendingTimeChanges();
+
   // Funkcja do poprawnego tworzenia daty w lokalnej strefie czasowej
   function createLocalDate(dateString: string, timeString: string): Date {
     const [year, month, day] = dateString.split('-').map(Number);
@@ -738,64 +867,102 @@ export default function CalendarPage() {
     return new Date(year, month - 1, day, hours, minutes);
   }
 
-  // Funkcja do szybkiej korekty czasu wizyty
+  // Funkcja do szybkiej korekty czasu wizyty - teraz używa stanu lokalnego
   const adjustAppointmentTime = (appointmentId: string, minutesDelta: number) => {
+    // Znajdź wizytę w kalendarzu
+    const appointment = calendarEvents.find(event => event.id === appointmentId);
+    if (!appointment) {
+      setAppointmentFormError("Nie znaleziono wizyty.");
+      return;
+    }
+
+    // Pobierz oryginalny czas rozpoczęcia i zakończenia
+    const originalStart = new Date(appointment.start);
+    const originalEnd = new Date(appointment.end);
+    
+    // Sprawdź, czy już istnieje oczekująca zmiana dla tej wizyty
+    const existingChange = getPendingChange(appointmentId);
+    
+    if (existingChange) {
+      // Jeśli istnieje zmiana, zaktualizuj ją
+      addTimeChange(appointmentId, minutesDelta, {
+        start: existingChange.originalStart,
+        end: existingChange.originalEnd,
+        serviceId: existingChange.serviceId,
+        clientId: existingChange.clientId,
+        staffName: existingChange.staffName,
+        status: existingChange.status,
+        notes: existingChange.notes,
+        price: existingChange.price
+      });
+    } else {
+      // W przeciwnym razie utwórz nową zmianę
+      addTimeChange(appointmentId, minutesDelta, {
+        start: originalStart,
+        end: originalEnd,
+        serviceId: appointment.serviceId,
+        clientId: customers.find(c => c.fullName === appointment.clientName)?.id || "",
+        staffName: appointment.staffName,
+        status: appointment.status as any,
+        notes: appointment.notes
+      });
+    }
+    
+    setAppointmentFormSuccess(`Czas wizyty został ${minutesDelta > 0 ? 'przesunięty do przodu' : 'przesunięty do tyłu'} o ${Math.abs(minutesDelta)} minut. Zatwierdź zmiany, aby zapisać w bazie danych.`);
+    
+    // Wyczyść komunikat po 3 sekundach (dłużej, bo trzeba zatwierdzić)
+    setTimeout(() => {
+      setAppointmentFormSuccess(null);
+    }, 3000);
+  };
+
+  // Funkcja do zatwierdzania zmian czasu wizyty
+  const commitTimeChange = async (appointmentId: string) => {
+    if (!hasPendingChange(appointmentId)) {
+      setAppointmentFormError("Brak oczekujących zmian dla tej wizyty.");
+      return;
+    }
+
+    const pendingChange = getPendingChange(appointmentId);
+    if (!pendingChange) return;
+
+    // Znajdź pracownika, aby uwzględnić jego bufory czasowe
+    const selectedEmployee = employees.find(emp => emp.name === pendingChange.staffName);
+    
+    if (!selectedEmployee) {
+      setAppointmentFormError("Nie znaleziono pracownika.");
+      return;
+    }
+    
+    // Oblicz efektywny czas zakończenia z uwzględnieniem buforów
+    const effectiveEndDateTime = new Date(pendingChange.newEnd.getTime() +
+      (selectedEmployee.personalBuffers[pendingChange.serviceId] || selectedEmployee.defaultBuffer || 0) * 60000);
+
     startTransition(async () => {
       try {
-        // Znajdź wizytę w kalendarzu
-        const appointment = calendarEvents.find(event => event.id === appointmentId);
-        if (!appointment) {
-          setAppointmentFormError("Nie znaleziono wizyty.");
-          return;
-        }
-
-        // Pobierz oryginalny czas rozpoczęcia i zakończenia
-        const originalStart = new Date(appointment.start);
-        const originalEnd = new Date(appointment.end);
+        await commitChange(appointmentId);
         
-        // Oblicz nowy czas rozpoczęcia
-        const newStart = new Date(originalStart.getTime() + minutesDelta * 60000);
-        
-        // Oblicz czas trwania wizyty
-        const duration = originalEnd.getTime() - originalStart.getTime();
-        
-        // Oblicz nowy czas zakończenia
-        const newEnd = new Date(newStart.getTime() + duration);
-        
-        // Znajdź pracownika, aby uwzględnić jego bufory czasowe
-        const staffName = appointment.staffName;
-        const serviceId = appointment.serviceId;
-        const selectedEmployee = employees.find(emp => emp.name === staffName);
-        
-        if (!selectedEmployee) {
-          setAppointmentFormError("Nie znaleziono pracownika.");
-          return;
-        }
-        
-        // Oblicz efektywny czas zakończenia z uwzględnieniem buforów
-        const effectiveEndDateTime = new Date(newEnd.getTime() + 
-          (selectedEmployee.personalBuffers[serviceId] || selectedEmployee.defaultBuffer || 0) * 60000);
-        
-        // Aktualizuj wizytę
+        // Aktualizuj wizytę z efektywnym czasem zakończenia
         await updateAppointment(appointmentId, {
-          serviceId,
-          clientId: customers.find(c => c.fullName === appointment.clientName)?.id || "",
-          staffName,
-          start: newStart,
+          serviceId: pendingChange.serviceId,
+          clientId: pendingChange.clientId,
+          staffName: pendingChange.staffName,
+          start: pendingChange.newStart,
           end: effectiveEndDateTime,
-          status: appointment.status as any,
-          notes: appointment.notes
+          status: pendingChange.status,
+          notes: pendingChange.notes,
+          price: pendingChange.price
         });
         
-        setAppointmentFormSuccess(`Czas wizyty został ${minutesDelta > 0 ? 'przesunięty do przodu' : 'przesunięty do tyłu'} o ${Math.abs(minutesDelta)} minut.`);
+        setAppointmentFormSuccess("Zmiany czasu wizyty zostały pomyślnie zatwierdzone i zapisane.");
         
         // Wyczyść komunikat po 2 sekundach
         setTimeout(() => {
           setAppointmentFormSuccess(null);
         }, 2000);
       } catch (error) {
-        console.error("Błąd podczas korekty czasu wizyty:", error);
-        setAppointmentFormError("Nie udało się skorygować czasu wizyty. Spróbuj ponownie.");
+        console.error("Błąd podczas zatwierdzania zmian czasu wizyty:", error);
+        setAppointmentFormError("Nie udało się zatwierdzić zmian. Spróbuj ponownie.");
       }
     });
   };
@@ -836,27 +1003,56 @@ export default function CalendarPage() {
   const [editFormError, setEditFormError] = useState<string | null>(null);
   const [editFormSuccess, setEditFormSuccess] = useState<string | null>(null);
   
+  // Stan dla zaznaczonej wizyty
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>("");
+  
   // Dane dla formularza
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [customersLoaded, setCustomersLoaded] = useState(false);
   const [employeesLoaded, setEmployeesLoaded] = useState(false);
   
+  // Funkcja do przełączania zaznaczenia wizyty
+  const toggleAppointmentSelection = (appointmentId: string) => {
+    if (selectedAppointmentId === appointmentId) {
+      // Jeśli wizyta jest już zaznaczona, odznacz ją
+      setSelectedAppointmentId("");
+    } else {
+      // W przeciwnym razie zaznacz nową wizytę
+      setSelectedAppointmentId(appointmentId);
+    }
+  };
+
   // Funkcja do otwierania modalu edycji z pre-wypełnionymi danymi
-  const handleOpenEditModal = (appointment: CalendarEvent) => {
+  const handleOpenEditModal = (appointment?: CalendarEvent) => {
+    let appointmentToEdit: CalendarEvent | undefined;
+    
+    if (appointment) {
+      // Jeśli podano wizytę w parametrze, użyj jej
+      appointmentToEdit = appointment;
+    } else if (selectedAppointmentId) {
+      // W przeciwnym razie użyj aktualnie zaznaczonej wizyty
+      appointmentToEdit = calendarEvents.find(event => event.id === selectedAppointmentId);
+    }
+    
+    if (!appointmentToEdit) {
+      setAppointmentFormError("Nie wybrano wizyty do edycji. Kliknij w wizytę, aby ją zaznaczyć.");
+      return;
+    }
+    
     // Konwertuj daty na format dla inputów
-    const startDate = new Date(appointment.start);
+    const startDate = new Date(appointmentToEdit.start);
     const dateStr = startDate.toISOString().slice(0, 10);
     const timeStr = startDate.toTimeString().slice(0, 5);
     
-    setEditingAppointmentId(appointment.id);
+    setEditingAppointmentId(appointmentToEdit.id);
     setEditForm({
-      serviceId: appointment.serviceId,
-      clientId: customers.find(c => c.fullName === appointment.clientName)?.id || "",
-      staffName: appointment.staffName,
+      serviceId: appointmentToEdit.serviceId,
+      clientId: customers.find(c => c.fullName === appointmentToEdit.clientName)?.id || "",
+      staffName: appointmentToEdit.staffName,
       date: dateStr,
       time: timeStr,
-      notes: appointment.notes || ""
+      notes: appointmentToEdit.notes || ""
     });
     setEditFormError(null);
     setEditFormSuccess(null);
@@ -1165,14 +1361,28 @@ export default function CalendarPage() {
             setView(next);
             setReferenceDate((prev) => new Date(prev));
           }} />
-          <CalendarToolbar onOpenAppointmentModal={() => setIsAppointmentModalOpen(true)} />
+          <CalendarToolbar
+            onOpenAppointmentModal={() => setIsAppointmentModalOpen(true)}
+            onEditAppointment={() => handleOpenEditModal()}
+            onDeleteAppointment={() => {
+              if (selectedAppointmentId) {
+                handleDeleteAppointment(selectedAppointmentId);
+              }
+            }}
+            selectedAppointmentId={selectedAppointmentId}
+          />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1.1fr)]">
           {view === "week" ? (
             <WeekBoard weekDays={days} events={positionedEvents} selectedDate={referenceDate} onSelectDate={setReferenceDate} />
           ) : null}
-          {view === "day" ? <DayBoard date={referenceDate} events={dayEvents} /> : null}
+          {view === "day" ? <DayBoard
+            date={referenceDate}
+            events={dayEvents}
+            onSelectAppointment={toggleAppointmentSelection}
+            selectedAppointmentId={selectedAppointmentId}
+          /> : null}
           {view === "month" ? (
             <div className="rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-4">
               <div className="grid grid-cols-7 gap-3 text-xs font-semibold uppercase text-muted-foreground">
@@ -1230,11 +1440,17 @@ export default function CalendarPage() {
             </div>
           ) : null}
 
-          <DayAgenda 
-            events={dayEvents} 
-            onEditAppointment={handleOpenEditModal} 
+          <DayAgenda
+            events={dayEvents}
+            onEditAppointment={handleOpenEditModal}
             onDeleteAppointment={handleDeleteAppointment}
             onAdjustTime={adjustAppointmentTime}
+            onCommitTimeChange={commitTimeChange}
+            onRevertChange={revertChange}
+            hasPendingChange={hasPendingChange}
+            getPendingChange={getPendingChange}
+            selectedAppointmentId={selectedAppointmentId}
+            onSelectAppointment={toggleAppointmentSelection}
           />
         </div>
 
