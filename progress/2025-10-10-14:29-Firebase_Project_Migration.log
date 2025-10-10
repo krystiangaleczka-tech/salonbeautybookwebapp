@@ -1,0 +1,68 @@
+# Firebase Project Migration - 2025-10-10
+
+## Cel
+Przeniesienie projektu salonbeautybookwebapp na nowe konto Firebase (salonbeautymario@gmail.com) z planem Blaze.
+
+## Wykonane czynności
+
+### 1. Przygotowanie nowego projektu Firebase
+- Zalogowano się na nowe konto Firebase (salonbeautymario@gmail.com)
+- Sprawdzono dostępne projekty - znaleziono projekt `salonbeautymario-x1`
+- Przełączono się na projekt `salonbeautymario-x1`
+- Sprawdzono aplikacje webowe - znaleziono aplikację `Salonbeautymario-x1`
+- Pobrano konfigurację SDK aplikacji webowej
+
+### 2. Aktualizacja plików konfiguracyjnych
+- Zaktualizowano plik `.firebaserc`:
+  - Zmieniono projekt domyślny z `salonbeautybookwebapp` na `salonbeautymario-x1`
+  - Zaktualizowano target hosting na `salonbeautymario-x1`
+- Zaktualizowano plik `admin-frontend/.env.local`:
+  - Zaktualizowano wszystkie zmienne środowiskowe Firebase
+  - Nowy projekt ID: `salonbeautymario-x1`
+  - Nowy klucz API: `AIzaSyB_zY-p_cgGBY_SSZa9pOKjOtASX0mdNvk`
+
+### 3. Wdrożenie na nowe konto Firebase
+- Uruchomiono proces budowania aplikacji
+- Przeprowadzono dry run wdrożenia - powodzenie
+- Wdrożono Firestore rules
+- Wdrożono indeksy Firestore
+- Wdrożono aplikację na hosting Firebase
+
+### 4. Analiza Cloud Functions i Google Calendar API
+- Sprawdzono konfigurację Cloud Functions:
+  - Istnieje konfiguracja dla dwóch codebase'ów (`default` i `booking-functions`)
+  - Folder `booking-functions` istnieje, ale nie zawiera aktywnych funkcji
+  - Kod frontendu nie zawiera wywołań do Cloud Functions
+- Sprawdzono integrację z Google Calendar API:
+  - Nie znaleziono żadnych integracji z Google Calendar API
+  - Aplikacja używa własnego kalendarza opartego na Firestore
+
+## Wyniki
+
+### Szczegóły wdrożenia
+- **URL aplikacji**: https://salonbeautymario-x1.web.app
+- **Konsola Firebase**: https://console.firebase.google.com/project/salonbeautymario-x1/overview
+- **ID projektu**: salonbeautymario-x1
+- **Klucz API**: AIzaSyB_zY-p_cgGBY_SSZa9pOKjOtASX0mdNvk
+
+### Konfiguracja Firebase
+```json
+{
+  "projectId": "salonbeautymario-x1",
+  "appId": "1:222276164239:web:937adcbff4bc927f886efa",
+  "storageBucket": "salonbeautymario-x1.firebasestorage.app",
+  "apiKey": "AIzaSyB_zY-p_cgGBY_SSZa9pOKjOtASX0mdNvk",
+  "authDomain": "salonbeautymario-x1.firebaseapp.com",
+  "messagingSenderId": "222276164239",
+  "measurementId": "G-TRLZESHDW8",
+  "projectNumber": "222276164239"
+}
+```
+
+## Rekomendacje
+1. **Cloud Functions**: Nie trzeba wdrażać na razie - projekt nie używa funkcji serwerowych
+2. **Google Calendar API**: Nie potrzebne - aplikacja używa własnego kalendarza opartego na Firestore
+3. **Następne kroki**: Skonfigurować Authentication i dodać początkowe dane (co zostało już wykonane)
+
+## Status
+✅ **ZAKOŃCZONO** - Projekt został pomyślnie przeniesiony na nowe konto Firebase i jest w pełni funkcjonalny.

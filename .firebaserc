@@ -1,12 +1,12 @@
 {
   "projects": {
-    "default": "salonbeautybookwebapp"
+    "default": "salonbeautymario-x1"
   },
   "targets": {
-    "salonbeautybookwebapp": {
+    "salonbeautymario-x1": {
       "hosting": {
         "admin": [
-          "salonbeautybookwebapp-f12cf"
+          "salonbeautymario-x1"
         ]
       }
     }
