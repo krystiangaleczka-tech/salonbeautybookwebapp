@@ -97,11 +97,12 @@ export async function createAppointment(payload: AppointmentPayload) {
   });
 }
 
-export async function updateAppointment(id: string, payload: AppointmentPayload) {
+export async function updateAppointment(id: string, payload: Omit<AppointmentPayload, 'start' | 'end'> & { start: Date; end: Date }) {
   const ref = doc(appointmentsCollection, id);
-  const normalized = normalizePayload(payload);
   await updateDoc(ref, {
-    ...normalized,
+    ...payload,
+    start: Timestamp.fromDate(payload.start),
+    end: Timestamp.fromDate(payload.end),
     updatedAt: serverTimestamp(),
   });
 }
@@ -109,4 +110,14 @@ export async function updateAppointment(id: string, payload: AppointmentPayload)
 export async function deleteAppointment(id: string) {
   const ref = doc(appointmentsCollection, id);
   await deleteDoc(ref);
+}
+
+// Funkcja do obliczania efektywnego czasu zakończenia wizyty z uwzględnieniem buforów
+export function calculateEffectiveEndTime(
+  baseEndTime: Date,
+  employee: { personalBuffers: Record<string, number>; defaultBuffer: number },
+  serviceId: string
+): Date {
+  const buffer = employee.personalBuffers[serviceId] || employee.defaultBuffer || 0;
+  return new Date(baseEndTime.getTime() + buffer * 60000);
 }

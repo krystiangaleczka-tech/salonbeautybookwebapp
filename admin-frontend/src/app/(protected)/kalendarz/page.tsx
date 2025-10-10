@@ -18,7 +18,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import type { ToneKey } from "@/lib/dashboard-theme";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
-import { createAppointment, subscribeToAppointments, type Appointment } from "@/lib/appointments-service";
+import { createAppointment, subscribeToAppointments, updateAppointment, deleteAppointment, type Appointment } from "@/lib/appointments-service";
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
 
@@ -577,7 +577,17 @@ function DayBoard({
   );
 }
 
-function DayAgenda({ events }: { events: PositionedEvent[] }) {
+function DayAgenda({ 
+  events, 
+  onEditAppointment, 
+  onDeleteAppointment,
+  onAdjustTime
+}: { 
+  events: PositionedEvent[]; 
+  onEditAppointment: (event: CalendarEvent) => void;
+  onDeleteAppointment: (appointmentId: string) => void;
+  onAdjustTime: (appointmentId: string, minutesDelta: number) => void;
+}) {
   return (
     <aside className="flex h-full flex-col gap-4 rounded-3xl border border-border bg-card/90 p-4">
       <div>
@@ -591,9 +601,8 @@ function DayAgenda({ events }: { events: PositionedEvent[] }) {
           </p>
         ) : null}
         {events.map((event) => (
-          <button
+          <div
             key={event.id}
-            type="button"
             className={`flex w-full flex-col gap-2 rounded-2xl border px-4 py-3 text-left shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md ${
               STATUS_CLASSNAME[event.status].border
             }`}
@@ -624,7 +633,45 @@ function DayAgenda({ events }: { events: PositionedEvent[] }) {
                 ⚠ Poza godzinami pracy – rozważ korektę grafiku.
               </span>
             ) : null}
-          </button>
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onAdjustTime(event.id, -5)}
+                  className="inline-flex items-center justify-center rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition hover:bg-accent"
+                  title="Przesuń o 5 minut do tyłu"
+                >
+                  -5 min
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAdjustTime(event.id, 5)}
+                  className="inline-flex items-center justify-center rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition hover:bg-accent"
+                  title="Przesuń o 5 minut do przodu"
+                >
+                  +5 min
+                </button>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onEditAppointment(event)}
+                  className="inline-flex items-center justify-center rounded-md border border-border p-1.5 text-foreground transition-transform hover:-translate-y-0.5 hover:bg-accent"
+                  title="Edytuj wizytę"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDeleteAppointment(event.id)}
+                  className="inline-flex items-center justify-center rounded-md border border-destructive p-1.5 text-destructive transition-transform hover:-translate-y-0.5 hover:bg-destructive hover:text-destructive-foreground"
+                  title="Usuń wizytę"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </aside>
@@ -681,6 +728,78 @@ function CalendarToolbar({ onOpenAppointmentModal }: { onOpenAppointmentModal: (
 }
 
 export default function CalendarPage() {
+  // Funkcja do poprawnego tworzenia daty w lokalnej strefie czasowej
+  function createLocalDate(dateString: string, timeString: string): Date {
+    const [year, month, day] = dateString.split('-').map(Number);
+    const [hours, minutes] = timeString.split(':').map(Number);
+    
+    // Tworzymy datę w lokalnej strefie czasowej
+    // Miesiące w JavaScript są numerowane od 0 (styczeń = 0)
+    return new Date(year, month - 1, day, hours, minutes);
+  }
+
+  // Funkcja do szybkiej korekty czasu wizyty
+  const adjustAppointmentTime = (appointmentId: string, minutesDelta: number) => {
+    startTransition(async () => {
+      try {
+        // Znajdź wizytę w kalendarzu
+        const appointment = calendarEvents.find(event => event.id === appointmentId);
+        if (!appointment) {
+          setAppointmentFormError("Nie znaleziono wizyty.");
+          return;
+        }
+
+        // Pobierz oryginalny czas rozpoczęcia i zakończenia
+        const originalStart = new Date(appointment.start);
+        const originalEnd = new Date(appointment.end);
+        
+        // Oblicz nowy czas rozpoczęcia
+        const newStart = new Date(originalStart.getTime() + minutesDelta * 60000);
+        
+        // Oblicz czas trwania wizyty
+        const duration = originalEnd.getTime() - originalStart.getTime();
+        
+        // Oblicz nowy czas zakończenia
+        const newEnd = new Date(newStart.getTime() + duration);
+        
+        // Znajdź pracownika, aby uwzględnić jego bufory czasowe
+        const staffName = appointment.staffName;
+        const serviceId = appointment.serviceId;
+        const selectedEmployee = employees.find(emp => emp.name === staffName);
+        
+        if (!selectedEmployee) {
+          setAppointmentFormError("Nie znaleziono pracownika.");
+          return;
+        }
+        
+        // Oblicz efektywny czas zakończenia z uwzględnieniem buforów
+        const effectiveEndDateTime = new Date(newEnd.getTime() + 
+          (selectedEmployee.personalBuffers[serviceId] || selectedEmployee.defaultBuffer || 0) * 60000);
+        
+        // Aktualizuj wizytę
+        await updateAppointment(appointmentId, {
+          serviceId,
+          clientId: customers.find(c => c.fullName === appointment.clientName)?.id || "",
+          staffName,
+          start: newStart,
+          end: effectiveEndDateTime,
+          status: appointment.status as any,
+          notes: appointment.notes
+        });
+        
+        setAppointmentFormSuccess(`Czas wizyty został ${minutesDelta > 0 ? 'przesunięty do przodu' : 'przesunięty do tyłu'} o ${Math.abs(minutesDelta)} minut.`);
+        
+        // Wyczyść komunikat po 2 sekundach
+        setTimeout(() => {
+          setAppointmentFormSuccess(null);
+        }, 2000);
+      } catch (error) {
+        console.error("Błąd podczas korekty czasu wizyty:", error);
+        setAppointmentFormError("Nie udało się skorygować czasu wizyty. Spróbuj ponownie.");
+      }
+    });
+  };
+
   const [view, setView] = useState<typeof VIEW_OPTIONS[number]["value"]>("week");
   const [referenceDate, setReferenceDate] = useState(() => new Date());
   const [calendarServices, setCalendarServices] = useState<CalendarService[]>([]);
@@ -703,11 +822,147 @@ export default function CalendarPage() {
   const [appointmentFormSuccess, setAppointmentFormSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   
+  // Stan dla modalu edycji wizyty
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<string>("");
+  const [editForm, setEditForm] = useState({
+    serviceId: "",
+    clientId: "",
+    staffName: "",
+    date: "",
+    time: "",
+    notes: ""
+  });
+  const [editFormError, setEditFormError] = useState<string | null>(null);
+  const [editFormSuccess, setEditFormSuccess] = useState<string | null>(null);
+  
   // Dane dla formularza
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [customersLoaded, setCustomersLoaded] = useState(false);
   const [employeesLoaded, setEmployeesLoaded] = useState(false);
+  
+  // Funkcja do otwierania modalu edycji z pre-wypełnionymi danymi
+  const handleOpenEditModal = (appointment: CalendarEvent) => {
+    // Konwertuj daty na format dla inputów
+    const startDate = new Date(appointment.start);
+    const dateStr = startDate.toISOString().slice(0, 10);
+    const timeStr = startDate.toTimeString().slice(0, 5);
+    
+    setEditingAppointmentId(appointment.id);
+    setEditForm({
+      serviceId: appointment.serviceId,
+      clientId: customers.find(c => c.fullName === appointment.clientName)?.id || "",
+      staffName: appointment.staffName,
+      date: dateStr,
+      time: timeStr,
+      notes: appointment.notes || ""
+    });
+    setEditFormError(null);
+    setEditFormSuccess(null);
+    setIsEditModalOpen(true);
+  };
+  
+  // Funkcja do zamykania modalu edycji
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingAppointmentId("");
+    setEditForm({
+      serviceId: "",
+      clientId: "",
+      staffName: "",
+      date: "",
+      time: "",
+      notes: ""
+    });
+    setEditFormError(null);
+    setEditFormSuccess(null);
+  };
+  
+  // Funkcja do zapisywania zmian w wizycie
+  const handleSaveEdit = () => {
+    // Walidacja formularza
+    if (!editForm.serviceId || !editForm.clientId || !editForm.staffName || !editForm.date || !editForm.time) {
+      setEditFormError("Wszystkie pola oznaczone gwiazdką są wymagane.");
+      return;
+    }
+    
+    setEditFormError(null);
+    
+    // Znajdź wybraną usługę, aby obliczyć czas trwania
+    const selectedService = calendarServices.find(service => service.id === editForm.serviceId);
+    if (!selectedService) {
+      setEditFormError("Wybrana usługa jest nieprawidłowa.");
+      return;
+    }
+    
+    // Znajdź wybranego klienta
+    const selectedCustomer = customers.find(customer => customer.id === editForm.clientId);
+    if (!selectedCustomer) {
+      setEditFormError("Wybrany klient jest nieprawidłowy.");
+      return;
+    }
+    
+    // Znajdź wybranego pracownika
+    const selectedEmployee = employees.find(emp => emp.name === editForm.staffName);
+    if (!selectedEmployee) {
+      setEditFormError("Wybrany pracownik jest nieprawidłowy.");
+      return;
+    }
+    
+    // Utwórz obiekt daty początkowej i końcowej
+    const startDateTime = createLocalDate(editForm.date, editForm.time);
+    const endDateTime = new Date(startDateTime.getTime() + selectedService.durationMin * 60000);
+    
+    // Oblicz efektywny czas zakończenia z uwzględnieniem buforów
+    const effectiveEndDateTime = new Date(endDateTime.getTime() + 
+      (selectedEmployee.personalBuffers[editForm.serviceId] || selectedEmployee.defaultBuffer || 0) * 60000);
+    
+    startTransition(async () => {
+      try {
+        // Aktualizuj wizytę w Firebase
+        await updateAppointment(editingAppointmentId, {
+          serviceId: editForm.serviceId,
+          clientId: editForm.clientId,
+          staffName: editForm.staffName,
+          start: startDateTime,
+          end: effectiveEndDateTime,
+          status: "confirmed",
+          notes: editForm.notes.trim() || undefined,
+        });
+        
+        setEditFormSuccess("Wizyta została pomyślnie zaktualizowana.");
+        
+        // Zamknij modal po 2 sekundach
+        setTimeout(() => {
+          handleCloseEditModal();
+        }, 2000);
+      } catch (error) {
+        console.error("Błąd podczas aktualizacji wizyty:", error);
+        setEditFormError("Nie udało się zaktualizować wizyty. Spróbuj ponownie.");
+      }
+    });
+  };
+  
+  // Funkcja do usuwania wizyty
+  const handleDeleteAppointment = (appointmentId: string) => {
+    if (window.confirm("Czy na pewno chcesz usunąć tę wizytę? Tej operacji nie można cofnąć.")) {
+      startTransition(async () => {
+        try {
+          await deleteAppointment(appointmentId);
+          setAppointmentFormSuccess("Wizyta została pomyślnie usunięta.");
+          
+          // Wyczyść komunikat po 2 sekundach
+          setTimeout(() => {
+            setAppointmentFormSuccess(null);
+          }, 2000);
+        } catch (error) {
+          console.error("Błąd podczas usuwania wizyty:", error);
+          setAppointmentFormError("Nie udało się usunąć wizyty. Spróbuj ponownie.");
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     const servicesQuery = collection(db, "services");
@@ -975,7 +1230,12 @@ export default function CalendarPage() {
             </div>
           ) : null}
 
-          <DayAgenda events={dayEvents} />
+          <DayAgenda 
+            events={dayEvents} 
+            onEditAppointment={handleOpenEditModal} 
+            onDeleteAppointment={handleDeleteAppointment}
+            onAdjustTime={adjustAppointmentTime}
+          />
         </div>
 
         {isEmpty ? (
@@ -1154,7 +1414,7 @@ export default function CalendarPage() {
                     setAppointmentFormError(null);
                     setAppointmentFormSuccess(null);
                   }}
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
                   disabled={isPending}
                 >
                   Anuluj
@@ -1184,19 +1444,30 @@ export default function CalendarPage() {
                       return;
                     }
                     
+                    // Znajdź wybranego pracownika, aby uwzględnić jego bufory czasowe
+                    const selectedEmployee = employees.find(emp => emp.name === appointmentForm.staffName);
+                    if (!selectedEmployee) {
+                      setAppointmentFormError("Wybrany pracownik jest nieprawidłowy.");
+                      return;
+                    }
+                    
                     // Utwórz obiekt daty początkowej i końcowej
-                    const startDateTime = new Date(`${appointmentForm.date}T${appointmentForm.time}`);
+                    const startDateTime = createLocalDate(appointmentForm.date, appointmentForm.time);
                     const endDateTime = new Date(startDateTime.getTime() + selectedService.durationMin * 60000);
+                    
+                    // Oblicz efektywny czas zakończenia z uwzględnieniem buforów
+                    const effectiveEndDateTime = new Date(endDateTime.getTime() + 
+                      (selectedEmployee.personalBuffers[appointmentForm.serviceId] || selectedEmployee.defaultBuffer || 0) * 60000);
                     
                     startTransition(async () => {
                       try {
-                        // Utwórz wizytę w Firebase
+                        // Utwórz wizytę w Firebase z efektywnym czasem zakończenia
                         await createAppointment({
                           serviceId: appointmentForm.serviceId,
                           clientId: appointmentForm.clientId,
                           staffName: appointmentForm.staffName,
                           start: startDateTime,
-                          end: endDateTime,
+                          end: effectiveEndDateTime,
                           status: "confirmed",
                           notes: appointmentForm.notes.trim() || undefined,
                         });
@@ -1232,6 +1503,177 @@ export default function CalendarPage() {
                   )}
                   Dodaj wizytę
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Modal edycji wizyty */}
+      {isEditModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="text-lg font-semibold text-foreground">Edytuj wizytę</h2>
+              <button
+                type="button"
+                onClick={handleCloseEditModal}
+                className="rounded-md p-1 text-muted-foreground transition hover:bg-muted"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="px-6 py-6">
+              {editFormError ? (
+                <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {editFormError}
+                </div>
+              ) : null}
+              
+              {editFormSuccess ? (
+                <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
+                  {editFormSuccess}
+                </div>
+              ) : null}
+
+              <div className="space-y-4">
+                {/* Wybór usługi */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Usługa *
+                  </label>
+                  <select
+                    value={editForm.serviceId}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, serviceId: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                    required
+                  >
+                    <option value="">Wybierz usługę</option>
+                    {calendarServices.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name} ({service.durationMin} min)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Wybór klienta */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Klient *
+                  </label>
+                  <select
+                    value={editForm.clientId}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, clientId: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                    required
+                  >
+                    <option value="">Wybierz klienta</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.fullName} {customer.phone ? `(${customer.phone})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Wybór pracownika */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Pracownik *
+                  </label>
+                  <select
+                    value={editForm.staffName}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, staffName: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                    required
+                  >
+                    <option value="">Wybierz pracownika</option>
+                    {employees.filter(emp => emp.isActive).map((employee) => (
+                      <option key={employee.id} value={employee.name}>
+                        {employee.name} ({employee.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Wybór daty i godziny */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Data *
+                    </label>
+                    <input
+                      type="date"
+                      value={editForm.date}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Godzina *
+                    </label>
+                    <input
+                      type="time"
+                      value={editForm.time}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Notatki */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Notatki
+                  </label>
+                  <textarea
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Dodatkowe informacje o wizycie"
+                    rows={3}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteAppointment(editingAppointmentId)}
+                  className="rounded-lg border border-destructive px-4 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
+                  disabled={isPending}
+                >
+                  <Trash2 className="inline h-4 w-4 mr-2" />
+                  Usuń wizytę
+                </button>
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseEditModal}
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+                    disabled={isPending}
+                  >
+                    Anuluj
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEdit}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow transition hover:bg-primary/90 disabled:opacity-70"
+                    disabled={isPending}
+                  >
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Pencil className="h-4 w-4" />
+                    )}
+                    Zapisz zmiany
+                  </button>
+                </div>
               </div>
             </div>
           </div>

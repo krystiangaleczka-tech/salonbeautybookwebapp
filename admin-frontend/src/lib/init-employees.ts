@@ -8,6 +8,9 @@ const initialEmployees = [
     email: "maja@salonmaja.pl",
     phone: "",
     isActive: true,
+    // Bufory czasowe - domyślne wartości
+    defaultBuffer: 5,
+    personalBuffers: {},
   },
   {
     name: "Ilona Flak",
@@ -15,6 +18,9 @@ const initialEmployees = [
     email: "ilona@salonmaja.pl",
     phone: "",
     isActive: true,
+    // Bufory czasowe - domyślne wartości
+    defaultBuffer: 5,
+    personalBuffers: {},
   },
   {
     name: "Agnieszka Nowicka",
@@ -22,6 +28,9 @@ const initialEmployees = [
     email: "agnieszka@salonmaja.pl",
     phone: "",
     isActive: true,
+    // Bufory czasowe - domyślne wartości
+    defaultBuffer: 5,
+    personalBuffers: {},
   },
 ];
 

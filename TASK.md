@@ -218,7 +218,7 @@ _Notatka:_ Moduł `client-frontend` został zarchiwizowany w katalogu `archives/
 #### Tydzień 8-9: SMS i powiadomienia
 ```bash
 # Advanced notifications
-- Multi-provider SMS (Twilio, MessageBird)
+- Autorski system sms(autorska aplikacja na smartfonie .apk wysylajaca zadania i przechwytujaca je do wysylania sms  bezposrednio przez telefon)
 - SMS failover system
 - Harmonogram powiadomień per usługa
 - A/B testing templates

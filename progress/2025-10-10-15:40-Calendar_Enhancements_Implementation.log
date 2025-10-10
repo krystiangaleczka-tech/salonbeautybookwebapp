@@ -1,0 +1,100 @@
+# Log postępu implementacji ulepszeń kalendarza
+# Data: 2025-10-10 15:40
+# Opis: Implementacja buforów czasowych, edycji wizyt i poprawek błędów
+
+## Zakończone zadania:
+
+### 1. Analiza i projektowanie systemu sprawdzania konfliktów w grafiku ✅
+- Zaimplementowano system wykrywania konfliktów dla usług pedicure
+- Dodano wizualne oznaczenia konfliktów w interfejsie
+- Użyto algorytmu sprawdzania nakładających się wizyt w tym samym dniu
+
+### 2. Naprawa błędu daty - wizyta dodawana jest o 1 dzień do przodu ✅
+- Problem: `new Date("${appointmentForm.date}T${appointmentForm.time}")` interpretował datę w strefie UTC
+- Rozwiązanie: Dodano funkcję `createLocalDate(dateString, timeString)` do poprawnego tworzenia daty w lokalnej strefie czasowej
+- Wynik: Wizyty są teraz poprawnie dodawane z wybraną datą i godziną
+
+### 3. Dodanie indywidualnych buforów czasowych per pracownik w Firestore ✅
+- Rozszerzono interfejs `Employee` o pola:
+  - `personalBuffers: Record<string, number>` (serviceId -> bufferMinutes)
+  - `defaultBuffer: number` (domyślny buffer w minutach)
+- Zaktualizowano funkcje mapujące i normalizujące dane
+- Dodano funkcję `updateEmployeeBuffers` do aktualizacji buforów
+- Zaktualizowano inicjalizację pracowników o domyślne bufory czasowe (5 minut)
+
+### 4. Implementacja interfejsu ustawień buforów czasowych dla pracowników ✅
+- Zintegrowano istniejący statyczny interfejs z nowymi polami per pracownik
+- Dodano sekcję do zarządzania buforami per pracownik z integracją z bazą danych
+- Dodano możliwość ustawiania domyślnego buforu i indywidualnych buforów per usługa
+
+### 5. Rozszerzenie walidacji o bufory czasowe pracowników ✅
+- Zaktualizowano modal dodawania wizyty, aby uwzględniał bufory czasowe pracownika
+- Dodano funkcję `calculateEffectiveEndTime` do obliczania efektywnego czasu zakończenia wizyty
+- Wynik: Czas zakończenia wizyty teraz obejmuje czas trwania usługi + buffer pracownika
+
+### 6. Implementacja modalu edycji wizyty z walidacją ✅
+- Dodano modal edycji wizyty z pre-wypełnionymi danymi
+- Zaimplementowano logikę walidacji i zapisywania zmian
+- Dodano obsługę błędów i komunikatów sukcesu
+- Dodano możliwość usuwania wizyty z poziomu modalu edycji
+
+### 7. Podłączenie funkcjonalności do istniejącego przycisku usuwania wizyt ✅
+- Dodano przyciski usuwania wizyt do kart wizyt w panelu bocznym
+- Zaimplementowano logikę usuwania wizyt z potwierdzeniem
+- Dodano komunikaty o sukcesie i błędach
+
+### 8. Implementacja szybkiej edycji +/-5 min w panelu bocznym kalendarza ✅
+- Dodano przyciski do szybkiej korekty czasu wizyty (+/-5 min)
+- Zaimplementowano logikę aktualizacji czasu wizyty z uwzględnieniem buforów
+- Dodano komunikaty o sukcesie i błędach
+
+### 9. Testy integracyjne dla wszystkich funkcjonalności ✅
+- Przeprowadzono testy wszystkich zaimplementowanych funkcji
+- Sprawdzono poprawność działania aplikacji
+- Wynik: Wszystkie funkcje działają poprawnie
+
+### 10. Aktualizacja dokumentacji i log postępu ✅
+- Zaktualizowano listę zadań
+- Przygotowano podsumowanie wszystkich zmian
+- Stworzono plik z logiem postępu
+
+## Wprowadzone zmiany w kodzie:
+
+### 1. admin-frontend/src/lib/employees-service.ts
+- Rozszerzono interfejs `Employee` o pola buforów czasowych
+- Rozszerzono interfejs `EmployeePayload` o pola buforów czasowych
+- Zaktualizowano funkcję `mapEmployee` do obsługi nowych pól
+- Zaktualizowano funkcję `normalizePayload` do obsługi nowych pól
+- Dodano funkcję `updateEmployeeBuffers` do aktualizacji buforów
+
+### 2. admin-frontend/src/lib/appointments-service.ts
+- Dodano funkcję `updateAppointment` do aktualizacji wizyt
+- Dodano funkcję `calculateEffectiveEndTime` do obliczania efektywnego czasu zakończenia
+
+### 3. admin-frontend/src/lib/init-employees.ts
+- Zaktualizowano inicjalizację pracowników o domyślne bufory czasowe (5 minut)
+
+### 4. admin-frontend/src/app/(protected)/ustawienia/bufory/page.tsx
+- Zintegrowano interfejs z bazą danych
+- Dodano sekcję do zarządzania buforami per pracownik
+- Dodano obsługę błędów i komunikatów sukcesu
+
+### 5. admin-frontend/src/app/(protected)/kalendarz/page.tsx
+- Dodano funkcję `createLocalDate` do poprawnego tworzenia daty
+- Zaimplementowano modal edycji wizyty
+- Dodano funkcję szybkiej korekty czasu wizyty
+- Zaktualizowano walidację z uwzględnieniem buforów czasowych
+- Dodano przyciski edycji i usuwania do kart wizyt
+- Dodano przyciski szybkiej edycji czasu (+/-5 min)
+
+## Wyniki:
+
+Wszystkie zaplanowane funkcjonalności zostały zaimplementowane i przetestowane. Aplikacja kompiluje się bez błędów i działa poprawnie. System kalendarza teraz obsługuje:
+- Dodawanie, edytowanie i usuwanie wizyt
+- Bufory czasowe per pracownik
+- Wykrywanie konfliktów dla usług pedicure
+- Szybką edycję czasu wizyt
+- Poprawne obsługiwanie stref czasowych
+
+Kalendarz jest teraz w pełni funkcjonalny i gotowy do użytku.
+

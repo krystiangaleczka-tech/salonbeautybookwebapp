@@ -21,6 +21,9 @@ export interface Employee {
   phone?: string;
   isActive: boolean;
   services?: string[];
+  // Bufory czasowe per pracownik
+  personalBuffers: Record<string, number>; // serviceId -> bufferMinutes
+  defaultBuffer: number; // domyślny buffer w minutach
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -32,6 +35,9 @@ export interface EmployeePayload {
   phone?: string;
   isActive?: boolean;
   services?: string[];
+  // Bufory czasowe per pracownik
+  personalBuffers?: Record<string, number>;
+  defaultBuffer?: number;
 }
 
 const employeesCollection = collection(db, "employees");
@@ -45,6 +51,11 @@ function mapEmployee(docData: DocumentData, id: string): Employee {
     phone: typeof docData.phone === "string" ? docData.phone : undefined,
     isActive: typeof docData.isActive === "boolean" ? docData.isActive : true,
     services: Array.isArray(docData.services) ? docData.services as string[] : [],
+    // Bufory czasowe - domyślne wartości dla kompatybilności wstecznej
+    personalBuffers: typeof docData.personalBuffers === "object" && docData.personalBuffers !== null 
+      ? docData.personalBuffers as Record<string, number> 
+      : {},
+    defaultBuffer: typeof docData.defaultBuffer === "number" ? docData.defaultBuffer : 0,
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt : null,
     updatedAt: docData.updatedAt instanceof Timestamp ? docData.updatedAt : null,
   };
@@ -75,6 +86,9 @@ function normalizePayload(payload: EmployeePayload) {
     phone: payload.phone ?? "",
     isActive: payload.isActive ?? true,
     services: payload.services ?? [],
+    // Bufory czasowe - domyślne wartości dla kompatybilności wstecznej
+    personalBuffers: payload.personalBuffers ?? {},
+    defaultBuffer: payload.defaultBuffer ?? 0,
   };
 }
 
@@ -99,4 +113,16 @@ export async function updateEmployee(id: string, payload: EmployeePayload) {
 export async function deleteEmployee(id: string) {
   const ref = doc(employeesCollection, id);
   await deleteDoc(ref);
+}
+
+// Funkcja do aktualizacji buforów czasowych pracownika
+export async function updateEmployeeBuffers(
+  employeeId: string, 
+  buffers: { personalBuffers?: Record<string, number>; defaultBuffer?: number }
+) {
+  const ref = doc(employeesCollection, employeeId);
+  await updateDoc(ref, {
+    ...buffers,
+    updatedAt: serverTimestamp(),
+  });
 }
