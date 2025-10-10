@@ -1,0 +1,76 @@
+# Implementacja funkcjonalności dodawania wizyt w kalendarzu
+
+## Data: 2025-10-06, godzina: 16:13 (UTC+2)
+
+## Zrealizowane zadania:
+
+### 1. Stworzone serwisy:
+- **appointments-service.ts** - Pełny CRUD do zarządzania wizytami w Firebase
+- **employees-service.ts** - Pełny CRUD do zarządzania pracownikami w Firebase
+- **init-employees.ts** - Funkcja do inicjalizacji bazy danych pracownikami z istniejącej listy
+
+### 2. Zaimplementowany modal:
+- Formularz dodawania wizyty z polami wyboru:
+  - Usługa (wczytywana z services-service.ts)
+  - Klient (wczytywany z customers-service.ts)
+  - Pracownik (wczytywany z employees-service.ts)
+  - Data i godzina wizyty
+  - Notatki (opcjonalnie)
+
+### 3. Integracja z Firebase:
+- Zapisywanie wizyt w kolekcji "appointments"
+- Automatyczne odświeżanie kalendarza po dodaniu wizyty
+- Prawidłowe mapowanie danych z nowej struktury na stare komponenty
+
+### 4. Naprawa problemu z pracownikami:
+- Stworzenie mechanizmu inicjalizacji pracowników w bazie danych
+- Modyfikacja strony zespol-roles do korzystania z bazy danych zamiast statycznej listy
+- Dodanie pełnego CRUD dla pracowników (dodawanie, edytowanie, usuwanie)
+- Dodanie przycisku "Zainicjuj pracowników" dla pierwszego uruchomienia
+- Naprawienie błędu kompilacji przez dodanie dyrektywy "use client"
+
+### 5. Walidacja i UX:
+- Walidacja wszystkich wymaganych pól
+- Obsługa stanów ładowania i błędów
+- Komunikaty sukcesu po dodaniu wizyty
+- Automatyczne zamykanie modalu po pomyślnym dodaniu
+
+### 6. Aktualizacja kalendarza:
+- Kalendarz automatycznie aktualizuje się po dodaniu nowej wizyty
+- Wizyty są poprawnie wyświetlane we wszystkich widokach (dzień/tydzień/miesiąc)
+
+## Jak to działa:
+
+1. Użytkownik klika "Dodaj wizytę" w kalendarzu
+2. Otwiera się modal z formularzem
+3. Użytkownik wybiera usługę, klienta, pracownika, datę i godzinę
+4. Po walidacji formularza, wizyta jest zapisywana w Firebase
+5. Kalendarz automatycznie odświeża się i pokazuje nową wizytę
+
+## Jak zainicjalizować pracowników:
+
+1. Przejdź do strony Ustawienia → Zespół i role
+2. Kliknij przycisk "Zainicjuj pracowników"
+3. System doda 3 przykładowych pracowników do bazy danych
+4. Po inicjalizacji pracownicy będą dostępni w liście wyboru w kalendarzu
+
+## Możliwości dalszego rozwoju:
+
+1. Sprawdzanie konfliktów w grafiku
+2. Powiadomienia SMS/Email dla klientów
+3. Edycja i usuwanie wizyt
+4. Powtarzające się wizyty
+5. Integracja z systemami płatności
+
+## Commit:
+feat(kalendarz): implementacja pełnej funkcjonalności dodawania wizyt z wyborem usług, klientów i pracowników
+
+- Dodanie modalu do tworzenia wizyt z walidacją formularza
+- Integracja z Firebase dla zapisywania wizyt w kolekcji appointments
+- Implementacja serwisów appointments-service.ts i employees-service.ts z pełnym CRUD
+- Dodanie inicjalizacji pracowników z istniejącej listy
+- Modyfikacja strony zespol-roles do korzystania z bazy danych zamiast statycznej listy
+- Automatyczne odświeżanie kalendarza po dodaniu nowej wizyty
+- Naprawa błędu kompilacji przez dodanie dyrektywy "use client"
+
+## Status: Zakończono ✅

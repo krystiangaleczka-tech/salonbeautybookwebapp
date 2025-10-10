@@ -225,7 +225,7 @@ export default function TeamAndRolesPage() {
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center">
                     <div className="text-sm text-muted-foreground">
-                      Brak pracowników. Kliknij "Zainicjuj pracowników", aby dodać przykładowych pracowników.
+                      {`Brak pracowników. Kliknij "Zainicjuj pracowników", aby dodać przykładowych pracowników.`}
                     </div>
                   </td>
                 </tr>
