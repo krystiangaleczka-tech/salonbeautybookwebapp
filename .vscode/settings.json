@@ -16,5 +16,24 @@
         "**/.git/subtree-cache/**": true,
         "**/node_modules/**": true,
         // ...
-    }
+    },
+    
+    // Tailwind CSS configuration
+    "css.validate": false,
+    "scss.validate": false,
+    "less.validate": false,
+    "tailwindCSS.includeLanguages": {
+        "css": "css",
+        "scss": "scss",
+        "less": "less"
+    },
+    "tailwindCSS.experimental.classRegex": [
+        ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+        ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+    ],
+    "editor.quickSuggestions": {
+        "strings": true
+    },
+    "tailwindCSS.experimental.configFile": "./admin-frontend/tailwind.config.ts",
+    "css.customData": ["./admin-frontend/css.customData.json"]
 }
