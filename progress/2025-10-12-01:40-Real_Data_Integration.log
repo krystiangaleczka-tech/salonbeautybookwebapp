@@ -1,0 +1,59 @@
+# Integracja Rzeczywistych Danych z Firestore
+
+## Data: 2025-10-12 01:40
+
+### Cel
+Zastąpienie danych testowych (mock data) rzeczywistymi danymi z Firestore w dashboardzie i na stronie raportów.
+
+### Wykonane prace
+
+#### 1. Utworzenie serwisu do pobierania danych z Firestore
+- Stworzono plik `admin-frontend/src/lib/dashboard-service.ts`
+- Zaimplementowano funkcje do pobierania:
+  - Statystyk dashboardu (wizyty dzisiaj, obłożenie, czas wolny, przychody)
+  - Dzisiejszych wizyt z detalami (klient, usługa, cena)
+  - Popularnych usług z liczbą rezerwacji i trendami
+  - Informacji o dostępności personelu
+  - Tygodniowych trendów
+  - Statystyk dla raportów
+- Dodano funkcje pomocnicze do operacji na datach (startOfDay, endOfDay, itp.)
+
+#### 2. Aktualizacja dashboardu
+- Zmodyfikowano plik `admin-frontend/src/app/(protected)/page.tsx`
+- Zastąpiono dane testowe rzeczywistymi danymi z Firestore
+- Dodano obsługę stanu ładowania
+- Zaktualizowano wyświetlanie:
+  - Statystyk wizyt, obłożenia i przychodów
+  - Dzisiejszych wizyt z nazwami klientów i usług
+  - Popularnych usług z liczbą rezerwacji
+  - Statusu personelu
+
+#### 3. Aktualizacja strony raportów
+- Zmodyfikowano plik `admin-frontend/src/app/(protected)/raporty/page.tsx`
+- Zastąpiono dane testowe rzeczywistymi danymi z Firestore
+- Dodano obsługę stanu ładowania
+- Zaktualizowano wyświetlanie statystyk dla raportów i trendów tygodniowych
+
+#### 4. Aktualizacja komponentu AnalyticsPanel
+- Zmodyfikowano plik `admin-frontend/src/components/reports/analytics-panel.tsx`
+- Dodano interfejs dla props weeklyTrends
+- Zaktualizowano wyświetlanie rzeczywistych trendów wizyt
+
+### Technologie
+- Firebase Firestore
+- React (useState, useEffect, useMemo)
+- TypeScript
+- Next.js
+
+### Wynik
+Dashboard i raporty teraz pokazują faktyczne, rzeczywiste dane z bazy Firestore, co pozwala na monitoring rzeczywistej działalności salonu. Wszystkie komponenty mają obsługę stanu ładowania, co zapewnia płynne doświadczenie użytkownika podczas pobierania danych.
+
+### Napotkane problemy i rozwiązania
+1. **Błędy importu funkcji datowych z Firebase**: Funkcje takie jak startOfDay nie są dostępne w Firebase Firestore, rozwiązano przez stworzenie własnych funkcji pomocniczych.
+2. **Błąd w nazwie zmiennej weekRevenue**: Naprawiono niezgodność między nazwą zmiennej a interfejsem.
+3. **Błąd w metodzie indexOf dla tablicy obiektów**: Naprawiono przez użycie indeksu z funkcji map zamiast indexOf.
+
+### Dalsze kroki
+- Monitorowanie wydajności zapytań do Firestore
+- Optymalizacja zapytań przy dużych ilościach danych
+- Rozważenie implementacji mechanizmu cachingu dla często pobieranych danych

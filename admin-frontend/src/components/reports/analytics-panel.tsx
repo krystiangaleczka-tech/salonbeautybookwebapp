@@ -1,11 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { analysisTiles, weeklyTrend } from "@/lib/dashboard-data";
+import { analysisTiles } from "@/lib/dashboard-data";
+import type { WeeklyTrend } from "@/lib/dashboard-service";
 
-export function AnalyticsPanel() {
+interface AnalyticsPanelProps {
+  weeklyTrends: WeeklyTrend[];
+}
+
+export function AnalyticsPanel({ weeklyTrends }: AnalyticsPanelProps) {
   const [activeTile, setActiveTile] = useState(analysisTiles[0]);
-  const maxValue = useMemo(() => Math.max(...weeklyTrend.map((item) => item.value)), []);
+  const maxValue = useMemo(() => Math.max(...weeklyTrends.map((item) => item.appointments)), [weeklyTrends]);
 
   return (
     <section className="space-y-6">
@@ -44,10 +49,10 @@ export function AnalyticsPanel() {
         </div>
 
         <div className="mt-8 flex items-end justify-between gap-4">
-          {weeklyTrend.map(({ label, value }) => {
-            const height = maxValue ? Math.round((value / maxValue) * 180) : 0;
+          {weeklyTrends.map(({ week, appointments }) => {
+            const height = maxValue ? Math.round((appointments / maxValue) * 180) : 0;
             return (
-              <div key={label} className="flex flex-1 flex-col items-center gap-3">
+              <div key={week} className="flex flex-1 flex-col items-center gap-3">
                 <div
                   className="flex h-48 w-full items-end rounded-lg bg-gradient-to-t from-primary/10 to-transparent p-2"
                   aria-hidden="true"
@@ -57,8 +62,8 @@ export function AnalyticsPanel() {
                     style={{ height: `${height}px` }}
                   />
                 </div>
-                <span className="text-xs font-medium text-muted-foreground">{label}</span>
-                <span className="text-sm font-semibold text-foreground">{value}</span>
+                <span className="text-xs font-medium text-muted-foreground">{week}</span>
+                <span className="text-sm font-semibold text-foreground">{appointments}</span>
               </div>
             );
           })}

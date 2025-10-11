@@ -1,22 +1,57 @@
+"use client";
+
 import { Bell, Eye, Plus } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import {
-  appointments,
-  overviewStats,
-  popularServices,
-  quickActions,
-  staffAvailability,
-} from "@/lib/dashboard-data";
-import {
-  getAccentBorder,
   getBubbleStyle,
   getSoftBadgeStyle,
   toneColorMap,
   toneTextClass,
 } from "@/lib/dashboard-theme";
+import { 
+  getDashboardStats, 
+  getTodayAppointments, 
+  getPopularServices, 
+  getStaffAvailability,
+  type DashboardStats,
+  type AppointmentWithDetails,
+  type PopularService,
+  type StaffAvailability
+} from "@/lib/dashboard-service";
+import { useEffect, useState } from "react";
+import { Calendar, TrendingUp, Coffee, Users } from "lucide-react";
 
 export default function DashboardPage() {
-  const maxPopularity = Math.max(...popularServices.map((service) => service.count));
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
+  const [popularServices, setPopularServices] = useState<PopularService[]>([]);
+  const [staffAvailability, setStaffAvailability] = useState<StaffAvailability[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [statsData, appointmentsData, servicesData, staffData] = await Promise.all([
+          getDashboardStats(),
+          getTodayAppointments(),
+          getPopularServices(),
+          getStaffAvailability()
+        ]);
+        
+        setStats(statsData);
+        setAppointments(appointmentsData);
+        setPopularServices(servicesData);
+        setStaffAvailability(staffData);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const headerActions = (
     <>
@@ -35,12 +70,44 @@ export default function DashboardPage() {
     </>
   );
 
+  const currentDate = new Date();
+  const daysOfWeek = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"];
+  const currentDay = daysOfWeek[currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1];
+  const formattedDate = `${currentDate.getDate()} ${currentDate.toLocaleDateString('pl', { month: 'long' })} ${currentDate.getFullYear()}`;
+
+  const overviewStats = stats ? [
+    { label: "Dzisiejsze wizyty", value: stats.todayAppointments.toString(), icon: Calendar, tone: "primary" as const },
+    { label: "Zajętość", value: `${stats.occupancyRate}%`, icon: TrendingUp, tone: "chart4" as const },
+    { label: "Czas wolny", value: stats.freeTime, icon: Coffee, tone: "chart5" as const },
+  ] : [];
+
+  const maxPopularity = popularServices.length > 0 
+    ? Math.max(...popularServices.map((service) => service.count))
+    : 1;
+
+  if (loading) {
+    return (
+      <DashboardLayout
+        active="dashboard"
+        header={{
+          title: "Witaj, Maja!",
+          subtitle: `Dzisiaj jest ${currentDay}, ${formattedDate}`,
+          actions: headerActions,
+        }}
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-muted-foreground">Ładowanie danych...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout
       active="dashboard"
       header={{
         title: "Witaj, Maja!",
-        subtitle: "Dzisiaj jest poniedziałek, 15 stycznia 2024",
+        subtitle: `Dzisiaj jest ${currentDay}, ${formattedDate}`,
         actions: headerActions,
       }}
     >
@@ -64,31 +131,43 @@ export default function DashboardPage() {
         <div className="card p-6">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-foreground">Dzisiejsze wizyty</h2>
-            <span className="text-sm font-medium text-primary">8 rezerwacji</span>
+            <span className="text-sm font-medium text-primary">{appointments.length} rezerwacji</span>
           </div>
 
           <div className="space-y-4">
-            {appointments.map(({ name, service, time, price, gradient, tone, urgent }) => (
-              <article
-                key={`${name}-${time}`}
-                className={`card flex flex-col gap-4 border-l-4 p-4 ${urgent ? "border-destructive" : "border-primary"}`}
-                style={getAccentBorder(tone)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`h-10 w-10 rounded-full bg-gradient-to-r ${gradient}`} />
-                    <div>
-                      <p className="font-medium text-foreground">{name}</p>
-                      <p className="text-sm text-muted-foreground">{service}</p>
+            {appointments.length > 0 ? (
+              appointments.map(({ id, customerName, serviceName, start, end, price }) => {
+                const startTime = start instanceof Date ? start : start.toDate();
+                const endTime = end instanceof Date ? end : end.toDate();
+                const timeString = `${startTime.getHours().toString().padStart(2, '0')}:${startTime.getMinutes().toString().padStart(2, '0')}`;
+                const priceString = price ? `${price} zł` : "Cena nieokreślona";
+                
+                return (
+                  <article
+                    key={id}
+                    className="card flex flex-col gap-4 border-l-4 border-primary p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-r from-primary to-accent" />
+                        <div>
+                          <p className="font-medium text-foreground">{customerName}</p>
+                          <p className="text-sm text-muted-foreground">{serviceName}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-foreground">{timeString}</p>
+                        <p className="text-sm text-muted-foreground">{priceString}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-semibold ${urgent ? "text-destructive" : "text-foreground"}`}>{time}</p>
-                    <p className="text-sm text-muted-foreground">{price}</p>
-                  </div>
-                </div>
-              </article>
-            ))}
+                  </article>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Brak wizyt na dziś
+              </div>
+            )}
           </div>
 
           <button className="btn-primary mt-6 w-full">
@@ -100,7 +179,9 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="card overflow-hidden p-0">
             <div className="bg-gradient-to-r from-primary to-accent p-6 text-center text-primary-foreground">
-              <h2 className="text-xl font-semibold">STYCZEŃ 2024</h2>
+              <h2 className="text-xl font-semibold">
+                {currentDate.toLocaleDateString('pl', { month: 'long' }).toUpperCase()} {currentDate.getFullYear()}
+              </h2>
             </div>
             <div className="p-6">
               <div className="mb-2 grid grid-cols-7 gap-2 text-sm text-muted-foreground">
@@ -111,15 +192,22 @@ export default function DashboardPage() {
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-2">
-                {[8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map((day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    className={`calendar-day ${day === 15 ? "bg-primary text-primary-foreground" : ""}`}
-                  >
-                    {day}
-                  </button>
-                ))}
+                {Array.from({ length: 35 }, (_, i) => {
+                  const day = i - currentDate.getDay() + 1;
+                  const isCurrentMonth = day >= 1 && day <= new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+                  const isToday = isCurrentMonth && day === currentDate.getDate();
+                  
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      className={`calendar-day ${isToday ? "bg-primary text-primary-foreground" : ""} ${!isCurrentMonth ? "text-muted-foreground" : ""}`}
+                      disabled={!isCurrentMonth}
+                    >
+                      {isCurrentMonth ? day : ""}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -127,12 +215,22 @@ export default function DashboardPage() {
           <div className="card p-6">
             <h2 className="mb-4 text-xl font-semibold text-foreground">Szybkie akcje</h2>
             <div className="grid grid-cols-2 gap-4">
-              {quickActions.map(({ label, icon: Icon, tone }) => (
-                <button key={label} type="button" className="quick-action-tile">
-                  <Icon className={`mb-2 h-6 w-6 ${toneTextClass[tone]}`} />
-                  <span className="text-sm font-medium text-foreground">{label}</span>
-                </button>
-              ))}
+              <button type="button" className="quick-action-tile">
+                <Plus className="mb-2 h-6 w-6 text-accent" />
+                <span className="text-sm font-medium text-foreground">Nowy klient</span>
+              </button>
+              <button type="button" className="quick-action-tile">
+                <Calendar className="mb-2 h-6 w-6 text-chart-3" />
+                <span className="text-sm font-medium text-foreground">Dodaj usługę</span>
+              </button>
+              <button type="button" className="quick-action-tile">
+                <Eye className="mb-2 h-6 w-6 text-chart-4" />
+                <span className="text-sm font-medium text-foreground">Blokada terminu</span>
+              </button>
+              <button type="button" className="quick-action-tile">
+                <TrendingUp className="mb-2 h-6 w-6 text-chart-5" />
+                <span className="text-sm font-medium text-foreground">Raport dnia</span>
+              </button>
             </div>
           </div>
         </div>
@@ -145,29 +243,49 @@ export default function DashboardPage() {
             <span className="text-sm text-muted-foreground">Aktualny dyżur</span>
           </div>
           <div className="space-y-4">
-            {staffAvailability.map(({ name, role, shift, status, statusTone, gradient }) => (
-              <article
-                key={name}
-                className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 shadow-sm"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`h-10 w-10 rounded-full bg-gradient-to-r ${gradient}`} />
-                  <div>
-                    <p className="font-medium text-foreground">{name}</p>
-                    <p className="text-sm text-muted-foreground">{role}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span
-                    className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${toneTextClass[statusTone]}`}
-                    style={getSoftBadgeStyle(statusTone)}
+            {staffAvailability.length > 0 ? (
+              staffAvailability.map(({ name, role, activeAppointments, status }) => {
+                const statusColors = {
+                  available: "chart4",
+                  busy: "primary",
+                  "on-break": "accent"
+                } as const;
+                
+                const gradientColors = {
+                  available: "from-chart-4 to-chart-3",
+                  busy: "from-primary to-accent",
+                  "on-break": "from-chart-5 to-[#c084fc]"
+                };
+                
+                return (
+                  <article
+                    key={name}
+                    className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 shadow-sm"
                   >
-                    {status}
-                  </span>
-                  <p className="mt-2 text-sm text-muted-foreground">{shift}</p>
-                </div>
-              </article>
-            ))}
+                    <div className="flex items-center space-x-3">
+                      <div className={`h-10 w-10 rounded-full bg-gradient-to-r ${gradientColors[status]}`} />
+                      <div>
+                        <p className="font-medium text-foreground">{name}</p>
+                        <p className="text-sm text-muted-foreground">{role}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span
+                        className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${toneTextClass[statusColors[status]]}`}
+                        style={getSoftBadgeStyle(statusColors[status])}
+                      >
+                        {status === "available" ? "Dostępna" : status === "busy" ? "W trakcie wizyty" : "Na przerwie"}
+                      </span>
+                      <p className="mt-2 text-sm text-muted-foreground">{activeAppointments} wizyt</p>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Brak danych o personelu
+              </div>
+            )}
           </div>
         </div>
 
@@ -177,26 +295,38 @@ export default function DashboardPage() {
             <span className="text-sm text-muted-foreground">Ten tydzień</span>
           </div>
           <div className="space-y-4">
-            {popularServices.map(({ name, count, trend, tone, trendTone }) => (
-              <article key={name} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium text-foreground">{name}</p>
-                    <p className="text-sm text-muted-foreground">{count} wizyt</p>
-                  </div>
-                  <span className={`text-sm font-semibold ${toneTextClass[trendTone]}`}>{trend}</span>
-                </div>
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${maxPopularity ? (count / maxPopularity) * 100 : 0}%`,
-                      background: toneColorMap[tone],
-                    }}
-                  />
-                </div>
-              </article>
-            ))}
+            {popularServices.length > 0 ? (
+              popularServices.map(({ id, name, count, trend }, index) => {
+                const toneIndex = index % 5;
+                const tones: Array<"primary" | "chart3" | "chart4" | "chart5"> = ["primary", "chart3", "chart4", "chart5", "chart3"];
+                const tone = tones[toneIndex];
+                
+                return (
+                  <article key={id} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium text-foreground">{name}</p>
+                        <p className="text-sm text-muted-foreground">{count} wizyt</p>
+                      </div>
+                      <span className={`text-sm font-semibold ${toneTextClass[tone]}`}>{trend}</span>
+                    </div>
+                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(count / maxPopularity) * 100}%`,
+                          background: toneColorMap[tone],
+                        }}
+                      />
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Brak danych o popularności usług
+              </div>
+            )}
           </div>
         </div>
       </section>
