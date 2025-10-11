@@ -556,24 +556,38 @@ function DayBoard({
       )[0];
       
       if (firstEvent) {
-        const startTime = parseIsoDate(firstEvent.start);
-        const startMinutes = minutesSinceStartOfDay(startTime);
+        // Znajdź element pierwszej wizyty w DOM
+        const firstEventElement = dayViewRef.current?.querySelector(`[data-event-id="${firstEvent.id}"]`);
         
-        // Oblicz pozycję przewijania (uwzględniając DAY_PIXELS_PER_MINUTE)
-        const scrollPosition = (startMinutes - minutesWindow.start) * DAY_PIXELS_PER_MINUTE;
-        
-        // Przewiń do odpowiedniej pozycji z małym opóźnieniem
-        setTimeout(() => {
-          dayViewRef.current?.scrollTo({
-            left: scrollPosition,
-            behavior: "smooth"
+        if (firstEventElement) {
+          // Użyj scrollIntoView z smooth TYLKO dla automatycznego przewijania
+          firstEventElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'start'
           });
           
-          // Zresetuj flagę po zakończeniu przewijania
+          // Zresetuj flagę po zakończeniu animacji (zwykle ~500-1000ms)
           setTimeout(() => {
             isScrollingToFirstEventRef.current = false;
           }, 1000);
-        }, 100);
+        } else {
+          // Fallback: oblicz pozycję przewijania jeśli element nie został znaleziony
+          const startTime = parseIsoDate(firstEvent.start);
+          const startMinutes = minutesSinceStartOfDay(startTime);
+          const scrollPosition = (startMinutes - minutesWindow.start) * DAY_PIXELS_PER_MINUTE;
+          
+          setTimeout(() => {
+            dayViewRef.current?.scrollTo({
+              left: scrollPosition,
+              behavior: "smooth"
+            });
+            
+            setTimeout(() => {
+              isScrollingToFirstEventRef.current = false;
+            }, 1000);
+          }, 100);
+        }
       }
       
       // Zaktualizuj poprzednią datę
@@ -626,7 +640,7 @@ function DayBoard({
           {date.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </div>
         <div
-          className="overflow-auto scroll-smooth"
+          className="overflow-auto"
           ref={dayViewRef}
         >
           <div className="min-w-full" style={{ minWidth: timelineWidth + 160, minHeight: 672 }}>
@@ -662,6 +676,7 @@ function DayBoard({
                 {horizontalEvents.map((event) => (
                   <div
                     key={event.id}
+                    data-event-id={event.id}
                     onClick={() => onSelectAppointment(event.id)}
                     className={`absolute top-10 flex h-24 w-48 flex-col justify-between overflow-hidden rounded-2xl border bg-card p-3 text-left text-xs shadow-lg transition-all cursor-pointer hover-pulse-shadow ${
                        STATUS_CLASSNAME[event.status].border
