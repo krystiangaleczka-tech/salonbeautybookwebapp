@@ -1,0 +1,33 @@
+# Poprawka efektu hover w tabelach Klienci i Usługi
+
+## Data i godzina
+2025-10-11 21:53
+
+## Opis problemu
+W panelach "Klienci" i "Usługi" efekt hover był nieprawidłowo zaimplementowany - wszystkie elementy w tabeli podnosiły się jednocześnie zamiast tylko indywidualny wiersz, na którym znajdował się kursor.
+
+## Przyczyna
+1. Globalna klasa `.card` w pliku `globals.css` miała zdefiniowany efekt `hover:-translate-y-0.5` powodujący podnoszenie się całego elementu
+2. Kontenery tabel używały klasy `card`, co powodowało efekt podnoszenia dla całej tabeli
+3. Przyciski wewnątrz wierszy również miały efekt podnoszenia, co tworzyło konflikt wizualny
+
+## Wprowadzone zmiany
+
+### Plik: admin-frontend/src/app/(protected)/klienci/page.tsx
+1. Zmieniono klasę kontenera tabeli z `className="card border border-border"` na `className="bg-card border border-border rounded-lg shadow-sm"`
+2. Zmodyfikowano klasę wierszy tabeli z `transition-colors hover:bg-muted/60` na `transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md`
+3. Zmieniono klasy przycisków z `transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground hover:shadow-md` na `transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground`
+
+### Plik: admin-frontend/src/app/(protected)/uslugi/page.tsx
+1. Zmieniono klasę kontenera tabeli z `className="card border border-border"` na `className="bg-card border border-border rounded-lg shadow-sm"`
+2. Zmodyfikowano klasę wierszy tabeli z `transition-colors hover:bg-muted/60` na `transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md`
+3. Zmieniono klasy przycisków z `transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground hover:shadow-md` na `transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground`
+
+## Efekt końcowy
+- Tylko pojedynczy wiersz, na którym znajduje się kursor, będzie się podnosił i rzucał cień
+- Przyciski wewnątrz wierszy nie będą miały efektu podnoszenia, aby uniknąć konfliktu wizualnego
+- Efekt jest płynny i subtelny dzięki animacjom CSS `duration-200 ease-out`
+- Cała tabela nie będzie reagować na hover, tylko indywidualne wiersze
+
+## Status
+✅ Zakończone

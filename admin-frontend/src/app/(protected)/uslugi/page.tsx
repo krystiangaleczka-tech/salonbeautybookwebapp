@@ -413,7 +413,7 @@ export default function ServicesPage() {
           </div>
         ) : null}
 
-        <div className="card border border-border">
+        <div className="bg-card border border-border rounded-lg shadow-sm">
           <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_96px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <span>Nazwa usługi</span>
             <span>Kategoria</span>
@@ -436,7 +436,7 @@ export default function ServicesPage() {
             {filteredServices.map((service) => (
               <div
                 key={service.id}
-                className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_96px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-colors hover:bg-muted/60"
+                className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_96px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md"
               >
                 <div className="flex flex-col gap-1">
                   <span className="font-medium text-foreground">{service.name || "Bez nazwy"}</span>
@@ -463,14 +463,14 @@ export default function ServicesPage() {
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                    className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground"
                     onClick={() => openEditForm(service)}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-destructive px-3 py-2 text-sm font-medium text-destructive transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-destructive hover:text-destructive-foreground"
+                    className="inline-flex items-center justify-center rounded-md border border-destructive px-3 py-2 text-sm font-medium text-destructive transition-colors duration-200 ease-out hover:bg-destructive hover:text-destructive-foreground"
                     onClick={() => confirmDelete(service)}
                   >
                     <Trash2 className="h-4 w-4" />

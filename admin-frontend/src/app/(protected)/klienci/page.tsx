@@ -260,7 +260,7 @@ export default function ClientsPage() {
           </div>
         ) : null}
 
-        <div className="card border border-border">
+        <div className="bg-card border border-border rounded-lg shadow-sm">
           <div className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {tableHeaders.map((header, index) => (
               <span key={`${header}-${index}`}>{header}</span>
@@ -279,10 +279,10 @@ export default function ClientsPage() {
               </div>
             ) : null}
             {filteredCustomers.map((customer) => (
-              <div
-                key={customer.id}
-                className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-colors hover:bg-muted/60"
-              >
+             <div
+               key={customer.id}
+               className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md"
+             >
                 <span className="text-xs text-muted-foreground">{customer.fullName ? customer.fullName[0]?.toUpperCase() : "?"}</span>
                 <span className="font-medium text-foreground">{customer.fullName || "Bez nazwy"}</span>
                 <span className="text-sm font-medium text-foreground">{customer.phone || "–"}</span>
@@ -301,14 +301,14 @@ export default function ClientsPage() {
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                    className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground"
                     onClick={() => openEditForm(customer)}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-destructive px-3 py-2 text-sm font-medium text-destructive transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-destructive hover:text-destructive-foreground"
+                    className="inline-flex items-center justify-center rounded-md border border-destructive px-3 py-2 text-sm font-medium text-destructive transition-colors duration-200 ease-out hover:bg-destructive hover:text-destructive-foreground"
                     onClick={() => confirmDelete(customer)}
                   >
                     <Trash2 className="h-4 w-4" />
