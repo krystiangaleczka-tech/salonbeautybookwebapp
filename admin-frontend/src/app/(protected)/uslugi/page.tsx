@@ -365,18 +365,18 @@ export default function ServicesPage() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
-                placeholder="Szukaj usługi po nazwie, kategorii lub opisie..."
+                placeholder="Szukaj usługi..."
                 className="w-full rounded-lg border border-border bg-card px-10 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
             </div>
             <select
-              className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring lg:px-4"
               value={selectedCategory}
               onChange={(event) => setSelectedCategory(event.target.value)}
             >
-              <option value="all">Wszystkie kategorie</option>
+              <option value="all">Kategorie</option>
               {categories.map((category) => (
                 <option key={category} value={category}>
                   {category}
@@ -385,16 +385,17 @@ export default function ServicesPage() {
             </select>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+              className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground lg:px-4"
               disabled
               title="Zaawansowane filtry w przygotowaniu"
             >
-              <Filter className="mr-2 h-4 w-4" />
-              Filtry
+              <Filter className="mr-1 h-4 w-4 lg:mr-2" />
+              <span className="hidden lg:inline">Filtry</span>
             </button>
-            <button type="button" className="btn-primary" onClick={openCreateForm}>
-              <Plus className="mr-2 h-4 w-4" />
-              Dodaj usługę
+            <button type="button" className="btn-primary px-3 lg:px-4" onClick={openCreateForm}>
+              <Plus className="mr-1 h-4 w-4 lg:mr-2" />
+              <span className="hidden lg:inline">Dodaj usługę</span>
+              <span className="lg:hidden">Dodaj</span>
             </button>
           </div>
         </div>
@@ -414,14 +415,77 @@ export default function ServicesPage() {
         ) : null}
 
         <div className="bg-card border border-border rounded-lg shadow-sm">
-          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_96px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Nazwa usługi</span>
-            <span>Kategoria</span>
-            <span>Czas</span>
-            <span>Cena</span>
-            <span className="text-right">Akcje</span>
+          {/* Desktop Table View */}
+          <div className="hidden lg:block">
+            <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_96px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>Nazwa usługi</span>
+              <span>Kategoria</span>
+              <span>Czas</span>
+              <span>Cena</span>
+              <span className="text-right">Akcje</span>
+            </div>
+            <div className="max-h-[480px] overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Ładujemy usługi z Firestore...
+                </div>
+              ) : null}
+              {!loading && filteredServices.length === 0 ? (
+                <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  Brak usług spełniających kryteria wyszukiwania. Dodaj nowy zabieg, aby rozpocząć pracę.
+                </div>
+              ) : null}
+              {filteredServices.map((service) => (
+                <div
+                  key={service.id}
+                  className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_96px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium text-foreground">{service.name || "Bez nazwy"}</span>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span
+                        className="inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium"
+                        style={getBubbleStyle(service.tone)}
+                      >
+                        <span className={toneTextClass[service.tone]}>Kolor: {service.tone}</span>
+                      </span>
+                      {service.noParallel ? <span>Brak równoległych wizyt</span> : <span>Równoległe dozwolone</span>}
+                      {service.bufferAfterMin ? <span>Bufor: {service.bufferAfterMin} min</span> : null}
+                      {(service.weeklyBookings ?? 0) > 0 ? (
+                        <span>{service.weeklyBookings} rezerwacji/tydz.</span>
+                      ) : null}
+                    </div>
+                    {service.description ? (
+                      <p className="text-xs text-muted-foreground">{service.description}</p>
+                    ) : null}
+                  </div>
+                  <span className="text-sm font-medium text-foreground">{service.category || "–"}</span>
+                  <span className="text-sm text-muted-foreground">{formatDuration(service.durationMin)}</span>
+                  <span className="text-sm text-muted-foreground">{formatPrice(service.price)}</span>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => openEditForm(service)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-md border border-destructive px-3 py-2 text-sm font-medium text-destructive transition-colors duration-200 ease-out hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => confirmDelete(service)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="max-h-[480px] overflow-y-auto">
+
+          {/* Mobile & Tablet Card View */}
+          <div className="lg:hidden">
             {loading ? (
               <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -433,51 +497,103 @@ export default function ServicesPage() {
                 Brak usług spełniających kryteria wyszukiwania. Dodaj nowy zabieg, aby rozpocząć pracę.
               </div>
             ) : null}
-            {filteredServices.map((service) => (
-              <div
-                key={service.id}
-                className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_96px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-foreground">{service.name || "Bez nazwy"}</span>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium"
-                      style={getBubbleStyle(service.tone)}
-                    >
-                      <span className={toneTextClass[service.tone]}>Kolor: {service.tone}</span>
-                    </span>
-                    {service.noParallel ? <span>Brak równoległych wizyt</span> : <span>Równoległe dozwolone</span>}
-                    {service.bufferAfterMin ? <span>Bufor: {service.bufferAfterMin} min</span> : null}
+            <div className="px-4 py-3 space-y-4 max-h-[600px] overflow-y-auto">
+              {filteredServices.map((service) => (
+                <div
+                  key={service.id}
+                  className="bg-card border border-border rounded-lg p-4 shadow-sm transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-primary to-accent text-primary-foreground mr-3">
+                        <Scissors className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">{service.name || "Bez nazwy"}</h3>
+                        <span
+                          className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold leading-none mt-1"
+                          style={getBubbleStyle(service.tone)}
+                        >
+                          <span className={toneTextClass[service.tone]}>{service.tone}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-border p-2 text-sm font-medium text-foreground transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => openEditForm(service)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-destructive p-2 text-sm font-medium text-destructive transition-colors duration-200 ease-out hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => confirmDelete(service)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-2">📁</span>
+                        <span className="font-medium text-foreground">Kategoria:</span>
+                      </div>
+                      <span className="text-foreground">{service.category || "Brak kategorii"}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-2">⏱️</span>
+                        <span className="font-medium text-foreground">Czas:</span>
+                      </div>
+                      <span className="text-foreground">{formatDuration(service.durationMin)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-2">💰</span>
+                        <span className="font-medium text-foreground">Cena:</span>
+                      </div>
+                      <span className="text-foreground">{formatPrice(service.price)}</span>
+                    </div>
+                    {service.bufferAfterMin ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <span className="text-muted-foreground mr-2">⏰</span>
+                          <span className="font-medium text-foreground">Bufor:</span>
+                        </div>
+                        <span className="text-foreground">{service.bufferAfterMin} min</span>
+                      </div>
+                    ) : null}
+                    {service.noParallel ? (
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-2">🚫</span>
+                        <span className="text-foreground">Brak równoległych wizyt</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-2">✅</span>
+                        <span className="text-foreground">Równoległe dozwolone</span>
+                      </div>
+                    )}
                     {(service.weeklyBookings ?? 0) > 0 ? (
-                      <span>{service.weeklyBookings} rezerwacji/tydz.</span>
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-2">📊</span>
+                        <span className="text-foreground">{service.weeklyBookings} rezerwacji/tydz.</span>
+                      </div>
+                    ) : null}
+                    {service.description ? (
+                      <div className="flex items-start">
+                        <span className="text-muted-foreground mr-2">📝</span>
+                        <span className="text-foreground">{service.description}</span>
+                      </div>
                     ) : null}
                   </div>
-                  {service.description ? (
-                    <p className="text-xs text-muted-foreground">{service.description}</p>
-                  ) : null}
                 </div>
-                <span className="text-sm font-medium text-foreground">{service.category || "–"}</span>
-                <span className="text-sm text-muted-foreground">{formatDuration(service.durationMin)}</span>
-                <span className="text-sm text-muted-foreground">{formatPrice(service.price)}</span>
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground"
-                    onClick={() => openEditForm(service)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-destructive px-3 py-2 text-sm font-medium text-destructive transition-colors duration-200 ease-out hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => confirmDelete(service)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>

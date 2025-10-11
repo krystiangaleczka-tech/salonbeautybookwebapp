@@ -220,29 +220,32 @@ export default function ClientsPage() {
       <section className="space-y-6">
         <div className="card border border-border p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <div className="relative w-full">
+            <div className="relative w-full md:flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
-                placeholder="Szukaj klienta po imieniu, nazwisku, numerze telefonu lub emailu..."
+                placeholder="Szukaj klienta..."
                 className="w-full rounded-lg border border-border bg-card px-10 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
             </div>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
-              disabled
-              title="Zaawansowane filtry w przygotowaniu"
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              Filtry
-            </button>
-            <button type="button" className="btn-primary" onClick={openCreateForm}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Dodaj klienta
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground flex-1 md:flex-none"
+                disabled
+                title="Zaawansowane filtry w przygotowaniu"
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Filtry</span>
+              </button>
+              <button type="button" className="btn-primary flex-1 md:flex-none" onClick={openCreateForm}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Dodaj klienta</span>
+                <span className="sm:hidden">Dodaj</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -261,12 +264,68 @@ export default function ClientsPage() {
         ) : null}
 
         <div className="bg-card border border-border rounded-lg shadow-sm">
-          <div className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {tableHeaders.map((header, index) => (
-              <span key={`${header}-${index}`}>{header}</span>
-            ))}
+          {/* Desktop Table View */}
+          <div className="hidden lg:block">
+            <div className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {tableHeaders.map((header, index) => (
+                <span key={`${header}-${index}`}>{header}</span>
+              ))}
+            </div>
+            <div className="max-h-[480px] overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Ładujemy klientów z Firestore...
+                </div>
+              ) : null}
+              {!loading && filteredCustomers.length === 0 ? (
+                <div className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  Brak klientów spełniających kryteria wyszukiwania. Dodaj nowy kontakt, aby rozpocząć pracę.
+                </div>
+              ) : null}
+              {filteredCustomers.map((customer) => (
+               <div
+                 key={customer.id}
+                 className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md"
+               >
+                  <span className="text-xs text-muted-foreground">{customer.fullName ? customer.fullName[0]?.toUpperCase() : "?"}</span>
+                  <span className="font-medium text-foreground">{customer.fullName || "Bez nazwy"}</span>
+                  <span className="text-sm font-medium text-foreground">{customer.phone || "–"}</span>
+                  <span className="text-sm text-muted-foreground">{customer.email || "–"}</span>
+                  <span className="text-sm text-muted-foreground">{formatTimestamp(customer.lastVisit)}</span>
+                  <span className="text-sm text-muted-foreground">{customer.notes || "–"}</span>
+                  <span
+                    className={`justify-self-start inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold leading-none min-w-[2.5rem] mr-8 ${
+                      customer.blacklisted
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-emerald-500/10 text-emerald-600"
+                    }`}
+                  >
+                    {customer.blacklisted ? "Tak" : "Nie"}
+                  </span>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => openEditForm(customer)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-md border border-destructive px-3 py-2 text-sm font-medium text-destructive transition-colors duration-200 ease-out hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => confirmDelete(customer)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="max-h-[480px] overflow-y-auto">
+
+          {/* Mobile & Tablet Card View */}
+          <div className="lg:hidden">
             {loading ? (
               <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -278,44 +337,75 @@ export default function ClientsPage() {
                 Brak klientów spełniających kryteria wyszukiwania. Dodaj nowy kontakt, aby rozpocząć pracę.
               </div>
             ) : null}
-            {filteredCustomers.map((customer) => (
-             <div
-               key={customer.id}
-               className="grid grid-cols-[48px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_64px] items-center gap-4 border-b border-border px-6 py-4 last:border-b-0 transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md"
-             >
-                <span className="text-xs text-muted-foreground">{customer.fullName ? customer.fullName[0]?.toUpperCase() : "?"}</span>
-                <span className="font-medium text-foreground">{customer.fullName || "Bez nazwy"}</span>
-                <span className="text-sm font-medium text-foreground">{customer.phone || "–"}</span>
-                <span className="text-sm text-muted-foreground">{customer.email || "–"}</span>
-                <span className="text-sm text-muted-foreground">{formatTimestamp(customer.lastVisit)}</span>
-                <span className="text-sm text-muted-foreground">{customer.notes || "–"}</span>
-                <span
-                  className={`justify-self-start inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold leading-none min-w-[2.5rem] mr-8 ${
-                    customer.blacklisted
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-emerald-500/10 text-emerald-600"
-                  }`}
+            <div className="px-4 py-3 space-y-4 max-h-[600px] overflow-y-auto">
+              {filteredCustomers.map((customer) => (
+                <div
+                  key={customer.id}
+                  className="bg-card border border-border rounded-lg p-4 shadow-sm transition-all duration-200 ease-out hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md"
                 >
-                  {customer.blacklisted ? "Tak" : "Nie"}
-                </span>
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground"
-                    onClick={() => openEditForm(customer)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center rounded-md border border-destructive px-3 py-2 text-sm font-medium text-destructive transition-colors duration-200 ease-out hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => confirmDelete(customer)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-primary to-accent text-primary-foreground mr-3">
+                        <span className="text-sm font-semibold">{customer.fullName ? customer.fullName[0]?.toUpperCase() : "?"}</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">{customer.fullName || "Bez nazwy"}</h3>
+                        <span
+                          className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold leading-none mt-1 ${
+                            customer.blacklisted
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-emerald-500/10 text-emerald-600"
+                          }`}
+                        >
+                          {customer.blacklisted ? "Czarna lista" : "Aktywny"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-border p-2 text-sm font-medium text-foreground transition-colors duration-200 ease-out hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => openEditForm(customer)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-destructive p-2 text-sm font-medium text-destructive transition-colors duration-200 ease-out hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={() => confirmDelete(customer)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center">
+                      <span className="text-muted-foreground mr-2">📞</span>
+                      <span className="font-medium text-foreground">{customer.phone || "Brak telefonu"}</span>
+                    </div>
+                    {customer.email ? (
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-2">✉️</span>
+                        <span className="text-foreground">{customer.email}</span>
+                      </div>
+                    ) : null}
+                    {customer.lastVisit ? (
+                      <div className="flex items-center">
+                        <span className="text-muted-foreground mr-2">📅</span>
+                        <span className="text-foreground">Ostatnia wizyta: {formatTimestamp(customer.lastVisit)}</span>
+                      </div>
+                    ) : null}
+                    {customer.notes ? (
+                      <div className="flex items-start">
+                        <span className="text-muted-foreground mr-2">📝</span>
+                        <span className="text-foreground">{customer.notes}</span>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>

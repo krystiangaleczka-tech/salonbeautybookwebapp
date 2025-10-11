@@ -1,0 +1,42 @@
+DATA: 2025-10-11 01:01:39 UTC+2
+TYTUŁ: Optymalizacje interfejsu mobilnego i tabletowego
+OPIS: Poprawki responsywności dla urządzeń mobilnych i tabletów, przeniesienie hamburger menu
+
+ZMIANY:
+
+Widok kafelkowy dla tabletów (usługi i klienci)
+
+Zmiana breakpointu z md: na lg: dla widoku kafelkowego
+Dodanie widoku kafelkowego dla tabletów na stronach "usługi" i "klienci"
+Pliki zmodyfikowane:
+admin-frontend/src/app/(protected)/uslugi/page.tsx
+admin-frontend/src/app/(protected)/klienci/page.tsx
+Optymalizacja panelu filtrów na stronie "usługi"
+
+Skrócenie placeholdera pola wyszukiwania
+Zmniejszenie paddingów i marginesów dla tabletów
+Dodanie responsywnych klas dla przycisków
+Plik zmodyfikowany:
+admin-frontend/src/app/(protected)/uslugi/page.tsx
+Przeniesienie hamburger menu w DashboardLayout
+
+Zmiana breakpointu z md: na lg: dla hamburger menu
+Przeniesienie przycisku hamburger menu z prawej sekcji nagłówka na lewą, za tytułem strony
+Plik zmodyfikowany:
+admin-frontend/src/components/dashboard/dashboard-layout.tsx
+Poprawki responsywności dla hamburger menu
+
+Zmiana breakpointu z md: na lg: dla mobilnego sidebaru i nakładki
+Pliki zmodyfikowane:
+admin-frontend/src/components/dashboard/dashboard-layout.tsx
+admin-frontend/src/app/(protected)/kalendarz/page.tsx (próba zmiany, następnie cofnięcie)
+TECHNIKA:
+
+Użycie klas Tailwind CSS z breakpointami lg: dla lepszej responsywności na tabletach
+Optymalizacja paddingów i marginesów dla mniejszych ekranów
+Poprawa kolejności elementów w nagłówkach dla lepszej użyteczności
+WYNIK:
+
+Lepsza czytelność interfejsu na tabletach
+Bardziej intuicyjne rozmieszczenie hamburger menu
+Spójny wygląd stron na urządzeniach mobilnych i tabletach
