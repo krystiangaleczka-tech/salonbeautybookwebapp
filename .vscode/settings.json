@@ -19,13 +19,15 @@
     },
     
     // Tailwind CSS configuration
-    "css.validate": false,
     "scss.validate": false,
     "less.validate": false,
+    "css.validate": false,
     "tailwindCSS.includeLanguages": {
         "css": "css",
         "scss": "scss",
-        "less": "less"
+        "less": "less",
+        "typescript": "javascript",
+        "typescriptreact": "javascript"
     },
     "tailwindCSS.experimental.classRegex": [
         ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
@@ -35,5 +37,9 @@
         "strings": true
     },
     "tailwindCSS.experimental.configFile": "./admin-frontend/tailwind.config.ts",
-    "css.customData": ["./admin-frontend/css.customData.json"]
+    "tailwindCSS.files.exclude": [
+        "**/.git/**",
+        "**/node_modules/**",
+        "**/.next/**"
+    ]
 }

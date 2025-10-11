@@ -4,24 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { Search, Filter, Calendar, User, Scissors, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown, X } from "lucide-react";
 import { format, isAfter, isBefore, isEqual, startOfMonth, endOfMonth } from "date-fns";
 import { pl } from "date-fns/locale";
-
-export interface AppointmentFilter {
-    search: string;
-    dateRange: {
-        from: Date | undefined;
-        to: Date | undefined;
-    };
-    employees: string[];
-    services: string[];
-    statuses: string[];
-    customers: string[];
-}
-
-export interface FilterPreset {
-    id: string;
-    name: string;
-    filters: AppointmentFilter;
-}
+import { AppointmentFilter, FilterPreset } from "@/lib/filters-service";
 
 const statusOptions = [
     { value: "confirmed", label: "Potwierdzone", icon: CheckCircle, color: "text-green-600" },
@@ -91,7 +74,7 @@ export function AppointmentFilters({
                 const employee = employees.find(e => e.id === appointment.employeeId);
                 
                 const matchesSearch =
-                    (customer && `${customer.firstName} ${customer.lastName}`.toLowerCase().includes(searchLower)) ||
+                    (customer && customer.fullName.toLowerCase().includes(searchLower)) ||
                     (service && service.name.toLowerCase().includes(searchLower)) ||
                     (employee && employee.name.toLowerCase().includes(searchLower)) ||
                     appointment.notes?.toLowerCase().includes(searchLower);

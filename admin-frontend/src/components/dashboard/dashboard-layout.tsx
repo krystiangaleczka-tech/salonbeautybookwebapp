@@ -100,7 +100,11 @@ export function DashboardLayout({ active, header, children }: DashboardLayoutPro
             </h1>
             {header.subtitle ? <p className="text-muted-foreground">{header.subtitle}</p> : null}
           </div>
-          {header.actions ? <div className="flex items-center gap-4">{header.actions}</div> : null}
+          {header.actions ? (
+            <div className="flex items-center gap-4">
+              {header.actions}
+            </div>
+          ) : null}
         </header>
         {children}
       </main>

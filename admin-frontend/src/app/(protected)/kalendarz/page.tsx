@@ -1095,7 +1095,7 @@ export default function CalendarPage() {
     
     // Oblicz efektywny czas zakończenia z uwzględnieniem buforów
     const effectiveEndDateTime = new Date(pendingChange.newEnd.getTime() +
-      (selectedEmployee.personalBuffers[pendingChange.serviceId] || selectedEmployee.defaultBuffer || 0) * 60000);
+      ((selectedEmployee.personalBuffers && selectedEmployee.personalBuffers[pendingChange.serviceId]) || selectedEmployee.defaultBuffer || 0) * 60000);
 
     startTransition(async () => {
       try {
@@ -1299,8 +1299,8 @@ export default function CalendarPage() {
     const endDateTime = new Date(startDateTime.getTime() + selectedService.durationMin * 60000);
     
     // Oblicz efektywny czas zakończenia z uwzględnieniem buforów
-    const effectiveEndDateTime = new Date(endDateTime.getTime() + 
-      (selectedEmployee.personalBuffers[editForm.serviceId] || selectedEmployee.defaultBuffer || 0) * 60000);
+    const effectiveEndDateTime = new Date(endDateTime.getTime() +
+      ((selectedEmployee.personalBuffers && selectedEmployee.personalBuffers[editForm.serviceId]) || selectedEmployee.defaultBuffer || 0) * 60000);
     
     startTransition(async () => {
       try {
@@ -2190,8 +2190,8 @@ export default function CalendarPage() {
                     const endDateTime = new Date(startDateTime.getTime() + selectedService.durationMin * 60000);
                     
                     // Oblicz efektywny czas zakończenia z uwzględnieniem buforów
-                    const effectiveEndDateTime = new Date(endDateTime.getTime() + 
-                      (selectedEmployee.personalBuffers[appointmentForm.serviceId] || selectedEmployee.defaultBuffer || 0) * 60000);
+                    const effectiveEndDateTime = new Date(endDateTime.getTime() +
+                      ((selectedEmployee.personalBuffers && selectedEmployee.personalBuffers[appointmentForm.serviceId]) || selectedEmployee.defaultBuffer || 0) * 60000);
                     
                     startTransition(async () => {
                       try {

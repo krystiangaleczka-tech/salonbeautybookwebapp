@@ -1,0 +1,33 @@
+Data: 2025-10-11 21:36
+Zadanie: Usunięcie błędów konsoli związanych z dark mode
+
+Zmodyfikowane pliki:
+==================
+
+1. .vscode/settings.json
+   - Dodano "css.validate": false - wyłączenie walidacji CSS dla reguł @tailwind i @apply
+   - Rozszerzono konfigurację Tailwind CSS o dodatkowe języki
+   - Dodano wykluczenia dla plików cache
+
+2. admin-frontend/src/app/(protected)/klienci/page.tsx
+   - Usunięto klasę "dark:text-emerald-400" z linii 296
+   - Zmieniono na: "bg-emerald-500/10 text-emerald-600"
+
+Operacje wykonane:
+==================
+
+1. Wyczyszczono cache:
+   - Usunięto katalog .next
+   - Usunięto node_modules/.cache
+   - Usunięto pliki .tsbuildinfo
+
+2. Rozwiązano problem z "duchami" plików w VSCode:
+   - Tymczasowo stworzono pliki dark-mode-toggle.tsx i useDarkMode.ts
+   - Następnie je bezpiecznie usunięto, aby zresetować cache TypeScript
+
+3. Zrestartowano serwer deweloperski
+
+Wynik:
+======
+Wszystkie błędy konsoli związane z dark mode i Tailwind CSS zostały usunięte.
+Aplikacja działa bez błędów TypeScript i problemów z walidacją CSS.

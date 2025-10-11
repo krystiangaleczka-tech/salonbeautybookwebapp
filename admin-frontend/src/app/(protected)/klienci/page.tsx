@@ -293,7 +293,7 @@ export default function ClientsPage() {
                   className={`justify-self-start inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold leading-none min-w-[2.5rem] mr-8 ${
                     customer.blacklisted
                       ? "bg-destructive/10 text-destructive"
-                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "bg-emerald-500/10 text-emerald-600"
                   }`}
                 >
                   {customer.blacklisted ? "Tak" : "Nie"}
