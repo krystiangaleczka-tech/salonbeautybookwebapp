@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, useRef } from "react";
 import {
   AlarmClock,
   CalendarDays,
@@ -312,12 +312,12 @@ function useMonth(date: Date) {
 }
 
 const minutesWindow: TimeRange = {
-  start: 7 * 60,
-  end: 20 * 60,
+  start: 6 * 60,
+  end: 22 * 60,
 };
 
 const PIXELS_PER_MINUTE = 1;
-const DAY_PIXELS_PER_MINUTE = 1.5;
+const DAY_PIXELS_PER_MINUTE = 4.5;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(value, max));
@@ -339,6 +339,24 @@ function buildHorizontalPositions(events: PositionedEvent[]) {
 }
 
 type HorizontalEvent = ReturnType<typeof buildHorizontalPositions>[number];
+
+const PULSE_SHADOW_ANIMATION = `
+  @keyframes pulse-shadow-inset {
+    0% {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 0 0 0 rgba(252, 165, 165, 0.1);
+    }
+    75% {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 0 8px 8px rgba(252, 165, 165, 0.3);
+    }
+    100% {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -5px rgba(0, 0, 0, 0.05), inset 0 0 2px 2px rgba(252, 165, 165, 0.1);
+    }
+  }
+  
+  .hover-pulse-shadow:hover {
+    animation: pulse-shadow-inset 2.5s infinite;
+  }
+`;
 
 function WeekBoard({
   weekDays,
@@ -406,8 +424,8 @@ function WeekBoard({
                   </span>
                 </div>
 
-                <div className="relative h-[780px]">
-                  <div className="absolute inset-0 grid grid-rows-[repeat(13,60px)]">
+                <div className="relative h-[960px]">
+                  <div className="absolute inset-0 grid grid-rows-[repeat(16,60px)]">
                     {hours.slice(0, -1).map((hour, index) => (
                       <div key={`${key}-grid-${hour}`} className="border-t border-[#ead9d1]/70" style={{ gridRow: index + 1 }} />
                     ))}
@@ -429,7 +447,7 @@ function WeekBoard({
                   {dayEvents.map((event) => (
                     <div
                       key={event.id}
-                      className={`absolute inset-x-2 flex h-full flex-col justify-between overflow-hidden rounded-xl border bg-card p-2 shadow-lg transition-transform hover:-translate-y-1 ${
+                      className={`absolute inset-x-2 flex h-full flex-col justify-between overflow-hidden rounded-xl border bg-card p-2 shadow-lg transition-all hover-pulse-shadow ${
                         STATUS_CLASSNAME[event.status].border
                       } ${event.isOutsideWorkingHours ? "ring-2 ring-amber-400" : ""}`}
                       style={{
@@ -481,14 +499,30 @@ function DayBoard({
   onSelectAppointment: (appointmentId: string) => void;
   selectedAppointmentId: string;
 }) {
-  const hours = useMemo(() => {
-    const range: number[] = [];
+  const timeSlots = useMemo(() => {
+    const slots: { hour: number; minute: number; showLabel: boolean }[] = [];
     const startHour = Math.floor(minutesWindow.start / 60);
     const endHour = Math.ceil(minutesWindow.end / 60);
+    
     for (let hour = startHour; hour <= endHour; hour += 1) {
-      range.push(hour);
+      // Dodaj podziałki co 15 minut
+      for (let minute = 0; minute < 60; minute += 15) {
+        // Pokaż etykietę tylko dla pełnych godzin (00 minut) i pół godzin (30 minut)
+        const showLabel = minute === 0 || minute === 30;
+        slots.push({ hour, minute, showLabel });
+      }
     }
-    return range;
+    
+    // Usuń ostatnią podziałkę, jeśli jest poza zakresem
+    if (slots.length > 0) {
+      const lastSlot = slots[slots.length - 1];
+      const lastSlotMinutes = lastSlot.hour * 60 + lastSlot.minute;
+      if (lastSlotMinutes >= minutesWindow.end) {
+        slots.pop();
+      }
+    }
+    
+    return slots;
   }, []);
 
   const timelineWidth = (minutesWindow.end - minutesWindow.start) * DAY_PIXELS_PER_MINUTE;
@@ -503,37 +537,124 @@ function DayBoard({
 
   const horizontalEvents = useMemo(() => buildHorizontalPositions(events), [events]);
 
+  const dayViewRef = useRef<HTMLDivElement>(null);
+  const previousDateRef = useRef<string>("");
+  const isScrollingToFirstEventRef = useRef<boolean>(false);
+  
+  // Przewijanie do pierwszej wizyty dnia po zmianie daty
+  useEffect(() => {
+    const currentDateString = date.toISOString().slice(0, 10);
+    
+    // Sprawdź, czy data faktycznie się zmieniła
+    if (previousDateRef.current !== currentDateString && dayViewRef.current && events.length > 0 && !isScrollingToFirstEventRef.current) {
+      // Ustaw flagę, aby zapobiec wielokrotnemu przewijaniu
+      isScrollingToFirstEventRef.current = true;
+      
+      // Znajdź pierwszą wizytę dnia
+      const firstEvent = events.sort((a, b) =>
+        parseIsoDate(a.start).getTime() - parseIsoDate(b.start).getTime()
+      )[0];
+      
+      if (firstEvent) {
+        const startTime = parseIsoDate(firstEvent.start);
+        const startMinutes = minutesSinceStartOfDay(startTime);
+        
+        // Oblicz pozycję przewijania (uwzględniając DAY_PIXELS_PER_MINUTE)
+        const scrollPosition = (startMinutes - minutesWindow.start) * DAY_PIXELS_PER_MINUTE;
+        
+        // Przewiń do odpowiedniej pozycji z małym opóźnieniem
+        setTimeout(() => {
+          dayViewRef.current?.scrollTo({
+            left: scrollPosition,
+            behavior: "smooth"
+          });
+          
+          // Zresetuj flagę po zakończeniu przewijania
+          setTimeout(() => {
+            isScrollingToFirstEventRef.current = false;
+          }, 1000);
+        }, 100);
+      }
+      
+      // Zaktualizuj poprzednią datę
+      previousDateRef.current = currentDateString;
+    }
+  }, [date, events]);
+  
+  // Obsługa przewijania poziomego kółkiem myszy
+  useEffect(() => {
+    const container = dayViewRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Resetuj flagę przy ręcznym przewijaniu
+      if (isScrollingToFirstEventRef.current) {
+        isScrollingToFirstEventRef.current = false;
+      }
+
+      // Rozróżnij touchpad (deltaMode = 0, małe wartości) od kółka myszy (deltaMode = 1 lub większe wartości)
+      const isTouchpad = e.deltaMode === 0 && Math.abs(e.deltaY) < 50;
+      
+      // Dla touchpada: pozwól na natywne przewijanie (NIE używaj preventDefault)
+      if (isTouchpad) {
+        return; // Nie ingeruj w touchpad
+      }
+
+      // Tylko dla kółka myszy: przechwytuj i konwertuj na poziome przewijanie
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        
+        // Dla kółka myszy użyj requestAnimationFrame dla płynności
+        requestAnimationFrame(() => {
+          container.scrollLeft += e.deltaY;
+        });
+      }
+    };
+
+    // WAŻNE: { passive: false } pozwala na preventDefault()
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+  
   return (
     <div className="rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-4 min-h-[640px]">
       <div className="flex flex-col gap-4">
         <div className="text-sm font-semibold text-foreground">
           {date.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </div>
-        <div className="overflow-x-auto">
-          <div className="min-w-full" style={{ minWidth: timelineWidth + 160, minHeight: 520 }}>
+        <div
+          className="overflow-auto scroll-smooth"
+          ref={dayViewRef}
+        >
+          <div className="min-w-full" style={{ minWidth: timelineWidth + 160, minHeight: 672 }}>
             <div className="pl-16">
               <div className="flex items-end gap-0 text-[11px] uppercase text-muted-foreground" style={{ width: timelineWidth }}>
-                {hours.map((hour, index) => (
-                  <div key={hour} className="relative flex items-center justify-center" style={{ width: hourWidth }}>
-                    <span>{hour.toString().padStart(2, "0")}:00</span>
-                    {index < hours.length - 1 ? (
+                {timeSlots.map((slot, index) => (
+                  <div key={`${slot.hour}-${slot.minute}`} className="relative flex items-center justify-center" style={{ width: hourWidth / 4 }}>
+                    {slot.showLabel && (
+                      <span>{slot.hour.toString().padStart(2, "0")}:{slot.minute.toString().padStart(2, "0")}</span>
+                    )}
+                    {index < timeSlots.length - 1 ? (
                       <span className="absolute bottom-0 right-0 h-3 w-px bg-[#ead9d1]" />
                     ) : null}
                   </div>
                 ))}
               </div>
-              <div className="relative mt-4 h-[520px] rounded-2xl border border-[#f2dcd4]/60 bg-[#fdf1eb]" style={{ width: timelineWidth }}>
+              <div className="relative mt-4 h-[672px] rounded-2xl border border-[#f2dcd4]/60 bg-[#fdf1eb]" style={{ width: timelineWidth }}>
                 <div className="absolute inset-0">
                   <div className="absolute inset-y-0 rounded-2xl bg-[#e7d7ff]/30" />
                   <div
                     className="absolute inset-y-4 rounded-2xl bg-[#ffc7d3]/60"
                     style={{ left: workingLeft, width: workingWidth }}
                   />
-                  {hours.map((hour, index) => (
+                  {timeSlots.map((slot, index) => (
                     <div
-                      key={`grid-${hour}`}
+                      key={`grid-${slot.hour}-${slot.minute}`}
                       className="absolute top-0 bottom-0 border-l border-dashed border-[#ead9d1]/80"
-                      style={{ left: index * hourWidth }}
+                      style={{ left: index * (hourWidth / 4) }}
                     />
                   ))}
                 </div>
@@ -542,13 +663,13 @@ function DayBoard({
                   <div
                     key={event.id}
                     onClick={() => onSelectAppointment(event.id)}
-                    className={`absolute top-10 flex h-24 w-48 flex-col justify-between overflow-hidden rounded-2xl border bg-card p-3 text-left text-xs shadow-lg transition-all cursor-pointer hover:-translate-y-1 ${
-                        STATUS_CLASSNAME[event.status].border
-                      } ${event.isOutsideWorkingHours ? "ring-2 ring-amber-400" : ""} ${
-                        selectedAppointmentId === event.id
-                          ? "bg-red-50 border-red-400 shadow-[inset_0_1px_3px_rgba(239,68,68,0.2)]"
-                          : ""
-                      }`}
+                    className={`absolute top-10 flex h-24 w-48 flex-col justify-between overflow-hidden rounded-2xl border bg-card p-3 text-left text-xs shadow-lg transition-all cursor-pointer hover-pulse-shadow ${
+                       STATUS_CLASSNAME[event.status].border
+                     } ${event.isOutsideWorkingHours ? "ring-2 ring-amber-400" : ""} ${
+                       selectedAppointmentId === event.id
+                         ? "bg-red-50 border-red-400 shadow-[inset_0_1px_3px_rgba(239,68,68,0.2)]"
+                         : ""
+                     }`}
                     style={{
                       left: clamp(event.left, 0, Math.max(0, timelineWidth - 160)),
                       width: clamp(event.width, 90, 200),
@@ -630,7 +751,7 @@ function DayAgenda({
           <div
             key={event.id}
             onClick={() => onSelectAppointment(event.id)}
-            className={`relative flex w-full flex-col gap-2 rounded-2xl border px-4 py-3 text-left shadow-sm transition-all cursor-pointer hover:-translate-y-0.5 hover:shadow-md ${
+            className={`relative flex w-full flex-col gap-2 rounded-3xl border px-4 py-3 text-left shadow-sm transition-all cursor-pointer hover-pulse-shadow ${
               STATUS_CLASSNAME[event.status].border
             } ${
               selectedAppointmentId === event.id
@@ -1295,6 +1416,7 @@ export default function CalendarPage() {
         subtitle: "Dotykowy harmonogram salonu z walidacją pedicure",
       }}
     >
+      <style jsx>{PULSE_SHADOW_ANIMATION}</style>
       <div className="space-y-6">
         {dataError ? (
           <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">

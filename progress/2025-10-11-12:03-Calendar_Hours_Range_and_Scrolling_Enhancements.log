@@ -1,0 +1,75 @@
+# Calendar Hours Range and Scrolling Enhancements
+## Data: 2025-10-11 12:03
+## Tytuł: Rozszerzenie zakresu godzin kalendarza i poprawa przewijania
+
+### Zrealizowane zmiany:
+
+#### 1. Zmiana zakresu godzin w kalendarzu
+- Zaktualizowano stałą `minutesWindow` z { start: 7 * 60, end: 20 * 60 } na { start: 6 * 60, end: 22 * 60 }
+- Kalendarz teraz wyświetla pełny zakres godzin od 06:00 do 22:00
+
+#### 2. Dostosowanie widoku tygodnia
+- Zwiększono wysokość kontenera z 780px na 960px
+- Zwiększono liczbę wierszy siatki z 13 na 16
+- Dostosowano layout do nowego zakresu godzin
+
+#### 3. Modyfikacja widoku dnia
+- Zwiększono stałą `DAY_PIXELS_PER_MINUTE` z 1.5 na 4.5 (trzykrotne rozszerzenie)
+- Zmniejszono wysokość kontenera z 1920px na 672px (zmniejszenie o około 65%)
+- Zwiększono minimalną wysokość kontenera z 640px na 672px
+- Zoptymalizowano proporcje dla lepszej czytelności
+
+#### 4. Dodanie podziałek co 15 minut w widoku dnia
+- Zastąpiono funkcję generującą godziny nową funkcją `timeSlots`, która tworzy podziałki co 15 minut
+- Wyświetlanie etykiet godzin tylko dla pełnych godzin (00 i 30 minut)
+- Dostosowano szerokość kolumn etykiet godzin i linii siatki do nowych podziałek
+- Poprawiono czytelność osi czasu
+
+#### 5. Dodanie automatycznego przewijania do pierwszej wizyty dnia
+- Dodano referencję do kontenera z widokiem dnia
+- Zaimplementowano efekt, który reaguje na zmianę daty i przewija widok do pierwszej wizyty danego dnia
+- Użyto płynnego przewijania (`scroll-behavior: smooth`) dla lepszej用户体验
+- Dodano mechanizm śledzenia poprzedniej daty, aby przewijanie odbywało się tylko przy faktycznej zmianie daty
+- Dodano flagę `isScrollingToFirstEventRef`, aby zapobiec ciągłemu przewijaniu do pierwszej wizyty
+
+#### 6. Naprawienie przewijania kółkiem myszy z obsługą momentum scrolling touchpada
+- Usunięto handlera `onWheel` z JSX
+- Usunięto `tabIndex={0}` i `style={{ scrollBehavior: 'smooth' }}`
+- Dodano natywny event listener w `useEffect` z opcją `{ passive: false }`
+- Zaimplementowano inteligentną detekcję urządzenia:
+  - Touchpad: `deltaMode === 0` i małe wartości `deltaY` (< 50) - pozwól na natywne przewijanie
+  - Kółko myszy: `deltaMode === 1` lub duże wartości - konwertuj pionowe na poziome przewijanie
+- Użyto `requestAnimationFrame()` dla płynniejszych animacji kółka myszy
+- Dodano mechanizm resetowania flagi przewijania do pierwszej wizyty, gdy użytkownik ręcznie przewija
+
+### Kluczowe rozwiązania techniczne:
+
+#### Problem z przewijaniem
+- Problem: Touchpad generuje momentum scrolling (bezwładność), a kod wywołuje `preventDefault()` i nadpisuje `scrollLeft`, co powoduje konflikt z naturalnym zachowaniem touchpada
+- Rozwiązanie: Inteligentna detekcja typu urządzenia i nieingerowanie w touchpad
+
+#### Detekcja urządzenia
+```typescript
+const isTouchpad = e.deltaMode === 0 && Math.abs(e.deltaY) < 50;
+```
+
+#### Płynne przewijanie kółkiem myszy
+```typescript
+requestAnimationFrame(() => {
+  container.scrollLeft += e.deltaY;
+});
+```
+
+### Rezultat końcowy:
+- Kalendarz wyświetla pełny zakres godzin od 06:00 do 22:00
+- Podziałki co 15 minut z etykietami tylko dla pełnych godzin (00 i 30)
+- Touchpad działa natywnie z momentum scrolling bez zakłóceń
+- Kółko myszy konwertuje pionowe przewijanie na poziome z płynnymi animacjami
+- Automatyczne przewijanie do pierwszej wizyty dnia po zmianie daty
+- Oba urządzenia współpracują bez konfliktów
+
+### Pliki zmodyfikowane:
+- admin-frontend/src/app/(protected)/kalendarz/page.tsx
+
+### Testowane przeglądarki:
+- Safari, Chrome, Firefox, Edge
