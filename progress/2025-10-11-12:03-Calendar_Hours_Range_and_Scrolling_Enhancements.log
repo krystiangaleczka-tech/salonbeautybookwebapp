@@ -68,8 +68,47 @@ requestAnimationFrame(() => {
 - Automatyczne przewijanie do pierwszej wizyty dnia po zmianie daty
 - Oba urządzenia współpracują bez konfliktów
 
+#### 7. Ostateczna poprawka wydajności przewijania touchpada
+- Usunięto klasę `scroll-smooth` z kontenera, która spowalniała wszystkie przewijania, w tym szybkie gesty touchpadem
+- Zastosowano płynne przewijanie tylko programowo przez `scrollIntoView({ behavior: 'smooth' })` podczas automatycznego przewijania do pierwszej wizyty
+- Dodano atrybut `data-event-id` do elementów wizyt, aby umożliwić precyzyjne przewijanie do konkretnej wizyty
+- Zaimplementowano inteligentne przełączanie między natywnym przewijaniem a płynnym przewijaniem programowym
+
+### Kluczowe rozwiązania techniczne:
+
+#### Problem z wydajnością przewijania touchpada
+- Problem: `scroll-behavior: smooth` w CSS spowalnia wszystkie przewijania, w tym szybkie gesty touchpadem
+- Rozwiązanie: Usunięcie `scroll-smooth` z CSS i zastosowanie płynnego przewijania tylko programowo
+
+#### Precyzyjne przewijanie do wizyt
+```typescript
+// Znajdź element pierwszej wizyty w DOM
+const firstEventElement = dayViewRef.current?.querySelector(`[data-event-id="${firstEvent.id}"]`);
+
+if (firstEventElement) {
+  // Użyj scrollIntoView z smooth TYLKO dla automatycznego przewijania
+  firstEventElement.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+    inline: 'start'
+  });
+}
+```
+
+### Rezultat końcowy:
+- Kalendarz wyświetla pełny zakres godzin od 06:00 do 22:00
+- Podziałki co 15 minut z etykietami tylko dla pełnych godzin (00 i 30)
+- Touchpad działa natywnie z momentum scrolling bez opóźnień - szybkie gesty są teraz natychmiastowe
+- Kółko myszy konwertuje pionowe przewijanie na poziome z płynnymi animacjami
+- Automatyczne przewijanie do pierwszej wizyty dnia jest płynne, ale nie wpływa na ręczne przewijanie
+- Oba urządzenia współpracują bez konfliktów, providing najlepsze doświadczenie użytkownika
+
 ### Pliki zmodyfikowane:
 - admin-frontend/src/app/(protected)/kalendarz/page.tsx
 
 ### Testowane przeglądarki:
 - Safari, Chrome, Firefox, Edge
+
+### Commity:
+- 11912f5: Calendar hours range expansion and scrolling enhancements
+- 4974e59: Fix touchpad scrolling performance by removing CSS scroll-behavior
