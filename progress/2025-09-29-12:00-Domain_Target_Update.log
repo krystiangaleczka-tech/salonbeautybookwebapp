@@ -1,2 +1,4 @@
+2025-09-29-12:00
+- Domain Target Update: updated Firebase Hosting target for admin panel deployment
 Zaktualizowałem przypisanie celu hostingowego, aby wdrożenia admina trafiały na witrynę https://beauty-salon-booking-app-b5393.web.app (.firebaserc:9).
 Wypchnąłem aktualną wersję panelu na https://beauty-salon-booking-app-b5393.web.app komendą `firebase deploy --only hosting:admin` (log wdrożenia w terminalu).

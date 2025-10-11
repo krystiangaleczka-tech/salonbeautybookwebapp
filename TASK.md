@@ -29,7 +29,7 @@ salon-booking-app/
 - **Wysokiej jakości, eleganckie rozwiązania**
 - **Human-in-the-loop po 2 nieudanych próbach**
 - **Multi-stage builds w Dockerfile**
-- **Log postępu**: Po każdym wykonanym zadaniu tworzymy nowy plik `.log` z datą, godzina i listą czynności (np. 2025-09-23-16:34-Git_repository_cleanup.log) w katalogu `progress` - HOW-TO example jak ma wygladac plik: "Wprowadziłem serwis services-service.ts, który kapsułkuje subskrypcję realtime i operacje CRUD na kolekcji services, łącznie z bezpiecznym mapowaniem pól i walidacją tonów (admin-frontend/src/lib/services-service.ts:17).
+- **Log postępu**: Po każdym wykonanym zadaniu tworzymy nowy plik `.log` z datą i godzina i listą czynności (np. 2025-09-23-16:34-Git_repository_cleanup.log) w katalogu `progress` - HOW-TO example jak ma wygladac plik: "Wprowadziłem serwis services-service.ts, który kapsułkuje subskrypcję realtime i operacje CRUD na kolekcji services, łącznie z bezpiecznym mapowaniem pól i walidacją tonów (admin-frontend/src/lib/services-service.ts:17).
 Widok usług korzysta teraz z Firestore: ma realtime listę, formularz dodawania/edycji, potwierdzanie usuwania i aktualizowane statystyki (admin-frontend/src/app/(protected)/uslugi/page.tsx:3).
 Dodałem wyszukiwarkę po nazwie/kategorii/opisie oraz filtr kategorii, a lista prezentuje dodatkowe szczegóły (bufor, równoległe wizyty, liczby rezerwacji) (admin-frontend/src/app/(protected)/uslugi/page.tsx:131, admin-frontend/src/app/(protected)/uslugi/page.tsx:217).
 

@@ -1,2 +1,5 @@
+2025-09-29-14:00
+- MCP Update: updated MCP configuration for Codex compatibility
+Removed obsolete and
 deleted the memory MCP server configuration to align with workspace tooling (.opencode-mcp.json:2).
 Inserted the required id identifier into the Codex MCP configuration for compatibility (/Users/krystiangaleczka/.codex/config.toml:1).

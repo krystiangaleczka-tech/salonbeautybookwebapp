@@ -1,5 +1,6 @@
 === WORK DONE LOG ===
-2025-09-23
+2025-09-23-11:00
+- Firebase and Booking Integration: integrated Firebase authentication and Firestore database for booking system
 - Dodano wzorce konfiguracji środowiska (`client-frontend/.env.example`, `admin-frontend/.env.local.example`) i rozszerzono `.gitignore`, aby zabezpieczyć sekrety podczas pracy lokalnej
 - Wprowadzono pełne wsparcie Firebase w panelu admina: wspólny provider (`admin-frontend/src/lib/firebase.ts`), kontekst `AuthProvider`, hook `useAuth`, strażnik `AuthGuard` oraz widok logowania `/(auth)/login`
 - Przeniesiono ekrany admina do grupy tras `(protected)` i zaktualizowano layout nawigacji, aby pokazywał relewantnego użytkownika oraz umożliwiał wylogowanie

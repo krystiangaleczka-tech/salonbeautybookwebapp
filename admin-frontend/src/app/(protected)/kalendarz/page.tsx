@@ -15,6 +15,10 @@ import {
   RotateCcw,
   Trash2,
   X,
+  Filter,
+  Download,
+  Menu,
+  ArrowLeft,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import type { ToneKey } from "@/lib/dashboard-theme";
@@ -24,6 +28,8 @@ import { createAppointment, subscribeToAppointments, updateAppointment, deleteAp
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
 import { usePendingTimeChanges } from "@/hooks/usePendingTimeChanges";
+import { AppointmentFilters } from "@/components/calendar/appointment-filters";
+import { type AppointmentFilter, type FilterPreset } from "@/lib/filters-service";
 
 type CalendarStatus = "confirmed" | "pending" | "no-show" | "cancelled";
 
@@ -388,16 +394,17 @@ function WeekBoard({
   }, [weekDays]);
 
   return (
-    <div className="rounded-3xl border border-[#f2dcd4] bg-[#f8f3ec] p-4">
-      <div className="flex gap-4">
-        <div className="w-14 shrink-0 text-right text-xs font-semibold text-muted-foreground">
+    <div className="rounded-3xl border border-[#f2dcd4] bg-[#f8f3ec] p-2 sm:p-4">
+      <div className="flex gap-2 sm:gap-4">
+        <div className="w-10 sm:w-14 shrink-0 text-right text-xs font-semibold text-muted-foreground">
           {hours.map((hour) => (
-            <div key={hour} className="flex h-[60px] items-start justify-end pr-2">
-              {hour.toString().padStart(2, "0")}:00
+            <div key={hour} className="flex h-[40px] sm:h-[60px] items-start justify-end pr-1 sm:pr-2">
+              <span className="hidden sm:inline">{hour.toString().padStart(2, "0")}:00</span>
+              <span className="sm:hidden text-[10px]">{hour.toString().padStart(2, "0")}</span>
             </div>
           ))}
         </div>
-        <div className="relative grid flex-1 grid-cols-7 gap-3">
+        <div className="relative grid flex-1 grid-cols-7 gap-1 sm:gap-3">
           {weekDays.map((day) => {
             const key = toDateKey(day);
             const window = workingWindows.get(key);
@@ -411,21 +418,24 @@ function WeekBoard({
                 key={key}
                 type="button"
                 onClick={() => onSelectDate(day)}
-                className={`group relative overflow-hidden rounded-2xl border-2 p-2 text-left transition-colors ${
+                className={`group relative overflow-hidden rounded-xl sm:rounded-2xl border p-1 sm:p-2 text-left transition-colors ${
                   selected ? "border-primary bg-[#fdf7f3]" : "border-transparent bg-[#fdf7f3]/70 hover:border-primary/40"
                 }`}
               >
-                <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>
+                <div className="mb-1 sm:mb-2 flex items-center justify-between text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span className="hidden sm:inline">
                     {day.toLocaleDateString("pl-PL", { weekday: "short" })}
                   </span>
-                  <span className="text-base font-semibold text-foreground">
+                  <span className="sm:hidden text-[9px]">
+                    {day.toLocaleDateString("pl-PL", { weekday: "short" }).slice(0, 2)}
+                  </span>
+                  <span className="text-sm sm:text-base font-semibold text-foreground">
                     {day.toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit" })}
                   </span>
                 </div>
 
-                <div className="relative h-[960px]">
-                  <div className="absolute inset-0 grid grid-rows-[repeat(16,60px)]">
+                <div className="relative h-[640px] sm:h-[960px]">
+                  <div className="absolute inset-0 grid grid-rows-[repeat(16,40px_sm:60px)]">
                     {hours.slice(0, -1).map((hour, index) => (
                       <div key={`${key}-grid-${hour}`} className="border-t border-[#ead9d1]/70" style={{ gridRow: index + 1 }} />
                     ))}
@@ -447,17 +457,18 @@ function WeekBoard({
                   {dayEvents.map((event) => (
                     <div
                       key={event.id}
-                      className={`absolute inset-x-2 flex h-full flex-col justify-between overflow-hidden rounded-xl border bg-card p-2 shadow-lg transition-all hover-pulse-shadow ${
+                      className={`absolute inset-x-1 sm:inset-x-2 flex h-full flex-col justify-between overflow-hidden rounded-lg sm:rounded-xl border bg-card p-1 sm:p-2 shadow-lg transition-all hover-pulse-shadow ${
                         STATUS_CLASSNAME[event.status].border
-                      } ${event.isOutsideWorkingHours ? "ring-2 ring-amber-400" : ""}`}
+                      } ${event.isOutsideWorkingHours ? "ring-1 sm:ring-2 ring-amber-400" : ""}`}
                       style={{
                         top: Math.max(0, event.top * PIXELS_PER_MINUTE),
-                        height: Math.max(52, event.height * PIXELS_PER_MINUTE),
+                        height: Math.max(40, event.height * PIXELS_PER_MINUTE),
                       }}
                     >
-                      <div className="flex items-center justify-between text-[10px] uppercase text-muted-foreground">
-                        <span>{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end))}</span>
-                        <span className={`h-2 w-2 rounded-full ${
+                      <div className="flex items-center justify-between text-[8px] sm:text-[10px] uppercase text-muted-foreground">
+                        <span className="hidden sm:inline">{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end))}</span>
+                        <span className="sm:hidden text-[7px]">{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end)).replace(" – ", "-")}</span>
+                        <span className={`h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full ${
                           event.status === "confirmed"
                             ? "bg-emerald-500"
                             : event.status === "pending"
@@ -465,16 +476,16 @@ function WeekBoard({
                               : "bg-rose-500"
                         }`} />
                       </div>
-                      <div className="mt-1 space-y-0.5">
-                        <p className="text-[11px] font-semibold lowercase text-foreground overflow-hidden text-ellipsis whitespace-nowrap">
-                          {compactText(event.clientName, 5)}
+                      <div className="mt-0.5 sm:mt-1 space-y-0.5">
+                        <p className="text-[9px] sm:text-[11px] font-semibold lowercase text-foreground overflow-hidden text-ellipsis whitespace-nowrap">
+                          {compactText(event.clientName, 4)}
                         </p>
-                        <p className="text-[10px] lowercase text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap">
+                        <p className="text-[8px] sm:text-[10px] lowercase text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap hidden sm:block">
                           {compactText(event.serviceName, 7)}
                         </p>
                       </div>
                       {event.hasConflict ? (
-                        <span className="absolute inset-x-0 bottom-0 h-1 rounded-b-xl bg-rose-500" title="Pedicure nie może się nakładać" />
+                        <span className="absolute inset-x-0 bottom-0 h-0.5 sm:h-1 rounded-b-lg sm:rounded-b-xl bg-rose-500" title="Pedicure nie może się nakładać" />
                       ) : null}
                     </div>
                   ))}
@@ -634,30 +645,38 @@ function DayBoard({
   }, []);
   
   return (
-    <div className="rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-4 min-h-[640px]">
-      <div className="flex flex-col gap-4">
-        <div className="text-sm font-semibold text-foreground">
-          {date.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+    <div className="rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-2 sm:p-4 min-h-[400px] sm:min-h-[640px]">
+      <div className="flex flex-col gap-2 sm:gap-4">
+        <div className="text-xs sm:text-sm font-semibold text-foreground">
+          <span className="hidden sm:inline">
+            {date.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </span>
+          <span className="sm:hidden">
+            {date.toLocaleDateString("pl-PL", { weekday: "short", day: "numeric", month: "short" })}
+          </span>
         </div>
         <div
           className="overflow-auto"
           ref={dayViewRef}
         >
-          <div className="min-w-full" style={{ minWidth: timelineWidth + 160, minHeight: 672 }}>
-            <div className="pl-16">
-              <div className="flex items-end gap-0 text-[11px] uppercase text-muted-foreground" style={{ width: timelineWidth }}>
+          <div className="min-w-full" style={{ minWidth: timelineWidth + 120, minHeight: 400 }}>
+            <div className="pl-12 sm:pl-16">
+              <div className="flex items-end gap-0 text-[9px] sm:text-[11px] uppercase text-muted-foreground" style={{ width: timelineWidth }}>
                 {timeSlots.map((slot, index) => (
                   <div key={`${slot.hour}-${slot.minute}`} className="relative flex items-center justify-center" style={{ width: hourWidth / 4 }}>
                     {slot.showLabel && (
-                      <span>{slot.hour.toString().padStart(2, "0")}:{slot.minute.toString().padStart(2, "0")}</span>
+                      <span className="hidden sm:inline">{slot.hour.toString().padStart(2, "0")}:{slot.minute.toString().padStart(2, "0")}</span>
+                    )}
+                    {slot.showLabel && (
+                      <span className="sm:hidden text-[8px]">{slot.hour.toString().padStart(2, "0")}:{slot.minute.toString().padStart(2, "0")}</span>
                     )}
                     {index < timeSlots.length - 1 ? (
-                      <span className="absolute bottom-0 right-0 h-3 w-px bg-[#ead9d1]" />
+                      <span className="absolute bottom-0 right-0 h-2 sm:h-3 w-px bg-[#ead9d1]" />
                     ) : null}
                   </div>
                 ))}
               </div>
-              <div className="relative mt-4 h-[672px] rounded-2xl border border-[#f2dcd4]/60 bg-[#fdf1eb]" style={{ width: timelineWidth }}>
+              <div className="relative mt-2 sm:mt-4 h-[400px] sm:h-[672px] rounded-xl sm:rounded-2xl border border-[#f2dcd4]/60 bg-[#fdf1eb]" style={{ width: timelineWidth }}>
                 <div className="absolute inset-0">
                   <div className="absolute inset-y-0 rounded-2xl bg-[#e7d7ff]/30" />
                   <div
@@ -678,21 +697,22 @@ function DayBoard({
                     key={event.id}
                     data-event-id={event.id}
                     onClick={() => onSelectAppointment(event.id)}
-                    className={`absolute top-10 flex h-24 w-48 flex-col justify-between overflow-hidden rounded-2xl border bg-card p-3 text-left text-xs shadow-lg transition-all cursor-pointer hover-pulse-shadow ${
+                    className={`absolute top-8 sm:top-10 flex h-20 sm:h-24 w-36 sm:w-48 flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border bg-card p-2 sm:p-3 text-left text-xs shadow-lg transition-all cursor-pointer hover-pulse-shadow ${
                        STATUS_CLASSNAME[event.status].border
-                     } ${event.isOutsideWorkingHours ? "ring-2 ring-amber-400" : ""} ${
+                     } ${event.isOutsideWorkingHours ? "ring-1 sm:ring-2 ring-amber-400" : ""} ${
                        selectedAppointmentId === event.id
                          ? "bg-red-50 border-red-400 shadow-[inset_0_1px_3px_rgba(239,68,68,0.2)]"
                          : ""
                      }`}
                     style={{
-                      left: clamp(event.left, 0, Math.max(0, timelineWidth - 160)),
-                      width: clamp(event.width, 90, 200),
+                      left: clamp(event.left, 0, Math.max(0, timelineWidth - 120)),
+                      width: clamp(event.width, 80, 150),
                     }}
                   >
-                    <div className="flex items-center justify-between text-[10px] uppercase text-muted-foreground">
-                      <span>{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end))}</span>
-                      <span className={`h-2 w-2 rounded-full ${
+                    <div className="flex items-center justify-between text-[8px] sm:text-[10px] uppercase text-muted-foreground">
+                      <span className="hidden sm:inline">{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end))}</span>
+                      <span className="sm:hidden text-[7px]">{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end)).replace(" – ", "-")}</span>
+                      <span className={`h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full ${
                         event.status === "confirmed"
                           ? "bg-emerald-500"
                           : event.status === "pending"
@@ -700,19 +720,19 @@ function DayBoard({
                             : "bg-rose-500"
                       }`} />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-semibold lowercase text-foreground overflow-hidden text-ellipsis whitespace-nowrap">
-                        {compactText(event.clientName, 5)}
+                    <div className="space-y-0.5 sm:space-y-1">
+                      <p className="text-[9px] sm:text-[11px] font-semibold lowercase text-foreground overflow-hidden text-ellipsis whitespace-nowrap">
+                        {compactText(event.clientName, 4)}
                       </p>
-                      <p className="text-[10px] lowercase text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap">
+                      <p className="text-[8px] sm:text-[10px] lowercase text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap hidden sm:block">
                         {compactText(event.serviceName, 7)}
                       </p>
-                      <p className="text-[10px] text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap">
+                      <p className="text-[8px] sm:text-[10px] text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap hidden sm:block">
                         {event.staffName}
                       </p>
                     </div>
                     {event.hasConflict ? (
-                      <span className="absolute inset-x-0 bottom-0 h-1 rounded-b-2xl bg-rose-500" title="Pedicure nie może się nakładać" />
+                      <span className="absolute inset-x-0 bottom-0 h-0.5 sm:h-1 rounded-b-xl bg-rose-500" title="Pedicure nie może się nakładać" />
                     ) : null}
                   </div>
                 ))}
@@ -751,14 +771,14 @@ function DayAgenda({
   // Stan dla tooltipu
   const [tooltipAppointmentId, setTooltipAppointmentId] = useState<string | null>(null);
   return (
-    <aside className="flex h-full flex-col gap-4 rounded-3xl border border-border bg-card/90 p-4">
+    <aside className="flex h-full flex-col gap-2 sm:gap-4 rounded-2xl sm:rounded-3xl border border-border bg-card/90 p-2 sm:p-4">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Wizyty dnia</h2>
-        <p className="text-sm text-muted-foreground">Kliknij kartę, aby zobaczyć szczegóły i edytować.</p>
+        <h2 className="text-base sm:text-lg font-semibold text-foreground">Wizyty dnia</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Kliknij kartę, aby zobaczyć szczegóły i edytować.</p>
       </div>
-      <div className="space-y-3 overflow-y-auto pr-2">
+      <div className="space-y-2 sm:space-y-3 overflow-y-auto pr-1 sm:pr-2">
         {events.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border/60 bg-muted/40 p-4 text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border/60 bg-muted/40 p-3 sm:p-4 text-xs sm:text-sm text-muted-foreground">
             Brak wizyt w wybranym dniu.
           </p>
         ) : null}
@@ -766,7 +786,7 @@ function DayAgenda({
           <div
             key={event.id}
             onClick={() => onSelectAppointment(event.id)}
-            className={`relative flex w-full flex-col gap-2 rounded-3xl border px-4 py-3 text-left shadow-sm transition-all cursor-pointer hover-pulse-shadow ${
+            className={`relative flex w-full flex-col gap-1.5 sm:gap-2 rounded-2xl sm:rounded-3xl border px-3 py-2 sm:px-4 sm:py-3 text-left shadow-sm transition-all cursor-pointer hover-pulse-shadow ${
               STATUS_CLASSNAME[event.status].border
             } ${
               selectedAppointmentId === event.id
@@ -776,7 +796,7 @@ function DayAgenda({
           >
             {/* Przyciski zatwierdzenia/cofania zmian w prawym górnym rogu */}
             {hasPendingChange(event.id) && (
-              <div className="absolute top-2 right-2 flex gap-1 z-10">
+              <div className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 flex gap-1 z-10">
                 {/* Przycisk zatwierdzenia - zielony ptaszek */}
                 <button
                   type="button"
@@ -787,11 +807,11 @@ function DayAgenda({
                   }}
                   onMouseEnter={() => setTooltipAppointmentId(`commit-${event.id}`)}
                   onMouseLeave={() => setTooltipAppointmentId(null)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500 text-white shadow-md transition-all hover:bg-green-600 hover:scale-110 animate-pulse"
+                  className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-green-500 text-white shadow-md transition-all hover:bg-green-600 hover:scale-110 animate-pulse"
                   aria-label="Zatwierdź zmianę czasu"
                   title={`Zatwierdź zmianę: ${getPendingChange(event.id)?.minutesDelta > 0 ? '+' : ''}${getPendingChange(event.id)?.minutesDelta} min`}
                 >
-                  <Check className="h-4 w-4" />
+                  <Check className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
                 
                 {/* Przycisk cofania - czerwona strzałka */}
@@ -804,18 +824,18 @@ function DayAgenda({
                   }}
                   onMouseEnter={() => setTooltipAppointmentId(`revert-${event.id}`)}
                   onMouseLeave={() => setTooltipAppointmentId(null)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white shadow-md transition-all hover:bg-red-600 hover:scale-110"
+                  className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-red-500 text-white shadow-md transition-all hover:bg-red-600 hover:scale-110"
                   aria-label="Cofnij zmianę czasu"
                   title="Cofnij zmianę"
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
               </div>
             )}
             
             {/* Tooltip dla przycisku zatwierdzenia */}
             {tooltipAppointmentId === `commit-${event.id}` && (
-              <div className="absolute top-10 right-2 z-20 rounded-md bg-gray-900 text-white text-xs px-2 py-1 shadow-lg whitespace-nowrap">
+              <div className="absolute top-8 sm:top-10 right-1.5 sm:right-2 z-20 rounded-md bg-gray-900 text-white text-[10px] sm:text-xs px-2 py-1 shadow-lg whitespace-nowrap">
                 Zatwierdź zmianę: {getPendingChange(event.id)?.minutesDelta > 0 ? '+' : ''}{getPendingChange(event.id)?.minutesDelta} min
                 <div className="absolute -top-1 right-3 w-2 h-2 bg-gray-900 transform rotate-45"></div>
               </div>
@@ -823,18 +843,18 @@ function DayAgenda({
             
             {/* Tooltip dla przycisku cofania */}
             {tooltipAppointmentId === `revert-${event.id}` && (
-              <div className="absolute top-10 right-10 z-20 rounded-md bg-gray-900 text-white text-xs px-2 py-1 shadow-lg whitespace-nowrap">
+              <div className="absolute top-8 sm:top-10 right-8 sm:right-10 z-20 rounded-md bg-gray-900 text-white text-[10px] sm:text-xs px-2 py-1 shadow-lg whitespace-nowrap">
                 Cofnij zmianę
                 <div className="absolute -top-1 right-3 w-2 h-2 bg-gray-900 transform rotate-45"></div>
               </div>
             )}
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
               <span>{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end))}</span>
               {event.price ? <span className="font-semibold text-foreground">{event.price}</span> : null}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <div
-                className={`h-2 w-2 rounded-full ${
+                className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${
                   event.status === "confirmed"
                     ? "bg-emerald-500"
                     : event.status === "pending"
@@ -842,35 +862,37 @@ function DayAgenda({
                       : "bg-rose-500"
                 }`}
               />
-              <p className="text-sm font-semibold text-foreground">{event.clientName}</p>
+              <p className="text-xs sm:text-sm font-semibold text-foreground">{event.clientName}</p>
             </div>
-            <p className="text-xs text-muted-foreground">{event.staffName}</p>
-            <p className="text-xs text-muted-foreground">{event.serviceName}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">{event.staffName}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">{event.serviceName}</p>
             {event.hasConflict ? (
-              <span className="text-xs font-semibold text-rose-500">Konflikt: pedicure nakłada się w tym czasie.</span>
+              <span className="text-[10px] sm:text-xs font-semibold text-rose-500">Konflikt: pedicure nakłada się w tym czasie.</span>
             ) : null}
             {event.isOutsideWorkingHours ? (
-              <span className="text-xs font-semibold text-amber-500">
+              <span className="text-[10px] sm:text-xs font-semibold text-amber-500">
                 ⚠ Poza godzinami pracy – rozważ korektę grafiku.
               </span>
             ) : null}
-            <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center justify-between mt-1.5 sm:mt-2">
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => onAdjustTime(event.id, -5)}
-                  className="inline-flex items-center justify-center rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition hover:bg-accent"
+                  className="inline-flex items-center justify-center rounded-md border border-border bg-background px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-xs text-foreground transition hover:bg-accent"
                   title="Przesuń o 5 minut do tyłu"
                 >
-                  -5 min
+                  <span className="hidden sm:inline">-5 min</span>
+                  <span className="sm:hidden">-5</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => onAdjustTime(event.id, 5)}
-                  className="inline-flex items-center justify-center rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition hover:bg-accent"
+                  className="inline-flex items-center justify-center rounded-md border border-border bg-background px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-xs text-foreground transition hover:bg-accent"
                   title="Przesuń o 5 minut do przodu"
                 >
-                  +5 min
+                  <span className="hidden sm:inline">+5 min</span>
+                  <span className="sm:hidden">+5</span>
                 </button>
               </div>
               <div className="flex items-center gap-1">
@@ -883,20 +905,21 @@ function DayAgenda({
                     }
                   }}
                   disabled={selectedAppointmentId !== event.id}
-                  className={`inline-flex items-center justify-center rounded-md border p-1.5 transition-transform hover:-translate-y-0.5 ${
+                  className={`inline-flex items-center justify-center rounded-md border p-1 sm:p-1.5 transition-transform hover:-translate-y-0.5 ${
                     selectedAppointmentId === event.id
                       ? "border-border text-foreground hover:bg-accent"
                       : "border-gray-300 text-gray-400 cursor-not-allowed"
                   }`}
                   title={selectedAppointmentId === event.id ? "Edytuj wizytę" : "Kliknij w wizytę, aby zaznaczyć"}
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
             </div>
             {hasPendingChange(event.id) && (
-              <div className="mt-2 text-xs text-amber-600 font-medium">
-                Oczekująca zmiana: {getPendingChange(event.id)?.minutesDelta > 0 ? '+' : ''}{getPendingChange(event.id)?.minutesDelta} min
+              <div className="mt-1.5 sm:mt-2 text-[10px] sm:text-xs text-amber-600 font-medium">
+                <span className="hidden sm:inline">Oczekująca zmiana: {getPendingChange(event.id)?.minutesDelta > 0 ? '+' : ''}{getPendingChange(event.id)?.minutesDelta} min</span>
+                <span className="sm:hidden">Zmiana: {getPendingChange(event.id)?.minutesDelta > 0 ? '+' : ''}{getPendingChange(event.id)?.minutesDelta} min</span>
               </div>
             )}
           </div>
@@ -1111,6 +1134,31 @@ export default function CalendarPage() {
   const [eventsLoaded, setEventsLoaded] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   
+  // Stan dla filtrów wizyt
+  const [filters, setFilters] = useState<AppointmentFilter>({
+    search: "",
+    dateRange: { from: undefined, to: undefined },
+    employees: [],
+    services: [],
+    statuses: [],
+    customers: [],
+  });
+  
+  // Inicjalizacja presetów filtrów z localStorage
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedPresets = localStorage.getItem('calendarFilterPresets');
+        return savedPresets ? JSON.parse(savedPresets) : [];
+      } catch (error) {
+        console.error("Błąd podczas wczytywania presetów filtrów:", error);
+        return [];
+      }
+    }
+    return [];
+  });
+  const [selectedAppointments, setSelectedAppointments] = useState<string[]>([]);
+  
   // Stan dla modalu dodawania wizyty
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [appointmentForm, setAppointmentForm] = useState({
@@ -1141,6 +1189,10 @@ export default function CalendarPage() {
   
   // Stan dla zaznaczonej wizyty
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>("");
+  
+  // Stan dla interfejsu mobilnego
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showFiltersMobile, setShowFiltersMobile] = useState(false);
   
   // Dane dla formularza
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1296,6 +1348,135 @@ export default function CalendarPage() {
     }
   };
 
+  // Funkcje obsługi filtrów
+  const handleFiltersChange = (newFilters: AppointmentFilter) => {
+    setFilters(newFilters);
+  };
+
+  const handleBatchAction = async (action: string, appointmentIds: string[]) => {
+    try {
+      // Tutaj można zaimplementować logikę operacji masowych
+      // Na razie tylko podstawowa obsługa
+      console.log(`Batch action: ${action}`, appointmentIds);
+      
+      // Przykład implementacji dla potwierdzania wizyt
+      if (action === "confirm") {
+        for (const appointmentId of appointmentIds) {
+          const event = calendarEvents.find(e => e.id === appointmentId);
+          if (event) {
+            const customer = customers.find(c => c.fullName === event.clientName);
+            const service = calendarServices.find(s => s.id === event.serviceId);
+            
+            if (customer && service) {
+              await updateAppointment(appointmentId, {
+                serviceId: event.serviceId,
+                clientId: customer.id,
+                staffName: event.staffName,
+                start: new Date(event.start),
+                end: new Date(event.end),
+                status: "confirmed",
+                notes: event.notes,
+              });
+            }
+          }
+        }
+      }
+      // Podobnie dla innych akcji...
+      
+      // Wyczyść wybór po wykonaniu akcji
+      setSelectedAppointments([]);
+    } catch (error) {
+      console.error("Błąd podczas wykonywania akcji masowej:", error);
+      setAppointmentFormError("Nie udało się wykonać akcji masowej. Spróbuj ponownie.");
+    }
+  };
+
+  const handleSelectionChange = (appointmentIds: string[]) => {
+    setSelectedAppointments(appointmentIds);
+  };
+
+  const handleSavePreset = async (name: string, filtersToSave: AppointmentFilter) => {
+    try {
+      // Tworzenie nowego presetu
+      const newPreset: FilterPreset = {
+        id: Date.now().toString(),
+        name,
+        filters: filtersToSave,
+      };
+      
+      // Aktualizacja stanu lokalnego
+      const updatedPresets = [...filterPresets, newPreset];
+      setFilterPresets(updatedPresets);
+      
+      // Zapis w localStorage dla trwałości
+      localStorage.setItem('calendarFilterPresets', JSON.stringify(updatedPresets));
+      
+      setAppointmentFormSuccess(`Preset "${name}" został zapisany.`);
+    } catch (error) {
+      console.error("Błąd podczas zapisywania presetu:", error);
+      setAppointmentFormError("Nie udało się zapisać presetu. Spróbuj ponownie.");
+    }
+  };
+
+  const handleLoadPreset = (preset: FilterPreset) => {
+    setFilters(preset.filters);
+  };
+
+  // Filtrowane wizyty
+  const filteredCalendarEvents = useMemo(() => {
+    return calendarEvents.filter(event => {
+      // Search filter
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const service = calendarServices.find(s => s.id === event.serviceId);
+        const serviceName = service ? service.name : event.serviceId;
+        
+        const matchesSearch =
+          event.clientName.toLowerCase().includes(searchLower) ||
+          serviceName.toLowerCase().includes(searchLower) ||
+          event.staffName.toLowerCase().includes(searchLower) ||
+          (event.notes && event.notes.toLowerCase().includes(searchLower));
+        
+        if (!matchesSearch) return false;
+      }
+
+      // Date range filter
+      if (filters.dateRange.from) {
+        const eventDate = new Date(event.start);
+        if (eventDate < filters.dateRange.from) return false;
+      }
+      if (filters.dateRange.to) {
+        const eventDate = new Date(event.start);
+        eventDate.setHours(23, 59, 59, 999); // Koniec dnia
+        if (eventDate > filters.dateRange.to) return false;
+      }
+
+      // Employee filter
+      if (filters.employees.length > 0) {
+        const employee = employees.find(emp => emp.name === event.staffName);
+        if (!employee || !filters.employees.includes(employee.id)) return false;
+      }
+
+      // Service filter
+      if (filters.services.length > 0 && !filters.services.includes(event.serviceId)) {
+        return false;
+      }
+
+      // Status filter
+      if (filters.statuses.length > 0 && !filters.statuses.includes(event.status)) {
+        return false;
+      }
+
+      // Customer filter
+      if (filters.customers.length > 0) {
+        const customer = customers.find(cust => cust.fullName === event.clientName);
+        if (!customer || !filters.customers.includes(customer.id)) return false;
+      }
+
+      return true;
+    });
+  }, [calendarEvents, filters, employees, customers]);
+
   useEffect(() => {
     const servicesQuery = collection(db, "services");
     const unsubscribeServices = onSnapshot(
@@ -1393,8 +1574,8 @@ export default function CalendarPage() {
 
   const { start, days } = useWeek(referenceDate);
   const positionedEvents = useMemo(
-    () => buildEventsForRange(calendarEvents, start, calendarServices, minutesWindow),
-    [calendarEvents, calendarServices, start]
+    () => buildEventsForRange(filteredCalendarEvents, start, calendarServices, minutesWindow),
+    [filteredCalendarEvents, calendarServices, start]
   );
 
   const monthInfo = useMonth(referenceDate);
@@ -1421,7 +1602,7 @@ export default function CalendarPage() {
     [positionedEvents, referenceDate]
   );
 
-  const isEmpty = !loadingData && calendarEvents.length === 0;
+  const isEmpty = !loadingData && filteredCalendarEvents.length === 0;
 
   return (
     <DashboardLayout
@@ -1443,7 +1624,8 @@ export default function CalendarPage() {
             Ładujemy dane kalendarza z Firestore...
           </div>
         ) : null}
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-4 shadow-sm">
+        {/* Pasek nawigacji - desktop */}
+        <div className="hidden lg:flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-4 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <button
@@ -1510,7 +1692,181 @@ export default function CalendarPage() {
           />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1.1fr)]">
+        {/* Mobilne menu hamburger */}
+        <div className="lg:hidden">
+          {/* Nagłówek mobilny */}
+          <div className="flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              aria-label="Otwórz menu"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            <h1 className="text-lg font-semibold text-gray-900">Kalendarz</h1>
+            <button
+              type="button"
+              onClick={() => setShowFiltersMobile(!showFiltersMobile)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              aria-label="Filtry"
+            >
+              <Filter className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Mobilne menu boczne */}
+          {isMobileMenuOpen && (
+            <div className="fixed inset-0 z-50 flex">
+              <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setIsMobileMenuOpen(false)} />
+              <div className="relative flex flex-col w-64 max-w-xs bg-white h-full">
+                <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                    aria-label="Zamknij menu"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  <button
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-transform hover:-translate-y-0.5"
+                    onClick={() => {
+                      setIsAppointmentModalOpen(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Dodaj wizytę
+                  </button>
+                  <button
+                    className={`w-full flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 ${
+                      selectedAppointmentId
+                        ? "border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+                        : "border-gray-300 text-gray-400 cursor-not-allowed"
+                    }`}
+                    onClick={() => {
+                      if (selectedAppointmentId) {
+                        handleOpenEditModal();
+                        setIsMobileMenuOpen(false);
+                      }
+                    }}
+                    disabled={!selectedAppointmentId}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edytuj
+                  </button>
+                  <button
+                    className={`w-full flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 ${
+                      selectedAppointmentId
+                        ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        : "border-gray-300 text-gray-400 cursor-not-allowed"
+                    }`}
+                    onClick={() => {
+                      if (selectedAppointmentId) {
+                        handleDeleteAppointment(selectedAppointmentId);
+                        setIsMobileMenuOpen(false);
+                      }
+                    }}
+                    disabled={!selectedAppointmentId}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Usuń
+                  </button>
+                  <button className="w-full flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold text-foreground shadow-sm transition-transform hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground">
+                    <AlarmClock className="h-4 w-4" />
+                    Zmień godziny pracy
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mobilne filtry */}
+          {showFiltersMobile && (
+            <div className="fixed inset-0 z-50 flex">
+              <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setShowFiltersMobile(false)} />
+              <div className="relative flex flex-col w-full max-w-sm bg-white h-full ml-auto">
+                <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Filtry</h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowFiltersMobile(false)}
+                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                    aria-label="Zamknij filtry"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  <AppointmentFilters
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                    appointments={calendarEvents.map(event => {
+                      const customer = customers.find(c => c.fullName === event.clientName);
+                      const employee = employees.find(e => e.name === event.staffName);
+                      return {
+                        id: event.id,
+                        customerId: customer?.id || "",
+                        employeeId: employee?.id || "",
+                        serviceId: event.serviceId,
+                        start: event.start,
+                        end: event.end,
+                        status: event.status,
+                        notes: event.notes,
+                      };
+                    })}
+                    employees={employees}
+                    services={calendarServices}
+                    customers={customers}
+                    onBatchAction={handleBatchAction}
+                    selectedAppointments={selectedAppointments}
+                    onSelectionChange={handleSelectionChange}
+                    onSavePreset={handleSavePreset}
+                    onLoadPreset={handleLoadPreset}
+                    presets={filterPresets}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktopowe filtry */}
+        <div className="hidden lg:block">
+          <AppointmentFilters
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            appointments={calendarEvents.map(event => {
+              const customer = customers.find(c => c.fullName === event.clientName);
+              const employee = employees.find(e => e.name === event.staffName);
+              return {
+                id: event.id,
+                customerId: customer?.id || "",
+                employeeId: employee?.id || "",
+                serviceId: event.serviceId,
+                start: event.start,
+                end: event.end,
+                status: event.status,
+                notes: event.notes,
+              };
+            })}
+            employees={employees}
+            services={calendarServices}
+            customers={customers}
+            onBatchAction={handleBatchAction}
+            selectedAppointments={selectedAppointments}
+            onSelectionChange={handleSelectionChange}
+            onSavePreset={handleSavePreset}
+            onLoadPreset={handleLoadPreset}
+            presets={filterPresets}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1.1fr)] lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           {view === "week" ? (
             <WeekBoard weekDays={days} events={positionedEvents} selectedDate={referenceDate} onSelectDate={setReferenceDate} />
           ) : null}
@@ -1521,15 +1877,16 @@ export default function CalendarPage() {
             selectedAppointmentId={selectedAppointmentId}
           /> : null}
           {view === "month" ? (
-            <div className="rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-4">
-              <div className="grid grid-cols-7 gap-3 text-xs font-semibold uppercase text-muted-foreground">
+            <div className="rounded-2xl sm:rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-2 sm:p-4">
+              <div className="grid grid-cols-7 gap-1 sm:gap-3 text-[10px] sm:text-xs font-semibold uppercase text-muted-foreground">
                 {["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"].map((label) => (
                   <div key={label} className="text-center">
-                    {label}
+                    <span className="hidden sm:inline">{label}</span>
+                    <span className="sm:hidden">{label.slice(0, 1)}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 grid grid-cols-7 gap-3">
+              <div className="mt-2 sm:mt-4 grid grid-cols-7 gap-1 sm:gap-3">
                 {monthWeeks.flat().map((day, index) => {
                   const isCurrentMonth = day.getMonth() === referenceDate.getMonth();
                   const dayKey = toDateKey(day);
@@ -1543,31 +1900,31 @@ export default function CalendarPage() {
                         setReferenceDate(day);
                         setView("day");
                       }}
-                      className={`flex h-24 flex-col rounded-2xl border p-2 text-left transition-colors ${
+                      className={`flex h-16 sm:h-24 flex-col rounded-xl sm:rounded-2xl border p-1 sm:p-2 text-left transition-colors ${
                         isCurrentMonth ? "border-[#f2dcd4] bg-white hover:border-primary/40" : "border-transparent bg-muted/50 text-muted-foreground"
                       }`}
                     >
-                      <div className="flex items-center justify-between text-xs font-semibold">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs font-semibold">
                         <span>{day.getDate()}</span>
-                        {hasConflict ? <span className="h-2 w-2 rounded-full bg-rose-500" /> : null}
+                        {hasConflict ? <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-rose-500" /> : null}
                       </div>
-                      <div className="mt-2 space-y-1">
-                        {dayEvents.slice(0, 3).map((event) => (
-                          <div key={event.id} className={`flex items-center gap-1 text-[10px] ${STATUS_CLASSNAME[event.status].border} rounded px-1 py-0.5`}> 
-                            <span className={`h-2 w-2 rounded-full ${
+                      <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
+                        {dayEvents.slice(0, 2).map((event) => (
+                          <div key={event.id} className={`flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] ${STATUS_CLASSNAME[event.status].border} rounded px-0.5 sm:px-1 py-0.5`}>
+                            <span className={`h-1 w-1 sm:h-2 sm:w-2 rounded-full ${
                               event.status === "confirmed"
                                 ? "bg-emerald-500"
                                 : event.status === "pending"
                                   ? "bg-amber-500"
                                   : "bg-rose-500"
                             }`} />
-                            <span className="overflow-hidden text-ellipsis whitespace-nowrap lowercase">
+                            <span className="overflow-hidden text-ellipsis whitespace-nowrap lowercase hidden sm:inline">
                               {compactText(event.clientName, 5)}
                             </span>
                           </div>
                         ))}
-                        {dayEvents.length > 3 ? (
-                          <span className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} więcej</span>
+                        {dayEvents.length > 2 ? (
+                          <span className="text-[8px] sm:text-[10px] text-muted-foreground">+{dayEvents.length - 2}</span>
                         ) : null}
                       </div>
                     </button>
@@ -1577,6 +1934,25 @@ export default function CalendarPage() {
             </div>
           ) : null}
 
+          {/* Panel boczny - desktop */}
+          <div className="hidden lg:block">
+            <DayAgenda
+              events={dayEvents}
+              onEditAppointment={handleOpenEditModal}
+              onDeleteAppointment={handleDeleteAppointment}
+              onAdjustTime={adjustAppointmentTime}
+              onCommitTimeChange={commitTimeChange}
+              onRevertChange={revertChange}
+              hasPendingChange={hasPendingChange}
+              getPendingChange={getPendingChange}
+              selectedAppointmentId={selectedAppointmentId}
+              onSelectAppointment={toggleAppointmentSelection}
+            />
+          </div>
+        </div>
+
+        {/* Mobilny panel boczny - dolny */}
+        <div className="lg:hidden">
           <DayAgenda
             events={dayEvents}
             onEditAppointment={handleOpenEditModal}
@@ -1597,27 +1973,32 @@ export default function CalendarPage() {
           </div>
         ) : null}
 
-        <div className="rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-6 text-sm text-muted-foreground">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-emerald-500" />
-              Potwierdzone
+        <div className="rounded-2xl sm:rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-3 sm:p-6 text-xs sm:text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-emerald-500" />
+              <span className="hidden sm:inline">Potwierdzone</span>
+              <span className="sm:hidden">Potw.</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-amber-500" />
-              Oczekujące
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-amber-500" />
+              <span className="hidden sm:inline">Oczekujące</span>
+              <span className="sm:hidden">Oczek.</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-rose-500" />
-              No-show / anulowane
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-rose-500" />
+              <span className="hidden sm:inline">No-show / anulowane</span>
+              <span className="sm:hidden">Anul.</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-6 rounded-full bg-rose-500" />
-              Konflikt pedicure
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="h-1.5 w-4 sm:h-2 sm:w-6 rounded-full bg-rose-500" />
+              <span className="hidden sm:inline">Konflikt pedicure</span>
+              <span className="sm:hidden">Konflikt</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-8 rounded bg-[#ffc7d3]/80" />
-              Godziny pracy
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="h-3 w-6 sm:h-4 sm:w-8 rounded bg-[#ffc7d3]/80" />
+              <span className="hidden sm:inline">Godziny pracy</span>
+              <span className="sm:hidden">Godz.</span>
             </div>
           </div>
         </div>

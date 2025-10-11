@@ -1,3 +1,20 @@
 {
-    "chatgpt.commentCodeLensEnabled": false
+    "chatgpt.commentCodeLensEnabled": false,
+
+    //Add following lines of code to exclude the files & folders which aren't important for watchers to look for changes...
+
+    //excludes files & folders in search indexing
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/env": true,
+        "**/venv": true
+    },
+    //excludes files & folders for watcher service
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/**": true,
+        // ...
+    }
 }

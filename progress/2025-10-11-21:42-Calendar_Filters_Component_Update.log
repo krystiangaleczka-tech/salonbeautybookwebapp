@@ -1,0 +1,46 @@
+Aktualizacja komponentu filtrów kalendarza
+Data: 2025-10-11
+Godzina: 21:42 (UTC+2)
+
+Zrealizowane zmiany:
+1. Naprawa problemu z czarnymi polami checkbox w filtrach
+Dodano niestandardowe style CSS w pliku globals.css specyficzne tylko dla komponentu filtrów
+Zmodyfikowano klasy checkboxów w komponencie appointment-filters.tsx
+Style są stosowane tylko do checkboxów w komponencie filtrów, nie wpływając na inne checkboxy w aplikacji
+2. Naprawa problemu z niewyświetlaniem pracowników w filtrach
+Zmodyfikowano logikę w appointment-filters.tsx, aby pokazywać wszystkich aktywnych pracowników zamiast tylko tych z wizytami
+3. Naprawa problemu z brakiem tekstu imion i nazwisk pracowników
+Naprawiono niezgodność w strukturze danych pracowników
+Zmieniono {employee.firstName} {employee.lastName} na {employee.name} w czterech miejscach w komponencie filtrów
+4. Usunięcie funkcjonalności eksportu
+Usunięto import ikony Download
+Usunięto funkcję exportFilteredData
+Usunięto przycisk eksportu
+5. Usunięcie zapisanych filtrów i przycisku "Zapisz"
+Usunięto stan i funkcje związane z zapisywaniem presetów
+Usunięto cały modal zapisu presetów
+Usunięto sekcję zapisanych filtrów
+6. Dodanie ikony X jako zamknięcia modala filtrów
+Dodano przycisk z ikoną X w prawym górnym rogu modala filtrów
+Przycisk zamyka modal po kliknięciu
+7. Zmiana ikony X na większą i czerwoną
+Zmieniono rozmiar ikony X z h-4 w-4 na h-8 w-8 (dwa razy większa)
+Zmieniono kolor ikony na text-red-500 hover:text-red-700
+8. Zmiana pozycjonowania modala filtrów na horyzontalne
+Zmieniono pozycjonowanie modala z left-0 na right-0
+Modal pojawia się po prawej stronie przycisku filtrów, horyzontalnie, a nie wertykalnie nad kalendarzem
+9. Dodanie możliwości szybkiego odznaczania filtrów przez kliknięcie na tagi
+Dodano funkcję removeSingleFilter do usuwania pojedynczych filtrów
+Zmieniono tagi filtrów w interaktywne przyciski z małą ikoną X
+Każdy tag filtru można kliknąć, aby szybko go usunąć z aktywnych filtrów
+Dodano efekt hover dla lepszej interaktywności
+Zmodyfikowane pliki:
+admin-frontend/src/components/calendar/appointment-filters.tsx
+admin-frontend/src/app/(protected)/kalendarz/page.tsx
+admin-frontend/src/app/globals.css
+Wprowadzone ulepszenia:
+Poprawa czytelności i użyteczności interfejsu filtrów
+Uproszczenie interfejsu poprzez usunięcie niepotrzebnych funkcji
+Poprawa wydajności poprzez wyświetlanie wszystkich aktywnych pracowników
+Dodanie interaktywności do tagów filtrów dla szybszej nawigacji
+Lepsze pozycjonowanie modala, aby nie zasłaniał kalendarza
