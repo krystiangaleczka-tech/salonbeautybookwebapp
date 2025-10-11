@@ -1,7 +1,7 @@
 # Poprawka efektu hover w tabelach Klienci i Usługi
 
 ## Data i godzina
-2025-10-11 21:53
+2025-10-11 23:53
 
 ## Opis problemu
 W panelach "Klienci" i "Usługi" efekt hover był nieprawidłowo zaimplementowany - wszystkie elementy w tabeli podnosiły się jednocześnie zamiast tylko indywidualny wiersz, na którym znajdował się kursor.
