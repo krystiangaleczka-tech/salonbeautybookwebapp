@@ -1,4 +1,15 @@
+"use client";
+
 import { CalendarClock, Copy, LayoutGrid, Sun, Moon } from "lucide-react";
+import { useState } from "react";
+import ScheduleEditorModal from "@/components/settings/schedule-editor-modal";
+
+interface DaySchedule {
+  day: string;
+  isOpen: boolean;
+  openTime: string;
+  closeTime: string;
+}
 
 const weekDays = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 
@@ -31,6 +42,39 @@ const exampleSchedule = weekDays.map((day) => ({
 }));
 
 export default function WorkingHoursPage() {
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [currentSchedule, setCurrentSchedule] = useState<DaySchedule[]>([]);
+
+  const handleOpenScheduleEditor = () => {
+    // Inicjalizacja domyślnego grafiku lub załadowanie z zapisanych ustawień
+    const defaultSchedule: DaySchedule[] = [
+      { day: "monday", isOpen: true, openTime: "08:00", closeTime: "16:00" },
+      { day: "tuesday", isOpen: true, openTime: "08:00", closeTime: "16:00" },
+      { day: "wednesday", isOpen: true, openTime: "08:00", closeTime: "16:00" },
+      { day: "thursday", isOpen: true, openTime: "08:00", closeTime: "16:00" },
+      { day: "friday", isOpen: true, openTime: "08:00", closeTime: "16:00" },
+      { day: "saturday", isOpen: false, openTime: "10:00", closeTime: "14:00" },
+      { day: "sunday", isOpen: false, openTime: "10:00", closeTime: "14:00" },
+    ];
+    setCurrentSchedule(defaultSchedule);
+    setIsScheduleModalOpen(true);
+  };
+
+  const handleSaveSchedule = async (schedule: DaySchedule[]) => {
+    // TODO: Zapisz grafik w bazie danych lub localStorage
+    console.log("Zapisywanie grafiku:", schedule);
+    setCurrentSchedule(schedule);
+    
+    // Tutaj można dodać logikę zapisu do Firebase lub innego backendu
+    try {
+      // Przykład zapisu do localStorage
+      localStorage.setItem("salonSchedule", JSON.stringify(schedule));
+    } catch (error) {
+      console.error("Błąd podczas zapisywania grafiku:", error);
+      throw error;
+    }
+  };
+
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
       <section className="space-y-6">
@@ -47,7 +91,10 @@ export default function WorkingHoursPage() {
                 </p>
               </div>
             </div>
-            <button className="btn-primary inline-flex items-center justify-center">
+            <button
+              onClick={handleOpenScheduleEditor}
+              className="btn-primary inline-flex items-center justify-center"
+            >
               <LayoutGrid className="mr-2 h-4 w-4" />
               Otwórz edytor godzin
             </button>
@@ -158,6 +205,14 @@ export default function WorkingHoursPage() {
           </p>
         </div>
       </aside>
+
+      {/* Modal edytora grafiku */}
+      <ScheduleEditorModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        onSave={handleSaveSchedule}
+        initialSchedule={currentSchedule}
+      />
     </div>
   );
 }
