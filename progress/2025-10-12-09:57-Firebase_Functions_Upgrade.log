@@ -1,0 +1,15 @@
+# Firebase Functions Upgrade - 2025-10-12 09:57
+
+## Zmiany
+- Zaktualizowano pakiet firebase-functions z wersji ^6.0.1 do ^6.5.0 w katalogu booking-functions
+- Aktualizacja wykonana poleceniem: npm install --save firebase-functions@latest
+
+## Wpływ na projekt
+- Najnowsza wersja firebase-functions zawiera poprawki bezpieczeństwa i nowe funkcjonalności
+- Wymagana wersja Node.js: 22 (obecna: 24.3.0) - ostrzeżenie nie wpływa na działanie
+- Brak znalezionych luk bezpieczeństwa po aktualizacji
+
+## Status
+- ✅ Aktualizacja zakończona pomyślnie
+- ✅ Pakiety zaudytowane - 0 luk bezpieczeństwa
+- ✅ Gotowe do commit i push

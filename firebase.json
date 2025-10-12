@@ -13,11 +13,6 @@
   ],
   "functions": [
     {
-      "codebase": "default",
-      "source": "functions",
-      "runtime": "nodejs20"
-    },
-    {
       "source": "booking-functions",
       "codebase": "booking-functions",
       "ignore": [

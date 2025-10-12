@@ -1,3 +1,5 @@
+"use client";
+
 import { Hourglass, ListChecks, SlidersHorizontal, Clock, User, Loader2, Save } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { subscribeToEmployees, updateEmployeeBuffers, type Employee } from "@/lib/employees-service";
