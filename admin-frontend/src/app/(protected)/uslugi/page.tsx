@@ -9,6 +9,7 @@ import {
   updateService,
   type ServiceRecord,
 } from "@/lib/services-service";
+import { subscribeToAppointments, type Appointment } from "@/lib/appointments-service";
 import { getBubbleStyle, toneTextClass, type ToneKey } from "@/lib/dashboard-theme";
 import {
   AlertCircle,
@@ -87,6 +88,7 @@ function sanitizeOptionalNumber(value: string) {
 
 export default function ServicesPage() {
   const [services, setServices] = useState<ServiceRecord[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -98,13 +100,23 @@ export default function ServicesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterColor, setFilterColor] = useState<string>("all");
+  const [filterDuration, setFilterDuration] = useState<string>("all");
+  const [filterParallel, setFilterParallel] = useState<string>("all");
 
   useEffect(() => {
-    const unsubscribe = subscribeToServices(
+    let servicesLoaded = false;
+    let appointmentsLoaded = false;
+    
+    const unsubscribeServices = subscribeToServices(
       (nextServices) => {
         setServices(nextServices);
-        setLoading(false);
-        setError(null);
+        servicesLoaded = true;
+        if (servicesLoaded && appointmentsLoaded) {
+          setLoading(false);
+          setError(null);
+        }
       },
       (subscribeError) => {
         console.error("Nie udało się pobrać listy usług", subscribeError);
@@ -112,9 +124,26 @@ export default function ServicesPage() {
         setLoading(false);
       },
     );
+    
+    const unsubscribeAppointments = subscribeToAppointments(
+      (nextAppointments) => {
+        setAppointments(nextAppointments);
+        appointmentsLoaded = true;
+        if (servicesLoaded && appointmentsLoaded) {
+          setLoading(false);
+          setError(null);
+        }
+      },
+      (subscribeError) => {
+        console.error("Nie udało się pobrać listy wizyt", subscribeError);
+        setError("Nie udało się pobrać listy wizyt. Odśwież stronę lub spróbuj ponownie później.");
+        setLoading(false);
+      },
+    );
 
     return () => {
-      unsubscribe();
+      unsubscribeServices();
+      unsubscribeAppointments();
     };
   }, []);
 
@@ -129,21 +158,61 @@ export default function ServicesPage() {
   }, [services]);
 
   const filteredServices = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    return services.filter((service) => {
-      const matchesCategory = selectedCategory === "all" || service.category === selectedCategory;
-      if (!matchesCategory) {
-        return false;
-      }
-      if (!query) {
-        return true;
-      }
-      const haystack = [service.name, service.category ?? "", service.description ?? ""].map((value) =>
-        value.toLowerCase(),
-      );
-      return haystack.some((value) => value.includes(query));
+    let filtered = services;
+    
+    // Filtrowanie wg kategorii
+    filtered = filtered.filter((service) => {
+      return selectedCategory === "all" || service.category === selectedCategory;
     });
-  }, [services, searchTerm, selectedCategory]);
+    
+    // Filtrowanie wg koloru
+    if (filterColor !== "all") {
+      filtered = filtered.filter((service) => {
+        return service.tone === filterColor;
+      });
+    }
+    
+    // Filtrowanie wg czasu trwania
+    if (filterDuration !== "all") {
+      filtered = filtered.filter((service) => {
+        if (!service.durationMin) return false;
+        
+        if (filterDuration === "short") {
+          return service.durationMin <= 30;
+        } else if (filterDuration === "medium") {
+          return service.durationMin >= 31 && service.durationMin <= 60;
+        } else if (filterDuration === "long") {
+          return service.durationMin >= 61;
+        }
+        return true;
+      });
+    }
+    
+    // Filtrowanie wg możliwości równoległych wizyt
+    if (filterParallel !== "all") {
+      filtered = filtered.filter((service) => {
+        if (filterParallel === "parallel") {
+          return !service.noParallel;
+        } else if (filterParallel === "exclusive") {
+          return service.noParallel;
+        }
+        return true;
+      });
+    }
+    
+    // Filtrowanie wg wyszukiwanej frazy
+    if (searchTerm.trim()) {
+      const query = searchTerm.trim().toLowerCase();
+      filtered = filtered.filter((service) => {
+        const haystack = [service.name, service.category ?? "", service.description ?? ""].map((value) =>
+          value.toLowerCase(),
+        );
+        return haystack.some((value) => value.includes(query));
+      });
+    }
+    
+    return filtered;
+  }, [services, searchTerm, selectedCategory, filterColor, filterDuration, filterParallel]);
 
   const stats = useMemo(() => {
     if (services.length === 0) {
@@ -179,16 +248,83 @@ export default function ServicesPage() {
       ];
     }
 
+    // Obliczanie rzeczywistych statystyk na podstawie wizyt
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay()); // Początek tygodnia (niedziela)
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const quarterStart = new Date(now);
+    quarterStart.setMonth(now.getMonth() - 3); // 3 miesiące wstecz
+    quarterStart.setHours(0, 0, 0, 0);
+    
+    // Grupowanie wizyt według ID usług
+    const serviceStats = new Map<string, { weekly: number; quarterly: number }>();
+    
+    // Inicjalizacja statystyk dla wszystkich usług
+    services.forEach(service => {
+      serviceStats.set(service.id, { weekly: 0, quarterly: 0 });
+    });
+    
+    // Zliczanie wizyt dla każdej usługi
+    appointments.forEach(appointment => {
+      const appointmentDate = appointment.start.toDate();
+      
+      // Sprawdź czy wizita mieści się w ostatnim tygodniu
+      if (appointmentDate >= weekStart && appointmentDate <= now) {
+        const stats = serviceStats.get(appointment.serviceId);
+        if (stats) {
+          stats.weekly += 1;
+        }
+      }
+      
+      // Sprawdź czy wizuta mieści się w ostatnich 3 miesiącach
+      if (appointmentDate >= quarterStart && appointmentDate <= now) {
+        const stats = serviceStats.get(appointment.serviceId);
+        if (stats) {
+          stats.quarterly += 1;
+        }
+      }
+    });
+    
+    // Znajdź usługi z najwyższą i najniższą liczbą rezerwacji w tygodniu
+    let topWeeklyService: ServiceRecord | null = null;
+    let lowWeeklyService: ServiceRecord | null = null;
+    let topQuarterlyService: ServiceRecord | null = null;
+    
+    let maxWeekly = 0;
+    let minWeekly = Infinity;
+    let maxQuarterly = 0;
+    
+    services.forEach(service => {
+      const stats = serviceStats.get(service.id);
+      if (stats) {
+        if (stats.weekly > maxWeekly) {
+          maxWeekly = stats.weekly;
+          topWeeklyService = service;
+        }
+        
+        if (stats.weekly < minWeekly && stats.weekly > 0) {
+          minWeekly = stats.weekly;
+          lowWeeklyService = service;
+        }
+        
+        if (stats.quarterly > maxQuarterly) {
+          maxQuarterly = stats.quarterly;
+          topQuarterlyService = service;
+        }
+      }
+    });
+    
+    // Jeśli żadna usługa nie ma rezerwacji w tygodniu, znajdź taką z 0 rezerwacji
+    if (minWeekly === Infinity) {
+      lowWeeklyService = services.find(service => {
+        const stats = serviceStats.get(service.id);
+        return stats && stats.weekly === 0;
+      }) || services[0];
+    }
+
     const total = services.length.toString();
-    const topWeekly = services.reduce((prev, current) =>
-      (current.weeklyBookings ?? 0) > (prev.weeklyBookings ?? 0) ? current : prev,
-    );
-    const lowWeekly = services.reduce((prev, current) =>
-      (current.weeklyBookings ?? 0) < (prev.weeklyBookings ?? 0) ? current : prev,
-    );
-    const topQuarterly = services.reduce((prev, current) =>
-      (current.quarterlyBookings ?? 0) > (prev.quarterlyBookings ?? 0) ? current : prev,
-    );
 
     return [
       {
@@ -200,27 +336,27 @@ export default function ServicesPage() {
       },
       {
         label: "TOP usługa tygodnia",
-        value: topWeekly.name || "–",
-        meta: `${topWeekly.weeklyBookings ?? 0} rezerwacji`,
+        value: topWeeklyService?.name || "–",
+        meta: `${maxWeekly} rezerwacji`,
         tone: "chart3" as ToneKey,
         icon: Star,
       },
       {
         label: "LOW usługa tygodnia",
-        value: lowWeekly.name || "–",
-        meta: `${lowWeekly.weeklyBookings ?? 0} rezerwacji`,
+        value: lowWeeklyService?.name || "–",
+        meta: `${minWeekly === Infinity ? 0 : minWeekly} rezerwacji`,
         tone: "chart4" as ToneKey,
         icon: TrendingDown,
       },
       {
         label: "TOP usługa z 3 miesięcy",
-        value: topQuarterly.name || "–",
-        meta: `${topQuarterly.quarterlyBookings ?? 0} rezerwacji`,
+        value: topQuarterlyService?.name || "–",
+        meta: `${maxQuarterly} rezerwacji`,
         tone: "chart5" as ToneKey,
         icon: Crown,
       },
     ];
-  }, [services]);
+  }, [services, appointments]);
 
   const openCreateForm = () => {
     setFormMode("create");
@@ -385,9 +521,12 @@ export default function ServicesPage() {
             </select>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground lg:px-4"
-              disabled
-              title="Zaawansowane filtry w przygotowaniu"
+              className={`inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm font-semibold transition-transform duration-200 ease-out hover:-translate-y-0.5 lg:px-4 ${
+                showFilters || filterColor !== "all" || filterDuration !== "all" || filterParallel !== "all"
+                  ? "border-primary bg-primary/10 text-primary hover:bg-primary/20"
+                  : "border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
+              onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="mr-1 h-4 w-4 lg:mr-2" />
               <span className="hidden lg:inline">Filtry</span>
@@ -399,6 +538,80 @@ export default function ServicesPage() {
             </button>
           </div>
         </div>
+
+        {showFilters && (
+          <div className="card border border-border p-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Kolor
+                </label>
+                <select
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  value={filterColor}
+                  onChange={(event) => setFilterColor(event.target.value)}
+                >
+                  <option value="all">Wszystkie kolory</option>
+                  <option value="primary">Primary</option>
+                  <option value="chart3">Chart 3</option>
+                  <option value="chart4">Chart 4</option>
+                  <option value="chart5">Chart 5</option>
+                  <option value="accent">Accent</option>
+                  <option value="destructive">Destructive</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Czas trwania
+                </label>
+                <select
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  value={filterDuration}
+                  onChange={(event) => setFilterDuration(event.target.value)}
+                >
+                  <option value="all">Dowolny czas</option>
+                  <option value="short">Do 30 min</option>
+                  <option value="medium">31-60 min</option>
+                  <option value="long">Powyżej 61 min</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Wizyty równoległe
+                </label>
+                <select
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  value={filterParallel}
+                  onChange={(event) => setFilterParallel(event.target.value)}
+                >
+                  <option value="all">Wszystkie</option>
+                  <option value="parallel">Równoległe dozwolone</option>
+                  <option value="exclusive">Tylko pojedyncze</option>
+                </select>
+              </div>
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => {
+                    setFilterColor("all");
+                    setFilterDuration("all");
+                    setFilterParallel("all");
+                  }}
+                >
+                  Wyczyść
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-primary/20"
+                  onClick={() => setShowFilters(false)}
+                >
+                  Zastosuj
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {feedback ? (
           <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">

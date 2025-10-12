@@ -1,0 +1,18 @@
+Data: 2025-10-12 15:37
+Zadanie: Implementacja filtrów i prawdziwych statystyk
+
+Wykonane zmiany:
+1. Naprawiono przyciski filtr na stronach klienci i usługi
+2. Zaimplementowano funkcjonalność filtrów na stronie klienci:
+   - Filtrowanie wg statusu (wszyscy/aktywni/z czarnej listy)
+   - Filtrowanie wg daty ostatniej wizyty (wszystkie/ostatnie 7 dni/ostatnie 30 dni/ostatnie 90 dni)
+3. Zaimplementowano funkcjonalność filtrów na stronie usługi:
+   - Filtrowanie wg koloru (wszystkie/primary/chart3/chart4/chart5/accent/destructive)
+   - Filtrowanie wg czasu trwania (wszystkie/do 30 min/31-60 min/powyżej 61 min)
+   - Filtrowanie wg możliwości równoległych wizyt (wszystkie/równoległe dozwolone/tylko pojedyncze)
+4. Zaktualizowano statystyki na stronie usługi, aby pokazywały prawdziwe dane z kalendarza:
+   - TOP usługa tygodnia - usługa z największą liczbą wizyt w ostatnim tygodniu
+   - LOW usługa tygodnia - usługa z najmniejszą liczbą wizyt w ostatnim tygodniu
+   - TOP usługa z 3 miesięcy - usługa z największą liczbą wizyt w ostatnich 3 miesiącach
+
+Status: Zakończone

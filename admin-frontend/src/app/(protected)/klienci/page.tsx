@@ -84,6 +84,9 @@ export default function ClientsPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterBlacklisted, setFilterBlacklisted] = useState<string>("all");
+  const [filterDateRange, setFilterDateRange] = useState<string>("all");
 
   useEffect(() => {
     const unsubscribe = subscribeToCustomers(
@@ -105,15 +108,51 @@ export default function ClientsPage() {
   }, []);
 
   const filteredCustomers = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return customers;
+    let filtered = customers;
+    
+    // Filtrowanie wg statusu czarnej listy
+    if (filterBlacklisted !== "all") {
+      filtered = filtered.filter((customer) => {
+        if (filterBlacklisted === "blacklisted") {
+          return Boolean(customer.blacklisted);
+        } else if (filterBlacklisted === "active") {
+          return !Boolean(customer.blacklisted);
+        }
+        return true;
+      });
     }
-    const query = searchTerm.trim().toLowerCase();
-    return customers.filter((customer) => {
-      const values = [customer.fullName, customer.phone, customer.email, customer.notes];
-      return values.some((value) => value?.toLowerCase().includes(query));
-    });
-  }, [customers, searchTerm]);
+    
+    // Filtrowanie wg daty ostatniej wizyty
+    if (filterDateRange !== "all") {
+      const now = new Date();
+      filtered = filtered.filter((customer) => {
+        if (!customer.lastVisit) return false;
+        
+        const visitDate = customer.lastVisit.toDate();
+        const daysDiff = Math.floor((now.getTime() - visitDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (filterDateRange === "week") {
+          return daysDiff <= 7;
+        } else if (filterDateRange === "month") {
+          return daysDiff <= 30;
+        } else if (filterDateRange === "quarter") {
+          return daysDiff <= 90;
+        }
+        return true;
+      });
+    }
+    
+    // Filtrowanie wg wyszukiwanej frazy
+    if (searchTerm.trim()) {
+      const query = searchTerm.trim().toLowerCase();
+      filtered = filtered.filter((customer) => {
+        const values = [customer.fullName, customer.phone, customer.email, customer.notes];
+        return values.some((value) => value?.toLowerCase().includes(query));
+      });
+    }
+    
+    return filtered;
+  }, [customers, searchTerm, filterBlacklisted, filterDateRange]);
 
   const openCreateForm = () => {
     setFormMode("create");
@@ -233,9 +272,12 @@ export default function ClientsPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground flex-1 md:flex-none"
-                disabled
-                title="Zaawansowane filtry w przygotowaniu"
+                className={`inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm font-semibold transition-transform duration-200 ease-out hover:-translate-y-0.5 flex-1 md:flex-none ${
+                  showFilters || filterBlacklisted !== "all" || filterDateRange !== "all"
+                    ? "border-primary bg-primary/10 text-primary hover:bg-primary/20"
+                    : "border-border text-foreground hover:bg-accent hover:text-accent-foreground"
+                }`}
+                onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Filtry</span>
@@ -248,6 +290,61 @@ export default function ClientsPage() {
             </div>
           </div>
         </div>
+
+        {showFilters && (
+          <div className="card border border-border p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Status klienta
+                </label>
+                <select
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  value={filterBlacklisted}
+                  onChange={(event) => setFilterBlacklisted(event.target.value)}
+                >
+                  <option value="all">Wszyscy klienci</option>
+                  <option value="active">Tylko aktywni</option>
+                  <option value="blacklisted">Tylko z czarnej listy</option>
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Ostatnia wizyta
+                </label>
+                <select
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  value={filterDateRange}
+                  onChange={(event) => setFilterDateRange(event.target.value)}
+                >
+                  <option value="all">Dowolna data</option>
+                  <option value="week">Ostatnie 7 dni</option>
+                  <option value="month">Ostatnie 30 dni</option>
+                  <option value="quarter">Ostatnie 90 dni</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => {
+                    setFilterBlacklisted("all");
+                    setFilterDateRange("all");
+                  }}
+                >
+                  Wyczyść filtry
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:bg-primary/20"
+                  onClick={() => setShowFilters(false)}
+                >
+                  Zastosuj
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {feedback ? (
           <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
