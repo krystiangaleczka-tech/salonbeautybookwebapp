@@ -63,13 +63,13 @@ export interface WorkingHours {
 export type WeeklyHours = Record<number, WorkingHours | null>;
 
 const baseSalonHours: WeeklyHours = {
-  0: null,
-  1: { start: "09:00", end: "17:00" },
-  2: { start: "09:00", end: "17:00" },
-  3: { start: "09:00", end: "17:00" },
-  4: { start: "09:00", end: "17:30" },
-  5: { start: "10:00", end: "16:00" },
-  6: null,
+  0: { start: "10:00", end: "16:00" }, // Niedziela - skrócone godziny
+  1: { start: "09:00", end: "17:00" }, // Poniedziałek
+  2: { start: "09:00", end: "17:00" }, // Wtorek
+  3: { start: "09:00", end: "17:00" }, // Środa
+  4: { start: "09:00", end: "17:30" }, // Czwartek
+  5: { start: "10:00", end: "16:00" }, // Piątek
+  6: null, // Sobota - zamknięte
 };
 
 const dailyOverrides: Record<string, WorkingHours> = {
@@ -77,28 +77,48 @@ const dailyOverrides: Record<string, WorkingHours> = {
   "2024-01-18": { start: "09:00", end: "15:00" },
 };
 
-function toIsoString(value: unknown) {
+// ✅ POPRAWIONE - Uniwersalna konwersja Timestamp do Date
+function timestampToDate(value: unknown): Date {
   if (!value) {
-    return new Date().toISOString();
+    return new Date();
   }
 
   if (value instanceof Timestamp) {
-    return value.toDate().toISOString();
+    return value.toDate();
   }
 
-  if (typeof value === "string") {
+  if (value instanceof Date) {
     return value;
   }
 
+  if (typeof value === "string") {
+    return new Date(value);
+  }
+
   if (typeof value === "number") {
-    return new Date(value).toISOString();
+    return new Date(value);
   }
 
-  if (typeof value === "object" && value !== null && "toDate" in value && typeof (value as { toDate: () => Date }).toDate === "function") {
-    return (value as { toDate: () => Date }).toDate().toISOString();
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    return (value as Timestamp).toDate();
   }
 
-  return new Date().toISOString();
+  return new Date();
+}
+
+// ✅ Porównanie czy dwie daty są tego samego dnia (LOKALNY czas)
+function isSameLocalDay(date1: Date, date2: Date): boolean {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+}
+
+// ✅ Konwersja do ISO string dla WYŚWIETLANIA (zachowaj dla kompatybilności)
+function toIsoString(value: unknown): string {
+  const date = timestampToDate(value);
+  return date.toISOString();
 }
 
 function toCalendarStatus(value: unknown): CalendarStatus {
@@ -159,16 +179,21 @@ interface PositionedEvent extends CalendarEvent {
   serviceName: string;
 }
 
+// ✅ POPRAWIONE - używaj lokalnej daty, nie UTC
 function toDateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function compactText(value: string, maxLength: number) {
   return value.replace(/\s+/g, "").toLowerCase().slice(0, maxLength);
 }
 
+// ✅ POPRAWIONE - używaj timestampToDate zamiast new Date(iso)
 function parseIsoDate(iso: string) {
-  return new Date(iso);
+  return timestampToDate(iso);
 }
 
 function startOfWeek(date: Date) {
@@ -237,7 +262,7 @@ function buildEventsForRange(
   const serviceLookup = new Map(services.map((service) => [service.id, service]));
 
   const eventsInRange = events.filter((event) => {
-    const start = parseIsoDate(event.start);
+    const start = timestampToDate(event.start); // ✅ Użyj timestampToDate zamiast parseIsoDate
     return start >= weekStart && start < addDays(weekStart, 7);
   });
 
@@ -409,7 +434,10 @@ function WeekBoard({
             const key = toDateKey(day);
             const window = workingWindows.get(key);
             const selected = toDateKey(selectedDate) === key;
-            const dayEvents = events.filter((event) => toDateKey(parseIsoDate(event.start)) === key);
+            const dayEvents = events.filter((event) => {
+              const eventDate = timestampToDate(event.start); // ✅ Użyj timestampToDate
+              return isSameLocalDay(eventDate, day); // ✅ Użyj isSameLocalDay
+            });
             const workingStart = window ? timeStringToMinutes(window.start) - minutesWindow.start : null;
             const workingEnd = window ? timeStringToMinutes(window.end) - minutesWindow.start : null;
 
@@ -1475,7 +1503,7 @@ export default function CalendarPage() {
 
       return true;
     });
-  }, [calendarEvents, filters, employees, customers]);
+  }, [calendarEvents, filters, employees, customers, calendarServices]);
 
   useEffect(() => {
     const servicesQuery = collection(db, "services");
@@ -1594,11 +1622,15 @@ export default function CalendarPage() {
     return weeks;
   }, [monthInfo, referenceDate]);
 
+  // ✅ POPRAWIONE - filtruj po LOKALNEJ dacie
   const dayEvents = useMemo(
     () =>
       positionedEvents
-        .filter((event) => toDateKey(parseIsoDate(event.start)) === toDateKey(referenceDate))
-        .sort((a, b) => parseIsoDate(a.start).getTime() - parseIsoDate(b.start).getTime()),
+        .filter((event) => {
+          const eventDate = timestampToDate(event.start);
+          return isSameLocalDay(eventDate, referenceDate);
+        })
+        .sort((a, b) => timestampToDate(a.start).getTime() - timestampToDate(b.start).getTime()),
     [positionedEvents, referenceDate]
   );
 
@@ -1890,7 +1922,10 @@ export default function CalendarPage() {
                 {monthWeeks.flat().map((day, index) => {
                   const isCurrentMonth = day.getMonth() === referenceDate.getMonth();
                   const dayKey = toDateKey(day);
-                  const dayEvents = positionedEvents.filter((event) => toDateKey(parseIsoDate(event.start)) === dayKey);
+                  const dayEvents = positionedEvents.filter((event) => {
+                    const eventDate = timestampToDate(event.start); // ✅ Użyj timestampToDate
+                    return isSameLocalDay(eventDate, day); // ✅ Użyj isSameLocalDay
+                  });
                   const hasConflict = dayEvents.some((event) => event.hasConflict);
                   return (
                     <button
