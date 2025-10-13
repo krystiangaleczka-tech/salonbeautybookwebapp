@@ -8,10 +8,11 @@ import {
   toneColorMap,
   toneTextClass,
 } from "@/lib/dashboard-theme";
-import { 
-  getDashboardStats, 
-  getTodayAppointments, 
-  getPopularServices, 
+import {
+  getDashboardStats,
+  getTodayAppointments,
+  getAllAppointments,
+  getPopularServices,
   getStaffAvailability,
   type DashboardStats,
   type AppointmentWithDetails,
@@ -20,6 +21,8 @@ import {
 } from "@/lib/dashboard-service";
 import { useEffect, useState } from "react";
 import { Calendar, TrendingUp, Coffee, Users } from "lucide-react";
+import { format } from "date-fns";
+import { pl } from "date-fns/locale";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -27,6 +30,7 @@ export default function DashboardPage() {
   const [popularServices, setPopularServices] = useState<PopularService[]>([]);
   const [staffAvailability, setStaffAvailability] = useState<StaffAvailability[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllAppointments, setShowAllAppointments] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,7 +38,7 @@ export default function DashboardPage() {
         setLoading(true);
         const [statsData, appointmentsData, servicesData, staffData] = await Promise.all([
           getDashboardStats(),
-          getTodayAppointments(),
+          showAllAppointments ? getAllAppointments() : getTodayAppointments(),
           getPopularServices(),
           getStaffAvailability()
         ]);
@@ -51,7 +55,35 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, []);
+  }, [showAllAppointments]);
+
+  const toggleAppointmentsView = async () => {
+    if (!showAllAppointments) {
+      // Przełącz na wszystkie rezerwacje
+      try {
+        setLoading(true);
+        const allAppointments = await getAllAppointments();
+        setAppointments(allAppointments);
+        setShowAllAppointments(true);
+      } catch (error) {
+        console.error("Error fetching all appointments:", error);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Przełącz na dzisiejsze rezerwacje
+      try {
+        setLoading(true);
+        const todayAppointments = await getTodayAppointments();
+        setAppointments(todayAppointments);
+        setShowAllAppointments(false);
+      } catch (error) {
+        console.error("Error fetching today appointments:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   const headerActions = (
     <>
@@ -130,7 +162,9 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="card p-6">
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-foreground">Dzisiejsze wizyty</h2>
+            <h2 className="text-xl font-semibold text-foreground">
+              {showAllAppointments ? "Wszystkie rezerwacje" : "Dzisiejsze wizyty"}
+            </h2>
             <span className="text-sm font-medium text-primary">{appointments.length} rezerwacji</span>
           </div>
 
@@ -140,6 +174,9 @@ export default function DashboardPage() {
                 const startTime = start instanceof Date ? start : start.toDate();
                 const endTime = end instanceof Date ? end : end.toDate();
                 const timeString = `${startTime.getHours().toString().padStart(2, '0')}:${startTime.getMinutes().toString().padStart(2, '0')}`;
+                const dateString = showAllAppointments
+                  ? format(startTime, "dd.MM.yyyy", { locale: pl })
+                  : "";
                 const priceString = price ? `${price} zł` : "Cena nieokreślona";
                 
                 return (
@@ -157,6 +194,9 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-foreground">{timeString}</p>
+                        {showAllAppointments && (
+                          <p className="text-sm text-muted-foreground">{dateString}</p>
+                        )}
                         <p className="text-sm text-muted-foreground">{priceString}</p>
                       </div>
                     </div>
@@ -165,14 +205,18 @@ export default function DashboardPage() {
               })
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                Brak wizyt na dziś
+                {showAllAppointments ? "Brak rezerwacji" : "Brak wizyt na dziś"}
               </div>
             )}
           </div>
 
-          <button className="btn-primary mt-6 w-full">
+          <button
+            className="btn-primary mt-6 w-full"
+            onClick={toggleAppointmentsView}
+            disabled={loading}
+          >
             <Eye className="mr-2 h-4 w-4" />
-            Zobacz wszystkie rezerwacje
+            {showAllAppointments ? "Pokaż dzisiejsze wizyty" : "Zobacz wszystkie rezerwacje"}
           </button>
         </div>
 

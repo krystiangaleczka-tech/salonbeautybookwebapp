@@ -252,6 +252,56 @@ export async function getTodayAppointments(): Promise<AppointmentWithDetails[]> 
   }
 }
 
+// Pobieranie wszystkich rezerwacji z detalami
+export async function getAllAppointments(): Promise<AppointmentWithDetails[]> {
+  try {
+    // Pobierz wszystkie wizyty
+    const appointmentsQuery = query(
+      collection(db, "appointments"),
+      where("status", "==", "confirmed"),
+      orderBy("start", "desc"),
+      limit(100) // Ograniczamy do 100 najnowszych rezerwacji
+    );
+    const appointmentsSnapshot = await getDocs(appointmentsQuery);
+
+    // Pobierz wszystkie klientów i usługi
+    const customersSnapshot = await getDocs(collection(db, "customers"));
+    const servicesSnapshot = await getDocs(collection(db, "services"));
+
+    // Stwórz mapy dla szybkiego dostępu
+    const customersMap = new Map();
+    customersSnapshot.docs.forEach(doc => {
+      customersMap.set(doc.id, doc.data());
+    });
+
+    const servicesMap = new Map();
+    servicesSnapshot.docs.forEach(doc => {
+      servicesMap.set(doc.id, doc.data());
+    });
+
+    // Połącz dane
+    return appointmentsSnapshot.docs.map(doc => {
+      const appointment = {
+        id: doc.id,
+        ...doc.data()
+      } as Appointment;
+
+      const customer = customersMap.get(appointment.clientId);
+      const service = servicesMap.get(appointment.serviceId);
+
+      return {
+        ...appointment,
+        customerName: customer?.fullName || "Nieznany klient",
+        serviceName: service?.name || "Nieznana usługa",
+        servicePrice: service?.price || 0,
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching all appointments:", error);
+    return [];
+  }
+}
+
 // Pobieranie popularnych usług
 export async function getPopularServices(): Promise<PopularService[]> {
   const now = new Date();
