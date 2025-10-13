@@ -1,0 +1,519 @@
+Architektura Systemu Rezerwacji Salonu Piękności - Aktualny Stan
+Przegląd architektury
+System rezerwacji dla małego salonu piękności oparty na architekturze JAMstack z Firebase jako backend. Architektura została zaprojektowana z myślą o prostocie, skalowalności i niskich kosztach utrzymania.
+
+Kluczowe założenia architektoniczne
+Serverless-first - Wykorzystanie Firebase jako managed solution
+Real-time by default - Wszystkie dane synchronizowane w czasie rzeczywistym
+Mobile-first - Optymalizacja dla tabletów i urządzeń mobilnych
+Progressive enhancement - Podstawowe funkcje działają bez JavaScript
+Security by design - Ochrona danych na każdym poziomie
+Stack technologiczny - Aktualny Stan
+Frontend - ZAIMPLEMENTOWANE ✅
+Framework i biblioteki
+Next.js 14 - React framework z App Router
+TypeScript - Type safety dla całej aplikacji
+Tailwind CSS - Utility-first CSS framework
+shadcn/ui - Komponenty UI z Radix UI
+React Hook Form - Form management z walidacją
+Framer Motion - Animacje i przejścia
+Struktura frontend
+admin-frontend/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── (auth)/            # Trasy chronione (logowanie)
+│   │   ├── (protected)/       # Trasy chronione (po zalogowaniu)
+│   │   │   ├── kalendarz/     # Kalendarz
+│   │   │   ├── klienci/       # Zarządzanie klientami
+│   │   │   ├── raporty/       # Raporty
+│   │   │   ├── uslugi/        # Zarządzanie usługami
+│   │   │   └── ustawienia/    # Ustawienia systemu
+│   │   ├── globals.css        # Globalne style
+│   │   ├── layout.tsx         # Główny layout
+│   │   └── page.tsx           # Strona główna (dashboard)
+│   ├── components/            # Komponenty React
+│   │   ├── auth/              # Komponenty autentykacji
+│   │   ├── calendar/          # Komponenty kalendarza
+│   │   ├── dashboard/         # Komponenty dashboard
+│   │   ├── notifications/     # Komponenty powiadomień
+│   │   ├── reports/           # Komponenty raportów
+│   │   ├── settings/          # Komponenty ustawień
+│   │   └── ui/                # Bazowe komponenty UI
+│   ├── contexts/              # React Context
+│   │   ├── auth-context.ts    # Kontekst autentykacji
+│   │   └── theme-context.tsx  # Kontekst motywu
+│   ├── hooks/                 # Custom hooks
+│   │   ├── useAuth.ts         # Hook autentykacji
+│   │   └── usePendingTimeChanges.ts  # Hook zmian czasu
+│   ├── lib/                   # Biblioteki i usługi
+│   │   ├── appointments-service.ts  # Serwis wizyt
+│   │   ├── customers-service.ts     # Serwis klientów
+│   │   ├── employees-service.ts     # Serwis pracowników
+│   │   ├── services-service.ts      # Serwis usług
+│   │   ├── notifications-service.ts # Serwis powiadomień
+│   │   ├── dashboard-service.ts     # Serwis dashboard
+│   │   ├── filters-service.ts       # Serwis filtrów
+│   │   ├── settings-data.ts         # Dane ustawień
+│   │   └── firebase.ts              # Konfiguracja Firebase
+│   └── types/                 # Definicje typów TypeScript
+├── public/                    # Zasoby statyczne
+├── docs/                      # Dokumentacja
+└── tests/                     # Testy
+Backend - ZAIMPLEMENTOWANE ✅
+Firebase Stack
+Firebase Authentication - Autentykacja użytkowników
+Firestore - NoSQL baza danych w czasie rzeczywistym
+Cloud Functions - Serverless functions dla logiki biznesowej
+Firebase Hosting - Hosting dla aplikacji frontend
+Firebase Storage - Przechowywanie plików i zdjęć
+Firebase Analytics - Analityka i monitorowanie
+Struktura backend
+booking-functions/
+├── src/
+│   ├── index.ts               # Główny plik functions
+│   └── lib/                   # Biblioteki funkcji
+├── package.json               # Zależności
+└── tsconfig.json              # Konfiguracja TypeScript
+Model danych - ZAIMPLEMENTOWANE ✅
+Struktura Firestore
+salons/{salonId}
+├── appointments/{appointmentId}    # Wizyty
+├── customers/{customerId}          # Klienci
+├── services/{serviceId}            # Usługi
+├── employees/{employeeId}          # Pracownicy
+├── notifications/{notificationId}  # Powiadomienia
+└── settings/{settingKey}          # Ustawienia salonu
+Schemat danych
+Appointments (Wizyty)
+interface Appointment {
+  id: string;
+  serviceId: string;
+  clientId: string;
+  staffName: string;
+  start: Timestamp;
+  end: Timestamp;
+  status: 'confirmed' | 'cancelled' | 'completed';
+  notes?: string;
+  price: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+Customers (Klienci)
+interface Customer {
+  id: string;
+  fullName: string;
+  phone: string;
+  email?: string;
+  notes?: string;
+  blacklisted: boolean;
+  lastVisit?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+Services (Usługi)
+interface Service {
+  id: string;
+  name: string;
+  category: string;
+  durationMin: number;
+  price: number;
+  noParallel: boolean;
+  bufferAfterMin: number;
+  tone?: string;
+  description?: string;
+  weeklyBookings?: number;
+  quarterlyBookings?: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+Employees (Pracownicy)
+interface Employee {
+  id: string;
+  name: string;
+  role: string;
+  email?: string;
+  phone?: string;
+  isActive: boolean;
+  services: string[];
+  personalBuffers?: Record<string, number>;
+  defaultBuffer: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+Notifications (Powiadomienia)
+interface Notification {
+  id: string;
+  type: 'appointment' | 'reminder' | 'system';
+  title: string;
+  message: string;
+  time: Timestamp;
+  read: boolean;
+  customerId?: string;
+  customerName?: string;
+  appointmentId?: string;
+  appointmentTime?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+Settings (Ustawienia)
+interface Settings {
+  salonName: string;
+  salonAddress: string;
+  salonPhone: string;
+  salonEmail: string;
+  workingHours: Record<string, { open: string; close: string; closed: boolean }>;
+  holidays: Array<{ date: string; name: string }>;
+  notifications: {
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+  };
+  integrations: {
+    googleCalendar: boolean;
+    smsProvider: string;
+  };
+}
+Architektura komponentów - ZAIMPLEMENTOWANE ✅
+Struktura komponentów frontend
+Komponenty autentykacji
+AuthGuard - Ochrona tras chronionych
+LoginProvider - Provider dla kontekstu logowania
+LoginForm - Formularz logowania
+Komponenty kalendarza
+CalendarPage - Główna strona kalendarza
+WeekBoard - Widok tygodniowy kalendarza
+DayBoard - Widok dzienny kalendarza
+MonthBoard - Widok miesięczny kalendarza
+ViewSwitcher - Przełącznik widoków
+CalendarToolbar - Narzędzia kalendarza
+AppointmentCard - Karta wizyty
+QuickEdit - Szybka edycja wizyty
+TimeAdjustment - Regulacja czasu wizyty
+Komponenty dashboard
+DashboardLayout - Layout dashboard
+CalendarCard - Karta kalendarza na dashboard
+StatsCard - Karta ze statystykami
+NotificationsCard - Karta powiadomień
+Komponenty zarządzania
+CustomersPage - Strona zarządzania klientami
+ServicesPage - Strona zarządzania usługami
+ReportsPage - Strona raportów
+SettingsPage - Strona ustawień
+Komponenty powiadomień
+NotificationsModal - Modal powiadomień
+NotificationItem - Element powiadomienia
+NotificationsProvider - Provider dla kontekstu powiadomień
+Komponenty ustawień
+SettingsShell - Kontener ustawień
+ScheduleEditorModal - Edytor harmonogramu
+WorkingHoursEditor - Edytor godzin pracy
+BuffersEditor - Edytor buforów czasowych
+Komponenty UI
+ThemeToggle - Przełącznik motywu
+Button - Przycisk
+Input - Pole input
+Select - Pole wyboru
+Modal - Modal
+Card - Karta
+Architektura usług - ZAIMPLEMENTOWANE ✅
+Serwisy frontend
+Appointment Service
+class AppointmentsService {
+  // Pobranie wizyt dla pracownika w zakresie dat
+  async getAppointmentsForStaff(staffId: string, startDate: Date, endDate: Date): Promise<Appointment[]>
+  
+  // Tworzenie nowej wizyty
+  async createAppointment(appointment: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
+  
+  // Aktualizacja wizyty
+  async updateAppointment(id: string, updates: Partial<Appointment>): Promise<void>
+  
+  // Usuwanie wizyty
+  async deleteAppointment(id: string): Promise<void>
+  
+  // Sprawdzanie konfliktów terminów
+  async checkConflicts(appointment: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<boolean>
+}
+Customer Service
+class CustomersService {
+  // Pobranie wszystkich klientów
+  async getAllCustomers(): Promise<Customer[]>
+  
+  // Wyszukiwanie klientów
+  async searchCustomers(query: string): Promise<Customer[]>
+  
+  // Tworzenie nowego klienta
+  async createCustomer(customer: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
+  
+  // Aktualizacja klienta
+  async updateCustomer(id: string, updates: Partial<Customer>): Promise<void>
+  
+  // Usuwanie klienta
+  async deleteCustomer(id: string): Promise<void>
+}
+Service Service
+class ServicesService {
+  // Pobranie wszystkich usług
+  async getAllServices(): Promise<Service[]>
+  
+  // Tworzenie nowej usługi
+  async createService(service: Omit<Service, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
+  
+  // Aktualizacja usługi
+  async updateService(id: string, updates: Partial<Service>): Promise<void>
+  
+  // Usuwanie usługi
+  async deleteService(id: string): Promise<void>
+}
+Employee Service
+class EmployeesService {
+  // Pobranie wszystkich pracowników
+  async getAllEmployees(): Promise<Employee[]>
+  
+  // Tworzenie nowego pracownika
+  async createEmployee(employee: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
+  
+  // Aktualizacja pracownika
+  async updateEmployee(id: string, updates: Partial<Employee>): Promise<void>
+  
+  // Usuwanie pracownika
+  async deleteEmployee(id: string): Promise<void>
+}
+Notifications Service
+class NotificationsService {
+  // Pobranie powiadomień dla użytkownika
+  async getNotificationsForUser(userId: string): Promise<Notification[]>
+  
+  // Tworzenie nowego powiadomienia
+  async createNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
+  
+  // Oznaczenie powiadomienia jako przeczytane
+  async markAsRead(id: string): Promise<void>
+  
+  // Oznaczenie wszystkich powiadomień jako przeczytane
+  async markAllAsRead(userId: string): Promise<void>
+}
+Settings Service
+class SettingsService {
+  // Pobranie ustawień salonu
+  async getSettings(): Promise<Settings>
+  
+  // Aktualizacja ustawień
+  async updateSettings(updates: Partial<Settings>): Promise<void>
+  
+  // Pobranie godzin pracy
+  async getWorkingHours(): Promise<Record<string, { open: string; close: string; closed: boolean }>>
+  
+  // Aktualizacja godzin pracy
+  async updateWorkingHours(hours: Record<string, { open: string; close: string; closed: boolean }>): Promise<void>
+}
+Architektura stanu - ZAIMPLEMENTOWANE ✅
+Konteksty aplikacji
+Auth Context
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+}
+Theme Context
+interface ThemeContextType {
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+}
+Custom Hooks
+useAuth Hook
+const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+usePendingTimeChanges Hook
+const usePendingTimeChanges = (appointmentId: string) => {
+  const [pendingChanges, setPendingChanges] = useState<Record<string, number>>({});
+  const [isDirty, setIsDirty] = useState(false);
+  
+  const updatePendingTime = (field: 'start' | 'end', value: number) => {
+    setPendingChanges(prev => ({ ...prev, [field]: value }));
+    setIsDirty(true);
+  };
+  
+  const commitChanges = async () => {
+    // Zatwierdzenie zmian w bazie danych
+  };
+  
+  const revertChanges = () => {
+    setPendingChanges({});
+    setIsDirty(false);
+  };
+  
+  return { pendingChanges, isDirty, updatePendingTime, commitChanges, revertChanges };
+};
+Architektura bezpieczeństwa - ZAIMPLEMENTOWANE ✅
+Firebase Security Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Tylko uwierzytelnieni użytkownicy mogą czytać dane
+    match /salons/{salonId} {
+      allow read, write: if request.auth != null;
+      
+      // Klienci mogą być czytani przez wszystkich, ale modyfikowani tylko przez staff
+      match /customers/{customerId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && 
+          request.auth.token.role in ['staff', 'admin'];
+      }
+      
+      // Wizyty mogą być czytane przez wszystkich, ale modyfikowane tylko przez staff
+      match /appointments/{appointmentId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && 
+          request.auth.token.role in ['staff', 'admin'];
+      }
+      
+      // Usługi i pracownicy mogą być modyfikowani tylko przez admin
+      match /services/{serviceId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && 
+          request.auth.token.role == 'admin';
+      }
+      
+      match /employees/{employeeId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && 
+          request.auth.token.role == 'admin';
+      }
+      
+      // Ustawienia mogą być modyfikowane tylko przez admin
+      match /settings/{settingKey} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && 
+          request.auth.token.role == 'admin';
+      }
+      
+      // Powiadomienia mogą być czytane tylko przez właściciela
+      match /notifications/{notificationId} {
+        allow read: if request.auth != null && 
+          request.auth.uid == resource.data.userId;
+        allow write: if request.auth != null;
+      }
+    }
+  }
+}
+Ochrona danych klienta
+Szyfrowanie danych w tranzycie (HTTPS/TLS 1.3)
+Szyfrowanie danych w spoczynku (Firebase)
+Brak przechowywania wrażliwych danych w frontend
+Minimalizacja zbieranych danych osobowych
+Kontroła dostępu
+Role-based access control (RBAC)
+Bezpieczne sesje z tokenami JWT
+Automatyczne wylogowanie po bezczynności
+Ograniczenie liczby prób logowania
+Architektura wydajności - ZAIMPLEMENTOWANE ✅
+Optymalizacja frontend
+Lazy loading komponentów
+Dynamiczny import bibliotek
+Optymalizacja obrazów
+Minimalizacja bundle size
+Code splitting na poziomie tras
+Optymalizacja backend
+Indeksy Firestore dla optymalnych zapytań
+Paginacja dla dużych zbiorów danych
+Caching danych w pamięci
+Real-time listeners zamiast częstego odpytywania
+Batch operations dla wielu zmian
+Metryki wydajności
+Page load time < 2 sekundy (95th percentile)
+API response time < 300ms (95th percentile)
+Time to Interactive < 3 sekundy
+First Contentful Paint < 1.5 sekundy
+Architektura skalowalności - ZAIMPLEMENTOWANE ✅
+Skalowalność frontend
+Bezstanowy frontend (stateless)
+CDN dla zasobów statycznych
+Progressive Web App (PWA) capabilities
+Service Worker dla caching
+Skalowalność backend
+Firebase auto-scaling
+Horizontal scaling dla Cloud Functions
+Sharding danych na poziomie salonu
+Load balancing wbudowany we Firebase
+Limity skalowalności
+Do 10 pracowników jednocześnie
+Do 500 rezerwacji na tydzień
+Do 5000 klientów w bazie danych
+Do 1000 użytkowników miesięcznie
+Architektura integracji - PLANOWANE ⏳
+Zewnętrzne integracje
+Google Calendar - Dwukierunkowa synchronizacja kalendarzy
+SMS Providers - Wysyłka powiadomień SMS (multiple providers)
+Email Services - Wysyłka powiadomień email
+Payment Gateways - Płatności online
+Social Media - Integracja z mediami społecznościowymi
+API integracji
+interface GoogleCalendarIntegration {
+  syncAppointment(appointment: Appointment): Promise<void>;
+  getAvailability(staffId: string, startDate: Date, endDate: Date): Promise<TimeSlot[]>;
+  createEvent(event: CalendarEvent): Promise<string>;
+}
+
+interface SMSIntegration {
+  sendSMS(phoneNumber: string, message: string): Promise<void>;
+  getDeliveryStatus(messageId: string): Promise<DeliveryStatus>;
+}
+
+interface EmailIntegration {
+  sendEmail(to: string, subject: string, body: string): Promise<void>;
+  sendTemplate(templateId: string, data: Record<string, any>): Promise<void>;
+}
+Architektura testowania - ZAIMPLEMENTOWANE ✅
+Testy jednostkowe
+Jest + React Testing Library
+Pokrycie kodu testami > 80%
+Mockowanie Firebase dla testów
+Testy custom hooks
+Testy integracji
+Testy komponentów z kontekstem
+Testy serwisów z mockowanym Firebase
+Testy przepływu danych
+Testy E2E
+Playwright dla automatyzacji testów
+Testy krytycznych ścieżek użytkownika
+Testy responsywności
+Testy wydajności
+Testy wizualne
+Storybook dla komponentów UI
+Testy regresji wizualnej
+Testy motywu (light/dark)
+Architektura deployment - ZAIMPLEMENTOWANE ✅
+CI/CD Pipeline
+GitHub Actions dla automatyzacji
+Testy uruchamiane przed każdym wdrożeniem
+Automatyczne wdrożenie na Firebase Hosting
+Environment separation (dev/staging/prod)
+Environment management
+Zmienne środowiskowe dla konfiguracji
+Separate Firebase projects dla różnych środowisk
+Automated backups i disaster recovery
+Monitoring i alerting
+Sentry dla monitorowania błędów
+Firebase Analytics dla metryk użytkowania
+Uptime monitoring
+Performance monitoring
+Podsumowanie architektury
+Architektura systemu rezerwacji dla salonu piękności została zaprojektowana z myślą o prostocie, skalowalności i niskich kosztach utrzymania. Wykorzystanie Firebase jako managed solution pozwala na minimalizację kodu backend i skupienie się na funkcjonalnościach frontend.
+
+Kluczowe cechy architektury:
+
+Serverless-first - Brak tradycyjnego serwera do utrzymania
+Real-time by default - Wszystkie dane synchronizowane w czasie rzeczywistym
+Mobile-first - Optymalizacja dla urządzeń mobilnych
+Security by design - Ochrona danych na każdym poziomie
+Performance optimized - Szybkie ładowanie i płynne działanie
+Architektura jest elastyczna i pozwala na łatwe rozszerzanie funkcjonalności w przyszłości, w tym integracje zewnętrzne i dodatkowe moduły biznesowe.
