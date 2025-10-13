@@ -1,0 +1,61 @@
+# Dark Mode and Mobile UI Optimizations - 2025-10-13 13:35
+
+## Overview
+Zaimplementowano tryb ciemny oraz zoptymalizowano interfejs użytkownika dla urządzeń mobilnych i tabletów, z uwzględnieniem poprawnego wyświetlania na bardzo małych ekranach.
+
+## Changes Made
+
+### 1. Tryb ciemny (Dark Mode)
+- Utworzono kontekst `ThemeContext` do zarządzania stanem trybu ciemnego
+- Zintegrowano kontekst z głównym providerem aplikacji
+- Dodano zmienne CSS dla trybu ciemnego z wykorzystaniem dostarczonej palety kolorów
+- Stworzono komponent `ThemeToggle` z ikoną księżyca/słońca
+- Zaimplementowano obsługę preferencji systemowych i localStorage do przechowywania ustawień
+
+### 2. Optymalizacja układu dla urządzeń mobilnych/tabletowych
+- Przeniesiono hamburger menu na prawą stronę nagłówka
+- Umieszczono przycisk przełącznika trybu ciemnego przed hamburger menu
+- Powiększono hamburger menu (z h-6 w-6 na h-8 w-8) z responsywnym dostosowaniem
+- Dodano białe tło przy hover na hamburger menu
+- Zaimplementowano płynne animacje przejścia z wykorzystaniem `transition-all duration-300 ease-in-out`
+- Dodano efekty skalowania przy interakcji (`hover:scale-105 active:scale-95`)
+
+### 3. Optymalizacja dla wszystkich rozmiarów ekranu
+- Zmieniono strukturę nagłówka, aby zawsze używał `flex-col` z dwoma wierszami wewnątrz
+- Pierwszy wiersz zawiera tytuł strony wyrównany do lewej
+- Drugi wiersz zawiera wszystkie przyciski wyśrodkowane w kontenerze z klasą `min-w-0 flex-1`
+- Zastosowano responsywne rozmiary tekstu: `text-xl sm:text-2xl md:text-3xl` dla tytułu
+- Zastosowano responsywne rozmiary dla podtytułu: `text-xs sm:text-sm`
+- Dodano klasę `truncate` do tytułu i podtytułu, aby były skracane, jeśli są za długie
+- Zastosowano responsywne odstępy: `gap-2 sm:gap-4` między elementami menu
+
+### 4. Poprawka dla strony głównej dashboard
+- Zmodyfikowano `headerActions` na stronie głównej, aby były ukrywane na małych ekranach (`hidden sm:flex`)
+- Dodano responsywne etykiety dla przycisków: pełny tekst na większych ekranach, skrócony na mniejszych
+- Zmniejszono ilość elementów w nagłówku na małych ekranach, co zapobiega przejściu w tryb kolumnowy
+
+## Files Modified
+- `src/contexts/theme-context.tsx` - Nowy plik z kontekstem trybu ciemnego
+- `src/components/ui/theme-toggle.tsx` - Nowy komponent przycisku przełącznika trybu
+- `src/components/providers.tsx` - Integracja kontekstu trybu ciemnego
+- `src/app/globals.css` - Dodanie zmiennych CSS dla trybu ciemnego
+- `src/components/dashboard/dashboard-layout.tsx` - Modyfikacje układu dla urządzeń mobilnych
+- `src/app/(protected)/page.tsx` - Poprawki dla strony głównej dashboard
+
+## Technical Details
+- Użyto React Context API do zarządzania stanem trybu ciemnego
+- Zastosowano Tailwind CSS do tworzenia responsywnych stylów
+- Zaimplementowano detekcję preferencji systemowych za pomocą `window.matchMedia`
+- Dodano obsługę localStorage do zapamiętywania ustawień użytkownika
+- Używano semantycznego HTML i dostosowań dla dostępności
+
+## Testing
+- Przetestowano na różnych rozmiarach ekranu (od 320px do 1920px)
+- Zweryfikowano działanie trybu ciemnego na wszystkich stronach
+- Sprawdzono poprawność animacji i efektów hover
+- Upewniono się, że menu zawsze pozostaje w prawej części nagłówka
+
+## Next Steps
+- Możliwość dodania więcej opcji personalizacji trybu ciemnego
+- Potencjalne dodanie animacji przejścia między trybami
+- Rozważenie dodania skrótów klawiszowych dla przełączania trybu

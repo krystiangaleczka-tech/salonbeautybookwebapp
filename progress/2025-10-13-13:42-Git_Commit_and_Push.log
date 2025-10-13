@@ -1,0 +1,30 @@
+# Git Commit and Push - 2025-10-13 13:42
+
+## Overview
+Wykonano operację git commit i push w celu zapisania zmian w repozytorium.
+
+## Changes Made
+
+### 1. Przygotowanie do commita
+- Dodano wszystkie zmodyfikowane pliki do staging area za pomocą `git add .`
+- Utworzono nowy plik postępu dokumentujący operację git
+
+### 2. Commit
+- Wykonano commit z odpowiednią nazwą
+- Zapisano wszystkie zmiany w lokalnym repozytorium
+
+### 3. Push
+- Wysłano zmiany do zdalnego repozytorium origin/main
+- Zsynchronizowano lokalne repozytorium ze zdalnym
+
+## Files Modified
+- `progress/2025-10-13-13:42-Git_Commit_and_Push.log` - Nowy plik postępu dokumentujący operację
+
+## Technical Details
+- Użyto standardowych poleceń Git: `git add .`, `git commit -m`, `git push origin main`
+- Zastosowano format nazewnictwa plików postępu zgodny z istniejącymi
+- Operacja wykonana w katalogu projektu `/Users/krystiangaleczka/Documents/salonbeautybookwebapp`
+
+## Next Steps
+- Weryfikacja, czy wszystkie zmiany zostały poprawnie przesłane do zdalnego repozytorium
+- Możliwość kontynuacji prac nad projektem
