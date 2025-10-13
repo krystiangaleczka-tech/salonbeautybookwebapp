@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 250" width="1500" height="250">
+  <defs>
+    <style>
+      .box { fill: #4a4a4a; stroke: #888888; stroke-width: 2; }
+      .text { fill: #ffffff; font-family: Arial, sans-serif; font-size: 12px; text-anchor: middle; }
+      .title { fill: #ffffff; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; }
+      .arrow { stroke: #ffffff; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .category-box { fill: #3a3a3a; stroke: #666666; stroke-width: 1.5; }
+      .impact-box { fill: #2a2a2a; stroke: #555555; stroke-width: 1.5; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1500" height="250" fill="#2a2a2a"/>
+
+  <!-- Top section: Data Flow -->
+  <text class="title" x="350" y="25" style="fill: #aaaaaa;">Settings Data Flow</text>
+
+  <rect class="box" x="20" y="40" width="100" height="35" rx="3"/>
+  <text class="text" x="70" y="62">Settings Form</text>
+
+  <path class="arrow" d="M 120 57 L 143 57"/>
+
+  <rect class="box" x="143" y="40" width="80" height="35" rx="3"/>
+  <text class="text" x="183" y="62">Validation</text>
+
+  <path class="arrow" d="M 223 57 L 250 57"/>
+
+  <rect class="box" x="250" y="40" width="90" height="35" rx="3"/>
+  <text class="text" x="295" y="62">Settings Service</text>
+
+  <path class="arrow" d="M 340 57 L 370 57"/>
+
+  <rect class="box" x="370" y="40" width="100" height="35" rx="3"/>
+  <text class="text" x="420" y="62">Firestore Update</text>
+
+  <path class="arrow" d="M 470 57 L 505 57"/>
+
+  <rect class="box" x="505" y="40" width="100" height="35" rx="3"/>
+  <text class="text" x="555" y="62">Real-time Sync</text>
+
+  <path class="arrow" d="M 605 57 L 640 57"/>
+
+  <rect class="box" x="640" y="40" width="70" height="35" rx="3"/>
+  <text class="text" x="675" y="62">UI Update</text>
+
+  <!-- Bottom section: Categories and Impact -->
+  <text class="title" x="750" y="130" style="fill: #aaaaaa;">Settings Categories</text>
+
+  <!-- Settings Shell -->
+  <rect class="box" x="750" y="145" width="100" height="35" rx="3"/>
+  <text class="text" x="800" y="167">Settings Shell</text>
+
+  <!-- Categories branching out -->
+  <path class="arrow" d="M 800 180 L 770 200"/>
+  <rect class="category-box" x="690" y="200" width="80" height="30" rx="3"/>
+  <text class="text" x="730" y="220" style="font-size: 11px;">Working Hours</text>
+
+  <path class="arrow" d="M 800 180 L 800 200"/>
+  <rect class="category-box" x="790" y="200" width="75" height="30" rx="3"/>
+  <text class="text" x="827" y="220" style="font-size: 11px;">Time Buffers</text>
+
+  <path class="arrow" d="M 800 180 L 825 200"/>
+  <rect class="category-box" x="885" y="200" width="60" height="30" rx="3"/>
+  <text class="text" x="915" y="220" style="font-size: 11px;">Holidays</text>
+
+  <path class="arrow" d="M 850 163 L 980 163"/>
+  <rect class="category-box" x="980" y="145" width="75" height="35" rx="3"/>
+  <text class="text" x="1017" y="167" style="font-size: 11px;">Team Roles</text>
+
+  <path class="arrow" d="M 850 163 L 1075 163"/>
+  <rect class="category-box" x="1075" y="145" width="80" height="35" rx="3"/>
+  <text class="text" x="1115" y="167" style="font-size: 11px;">Notifications</text>
+
+  <path class="arrow" d="M 850 163 L 1175 163"/>
+  <rect class="category-box" x="1175" y="145" width="75" height="35" rx="3"/>
+  <text class="text" x="1212" y="167" style="font-size: 11px;">Integrations</text>
+
+  <path class="arrow" d="M 850 163 L 1270 163"/>
+  <rect class="category-box" x="1270" y="145" width="80" height="35" rx="3"/>
+  <text class="text" x="1310" y="167" style="font-size: 11px;">Salon Profile</text>
+
+  <!-- Impact areas (bottom row) -->
+  <text class="title" x="1120" y="25" style="fill: #aaaaaa;">Settings Impact</text>
+
+  <rect class="impact-box" x="750" y="45" width="110" height="28" rx="3"/>
+  <text class="text" x="805" y="63" style="font-size: 11px;">Calendar Availability</text>
+
+  <rect class="impact-box" x="880" y="45" width="130" height="28" rx="3"/>
+  <text class="text" x="945" y="63" style="font-size: 11px;">Appointment Scheduling</text>
+
+  <rect class="impact-box" x="1030" y="45" width="90" height="28" rx="3"/>
+  <text class="text" x="1075" y="63" style="font-size: 11px;">Business Days</text>
+
+  <rect class="impact-box" x="1140" y="45" width="80" height="28" rx="3"/>
+  <text class="text" x="1180" y="63" style="font-size: 11px;">Permissions</text>
+
+  <rect class="impact-box" x="1240" y="45" width="110" height="28" rx="3"/>
+  <text class="text" x="1295" y="63" style="font-size: 11px;">Notification Delivery</text>
+
+  <rect class="impact-box" x="1370" y="45" width="100" height="28" rx="3"/>
+  <text class="text" x="1420" y="63" style="font-size: 11px;">External Services</text>
+
+  <rect class="impact-box" x="1030" y="85" width="100" height="28" rx="3"/>
+  <text class="text" x="1080" y="103" style="font-size: 11px;">Public Information</text>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#ffffff"/>
+    </marker>
+  </defs>
+</svg>
