@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Eye, Plus } from "lucide-react";
+import { Bell, Eye, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import {
   getBubbleStyle,
@@ -12,6 +12,7 @@ import {
   getDashboardStats,
   getTodayAppointments,
   getAllAppointments,
+  getDayAppointments,
   getPopularServices,
   getStaffAvailability,
   type DashboardStats,
@@ -21,8 +22,10 @@ import {
 } from "@/lib/dashboard-service";
 import { useEffect, useState } from "react";
 import { Calendar, TrendingUp, Coffee, Users } from "lucide-react";
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 import { pl } from "date-fns/locale";
+import NotificationsModal from "@/components/notifications/notifications-modal";
+import { getUnreadNotifications, type Notification } from "@/lib/notifications-service";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -31,17 +34,30 @@ export default function DashboardPage() {
   const [staffAvailability, setStaffAvailability] = useState<StaffAvailability[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAllAppointments, setShowAllAppointments] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // Nowy stan dla wybranej daty
+  const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [statsData, appointmentsData, servicesData, staffData] = await Promise.all([
+        console.log("Fetching data for:", { showAllAppointments, selectedDate });
+        
+        let appointmentsData;
+        if (showAllAppointments) {
+          appointmentsData = await getAllAppointments();
+        } else {
+          appointmentsData = await getDayAppointments(selectedDate);
+        }
+        
+        const [statsData, servicesData, staffData] = await Promise.all([
           getDashboardStats(),
-          showAllAppointments ? getAllAppointments() : getTodayAppointments(),
           getPopularServices(),
           getStaffAvailability()
         ]);
+        
+        console.log("Appointments data received:", appointmentsData);
         
         setStats(statsData);
         setAppointments(appointmentsData);
@@ -55,33 +71,36 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [showAllAppointments]);
+  }, [showAllAppointments, selectedDate]); // Upewnij się, że obie zależności są tutaj
+
+  // Pobieranie liczby nieprzeczytanych powiadomień
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const unreadNotifications = await getUnreadNotifications();
+        setUnreadNotificationsCount(unreadNotifications.length);
+      } catch (error) {
+        console.error("Error fetching unread notifications count:", error);
+      }
+    };
+
+    fetchUnreadCount();
+    
+    // Odświeżaj co 30 sekund
+    const interval = setInterval(fetchUnreadCount, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleAppointmentsView = async () => {
     if (!showAllAppointments) {
       // Przełącz na wszystkie rezerwacje
-      try {
-        setLoading(true);
-        const allAppointments = await getAllAppointments();
-        setAppointments(allAppointments);
-        setShowAllAppointments(true);
-      } catch (error) {
-        console.error("Error fetching all appointments:", error);
-      } finally {
-        setLoading(false);
-      }
+      setShowAllAppointments(true);
+      // Nie resetuj selectedDate - pozwól useEffect załatwić resztę
     } else {
-      // Przełącz na dzisiejsze rezerwacje
-      try {
-        setLoading(true);
-        const todayAppointments = await getTodayAppointments();
-        setAppointments(todayAppointments);
-        setShowAllAppointments(false);
-      } catch (error) {
-        console.error("Error fetching today appointments:", error);
-      } finally {
-        setLoading(false);
-      }
+      // Przełącz na dzisiejsze wizyty
+      setShowAllAppointments(false);
+      setSelectedDate(new Date()); // To wywoła useEffect
     }
   };
 
@@ -93,17 +112,22 @@ export default function DashboardPage() {
         <span className="sm:hidden">Dodaj</span>
       </button>
       <div className="relative">
-        <button className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
+        <button 
+          className="group flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground hover:bg-accent/80 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:scale-105 active:scale-95"
+          onClick={() => setIsNotificationsModalOpen(true)}
+        >
           <Bell className="h-5 w-5" />
         </button>
-        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">
-          3
-        </span>
+        {unreadNotificationsCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-destructive-foreground">
+            {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+          </span>
+        )}
       </div>
     </div>
   );
 
-  const currentDate = new Date();
+  const currentDate = selectedDate; // Użyj wybranej daty zamiast dzisiejszej
   const daysOfWeek = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"];
   const currentDay = daysOfWeek[currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1];
   const formattedDate = `${currentDate.getDate()} ${currentDate.toLocaleDateString('pl', { month: 'long' })} ${currentDate.getFullYear()}`;
@@ -164,7 +188,8 @@ export default function DashboardPage() {
         <div className="card p-6">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-xl font-semibold text-foreground">
-              {showAllAppointments ? "Wszystkie rezerwacje" : "Dzisiejsze wizyty"}
+              {showAllAppointments ? "Wszystkie rezerwacje" : 
+               isToday(selectedDate) ? "Dzisiejsze wizyty" : "Wizyty na wybrany dzień"}
             </h2>
             <span className="text-sm font-medium text-primary">{appointments.length} rezerwacji</span>
           </div>
@@ -206,7 +231,8 @@ export default function DashboardPage() {
               })
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                {showAllAppointments ? "Brak rezerwacji" : "Brak wizyt na dziś"}
+                {showAllAppointments ? "Brak rezerwacji" : 
+                 isToday(selectedDate) ? "Brak wizyt na dziś" : "Brak wizyt na wybrany dzień"}
               </div>
             )}
           </div>
@@ -224,9 +250,38 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="card overflow-hidden p-0">
             <div className="bg-gradient-to-r from-primary to-accent p-6 text-center text-primary-foreground">
-              <h2 className="text-xl font-semibold">
-                {currentDate.toLocaleDateString('pl', { month: 'long' }).toUpperCase()} {currentDate.getFullYear()}
-              </h2>
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1))}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors"
+                  title="Poprzedni miesiąc"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div className="flex flex-col items-center">
+                  <h2 className="text-xl font-semibold">
+                    {currentDate.toLocaleDateString('pl', { month: 'long' }).toUpperCase()} {currentDate.getFullYear()}
+                  </h2>
+                  {!isToday(selectedDate) && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDate(new Date())}
+                      className="mt-1 px-3 py-1 text-xs bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                    >
+                      Dzisiaj
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1))}
+                  className="p-2 rounded-full hover:bg-white/20 transition-colors"
+                  title="Następny miesiąc"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <div className="p-6">
               <div className="mb-2 grid grid-cols-7 gap-2 text-sm text-muted-foreground">
@@ -238,16 +293,39 @@ export default function DashboardPage() {
               </div>
               <div className="grid grid-cols-7 gap-2">
                 {Array.from({ length: 35 }, (_, i) => {
-                  const day = i - currentDate.getDay() + 1;
+                  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                  const startOffset = (firstDayOfMonth.getDay() + 6) % 7; // convert Sunday-first to Monday-first
+                  const day = i - startOffset + 1;
                   const isCurrentMonth = day >= 1 && day <= new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-                  const isToday = isCurrentMonth && day === currentDate.getDate();
+                  const isSelected = isCurrentMonth && 
+                    selectedDate.getFullYear() === currentDate.getFullYear() && 
+                    selectedDate.getMonth() === currentDate.getMonth() && 
+                    selectedDate.getDate() === day;
+                  const isTodayDate = isCurrentMonth && 
+                    new Date().getFullYear() === currentDate.getFullYear() && 
+                    new Date().getMonth() === currentDate.getMonth() && 
+                    new Date().getDate() === day;
+                  
+                  const handleClick = () => {
+                    if (isCurrentMonth) {
+                      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                      setSelectedDate(newDate);
+                      setShowAllAppointments(false); // Przełącz z powrotem na widok dnia
+                    }
+                  };
                   
                   return (
                     <button
                       key={i}
                       type="button"
-                      className={`calendar-day ${isToday ? "bg-primary text-primary-foreground" : ""} ${!isCurrentMonth ? "text-muted-foreground" : ""}`}
+                      onClick={handleClick}
+                      className={`calendar-day p-2 rounded-lg transition-all ${
+                        isSelected ? "bg-primary text-primary-foreground shadow-md" : 
+                        isTodayDate ? "bg-accent text-accent-foreground font-bold" : 
+                        isCurrentMonth ? "hover:bg-accent/50 text-foreground" : "text-muted-foreground"
+                      }`}
                       disabled={!isCurrentMonth}
+                      title={isCurrentMonth ? `${day} ${currentDate.toLocaleDateString('pl', { month: 'long' })} ${currentDate.getFullYear()}` : ""}
                     >
                       {isCurrentMonth ? day : ""}
                     </button>
@@ -375,6 +453,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Modal powiadomień */}
+      <NotificationsModal
+        isOpen={isNotificationsModalOpen}
+        onClose={() => setIsNotificationsModalOpen(false)}
+      />
     </DashboardLayout>
   );
 }
