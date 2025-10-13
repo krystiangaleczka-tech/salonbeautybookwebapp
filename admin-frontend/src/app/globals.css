@@ -56,6 +56,32 @@
   --spacing: 0.25rem;
 }
 
+.dark {
+  --background: oklch(0.94 0.02 85);         /* mniej „bieli", delikatnie ciemniejsze */
+  --foreground: oklch(0.22 0.05 30);         /* ciemniejszy, bardziej kontrastowy tekst */
+  --card: oklch(0.96 0.01 80);               /* karty minimalnie ciemniejsze */
+  --card-foreground: oklch(0.22 0.05 30);
+  --popover: oklch(0.96 0.01 80);
+  --popover-foreground: oklch(0.22 0.05 30);
+  --primary: oklch(0.80 0.12 350);           /* róż pozostaje pastelowy, ale bardziej spójny z tłem */
+  --primary-foreground: oklch(0.96 0.01 90);
+  --secondary: oklch(0.92 0.035 80);         /* beż dla sekcji */
+  --secondary-foreground: oklch(0.22 0.06 30);
+  --muted: oklch(0.93 0.015 85);             /* pastelowy beż do muted */
+  --muted-foreground: oklch(0.5 0.03 30);
+  --accent: oklch(0.85 0.09 340);            /* bardziej wyciszony róż */
+  --accent-foreground: oklch(0.22 0.05 30);
+  --border: oklch(0.89 0.015 85);            /* cieplejsze, mniej białe linie */
+  --input: oklch(0.94 0.01 80);              /* lekko ciemniejsze pole input */
+  --ring: oklch(0.80 0.12 350);
+  --sidebar: oklch(0.94 0.02 85);            /* dopasowany do tła */
+  --sidebar-foreground: oklch(0.22 0.05 30);
+  --sidebar-primary: oklch(0.80 0.12 350);
+  --sidebar-accent: oklch(0.85 0.09 340);
+  --sidebar-border: oklch(0.89 0.015 85);    /* dopasowany do granic */
+  /* reszta bez zmian */
+}
+
 @layer base {
   * {
     @apply border-border;

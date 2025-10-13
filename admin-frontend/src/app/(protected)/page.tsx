@@ -86,10 +86,11 @@ export default function DashboardPage() {
   };
 
   const headerActions = (
-    <>
+    <div className="hidden sm:flex items-center gap-2">
       <button className="btn-primary">
         <Plus className="mr-2 h-4 w-4" />
-        Nowa rezerwacja
+        <span className="hidden sm:inline">Nowa rezerwacja</span>
+        <span className="sm:hidden">Dodaj</span>
       </button>
       <div className="relative">
         <button className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
@@ -99,7 +100,7 @@ export default function DashboardPage() {
           3
         </span>
       </div>
-    </>
+    </div>
   );
 
   const currentDate = new Date();

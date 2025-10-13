@@ -8,6 +8,7 @@ import { sidebarNavItems } from "@/lib/dashboard-data";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface DashboardLayoutProps {
   active: NavKey;
@@ -177,27 +178,29 @@ export function DashboardLayout({ active, header, children }: DashboardLayoutPro
       </aside>
 
       <main className="flex-1 overflow-auto p-6">
-        <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground" style={{ fontFamily: "var(--font-serif)" }}>
+        <header className="mb-8 flex flex-col justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground truncate" style={{ fontFamily: "var(--font-serif)" }}>
                 {header.title}
               </h1>
-              {header.subtitle ? <p className="text-muted-foreground">{header.subtitle}</p> : null}
+              {header.subtitle ? <p className="text-xs sm:text-sm text-muted-foreground truncate">{header.subtitle}</p> : null}
             </div>
-            {/* Hamburger Menu Button for Mobile & Tablet */}
-            <button
-              type="button"
-              className="rounded-md p-2 text-foreground hover:bg-muted lg:hidden"
-              onClick={() => setIsMobileMenuOpen(true)}
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-          </div>
-          <div className="flex items-center gap-4">
-            {header.actions ? (
-              <>{header.actions}</>
-            ) : null}
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              {/* Theme Toggle for Mobile & Tablet */}
+              <ThemeToggle />
+              {/* Hamburger Menu Button for Mobile & Tablet */}
+              <button
+                type="button"
+                className="rounded-md p-2 sm:p-3 text-foreground hover:bg-white lg:hidden transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95"
+                onClick={() => setIsMobileMenuOpen(true)}
+              >
+                <Menu className="h-6 w-6 sm:h-8 sm:w-8" />
+              </button>
+              {header.actions ? (
+                <>{header.actions}</>
+              ) : null}
+            </div>
           </div>
         </header>
         {children}
