@@ -171,7 +171,7 @@ export function AppointmentFilters({
     return (
         <div className="space-y-4 appointment-filters">
             {/* Główny pasek wyszukiwania i akcji */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+            <div className="bg-card rounded-lg border border-gray-200 p-4 shadow-sm">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-1 items-center gap-2">
                         <div className="relative flex-1 max-w-md">
@@ -207,7 +207,7 @@ export function AppointmentFilters({
                             </button>
 
                             {isFilterOpen && (
-                                <div className="absolute top-full right-0 mt-2 w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                <div className="absolute top-full right-0 mt-2 w-96 bg-card border border-gray-200 rounded-lg shadow-lg z-50">
                                     <div className="p-4 space-y-4">
                                         <div className="flex items-center justify-between">
                                             <h4 className="font-medium text-gray-900">Filtry wizyt</h4>
