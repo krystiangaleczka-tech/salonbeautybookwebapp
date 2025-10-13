@@ -110,22 +110,20 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const monthEnd = endOfMonth(now);
 
   try {
-    // Pobierz dzisiejsze wizyty
+    // Usuń filtrowanie po statusie
     const appointmentsQuery = query(
       collection(db, "appointments"),
       where("start", ">=", todayStart),
-      where("start", "<=", todayEnd),
-      where("status", "==", "confirmed")
+      where("start", "<=", todayEnd)
     );
     const todayAppointmentsSnapshot = await getDocs(appointmentsQuery);
     const todayAppointmentsCount = todayAppointmentsSnapshot.size;
 
-    // Pobierz wszystkie wizyty w tym tygodniu do obliczenia obłożenia
+    // Usuń filtrowanie po statusie
     const weekAppointmentsQuery = query(
       collection(db, "appointments"),
       where("start", ">=", weekStart),
-      where("start", "<=", weekEnd),
-      where("status", "==", "confirmed")
+      where("start", "<=", weekEnd)
     );
     const weekAppointmentsSnapshot = await getDocs(weekAppointmentsQuery);
 
@@ -158,11 +156,11 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       return total + (appointment.price || 0);
     }, 0);
 
+    // Usuń filtrowanie po statusie
     const monthAppointmentsQuery = query(
       collection(db, "appointments"),
       where("start", ">=", monthStart),
-      where("start", "<=", monthEnd),
-      where("status", "==", "confirmed")
+      where("start", "<=", monthEnd)
     );
     const monthAppointmentsSnapshot = await getDocs(monthAppointmentsQuery);
     const monthlyRevenue = monthAppointmentsSnapshot.docs.reduce((total, doc) => {
@@ -204,19 +202,21 @@ export async function getTodayAppointments(): Promise<AppointmentWithDetails[]> 
   const todayEnd = endOfDay(now);
 
   try {
-    // Pobierz dzisiejsze wizyty
+    // Usuń filtrowanie po statusie
     const appointmentsQuery = query(
       collection(db, "appointments"),
       where("start", ">=", todayStart),
       where("start", "<=", todayEnd),
-      where("status", "==", "confirmed"),
       orderBy("start")
     );
+
     const appointmentsSnapshot = await getDocs(appointmentsQuery);
 
-    // Pobierz wszystkie klientów i usługi
-    const customersSnapshot = await getDocs(collection(db, "customers"));
-    const servicesSnapshot = await getDocs(collection(db, "services"));
+    // Pobierz wszystkich klientów i usługi
+    const [customersSnapshot, servicesSnapshot] = await Promise.all([
+      getDocs(collection(db, "customers")),
+      getDocs(collection(db, "services"))
+    ]);
 
     // Stwórz mapy dla szybkiego dostępu
     const customersMap = new Map();
@@ -252,21 +252,31 @@ export async function getTodayAppointments(): Promise<AppointmentWithDetails[]> 
   }
 }
 
-// Pobieranie wszystkich rezerwacji z detalami
-export async function getAllAppointments(): Promise<AppointmentWithDetails[]> {
+// Pobieranie wizyt dla określonego dnia z detalami
+export async function getDayAppointments(date: Date): Promise<AppointmentWithDetails[]> {
+  const dayStart = startOfDay(date);
+  const dayEnd = endOfDay(date);
+  
+  console.log("getDayAppointments called with date:", date);
+  console.log("Day range:", { dayStart, dayEnd });
+
   try {
-    // Pobierz wszystkie wizyty
+    // USUŃ filtrowanie po statusie - pobierz WSZYSTKIE wizyty
     const appointmentsQuery = query(
       collection(db, "appointments"),
-      where("status", "==", "confirmed"),
-      orderBy("start", "desc"),
-      limit(100) // Ograniczamy do 100 najnowszych rezerwacji
+      where("start", ">=", Timestamp.fromDate(dayStart)),
+      where("start", "<=", Timestamp.fromDate(dayEnd))
     );
+    
+    console.log("Query created");
     const appointmentsSnapshot = await getDocs(appointmentsQuery);
+    console.log("Query result size:", appointmentsSnapshot.size);
 
-    // Pobierz wszystkie klientów i usługi
-    const customersSnapshot = await getDocs(collection(db, "customers"));
-    const servicesSnapshot = await getDocs(collection(db, "services"));
+    // Pobierz wszystkich klientów i usługi
+    const [customersSnapshot, servicesSnapshot] = await Promise.all([
+      getDocs(collection(db, "customers")),
+      getDocs(collection(db, "services"))
+    ]);
 
     // Stwórz mapy dla szybkiego dostępu
     const customersMap = new Map();
@@ -280,7 +290,71 @@ export async function getAllAppointments(): Promise<AppointmentWithDetails[]> {
     });
 
     // Połącz dane
-    return appointmentsSnapshot.docs.map(doc => {
+    const result = appointmentsSnapshot.docs
+      .map(doc => {
+        const appointment = {
+          id: doc.id,
+          ...doc.data()
+        } as Appointment;
+
+        const customer = customersMap.get(appointment.clientId);
+        const service = servicesMap.get(appointment.serviceId);
+
+        return {
+          ...appointment,
+          customerName: customer?.fullName || "Nieznany klient",
+          serviceName: service?.name || "Nieznana usługa",
+          servicePrice: service?.price || 0,
+        };
+      })
+      .sort((a, b) => {
+        const timeA = a.start instanceof Timestamp ? a.start.toMillis() : new Date(a.start).getTime();
+        const timeB = b.start instanceof Timestamp ? b.start.toMillis() : new Date(b.start).getTime();
+        return timeA - timeB;
+      });
+    
+    console.log("Final result:", result);
+    return result;
+  } catch (error) {
+    console.error("Error fetching day appointments:", error);
+    return [];
+  }
+}
+
+// Pobieranie wszystkich rezerwacji z detalami
+export async function getAllAppointments(): Promise<AppointmentWithDetails[]> {
+  console.log("getAllAppointments called");
+
+  try {
+    // Usuń filtrowanie po statusie
+    const appointmentsQuery = query(
+      collection(db, "appointments"),
+      orderBy("start", "desc"),
+      limit(100) // Ograniczamy do 100 najnowszych rezerwacji
+    );
+    
+    const appointmentsSnapshot = await getDocs(appointmentsQuery);
+    console.log("All appointments result size:", appointmentsSnapshot.size);
+
+    // Pobierz wszystkich klientów i usługi
+    const [customersSnapshot, servicesSnapshot] = await Promise.all([
+      getDocs(collection(db, "customers")),
+      getDocs(collection(db, "services"))
+    ]);
+
+    // Stwórz mapy dla szybkiego dostępu
+    const customersMap = new Map();
+    customersSnapshot.docs.forEach(doc => {
+      customersMap.set(doc.id, doc.data());
+    });
+
+    const servicesMap = new Map();
+    servicesSnapshot.docs.forEach(doc => {
+      servicesMap.set(doc.id, doc.data());
+    });
+
+    // Połącz dane
+    const result = appointmentsSnapshot.docs.map(doc => {
       const appointment = {
         id: doc.id,
         ...doc.data()
@@ -296,6 +370,9 @@ export async function getAllAppointments(): Promise<AppointmentWithDetails[]> {
         servicePrice: service?.price || 0,
       };
     });
+    
+    console.log("All appointments result:", result);
+    return result;
   } catch (error) {
     console.error("Error fetching all appointments:", error);
     return [];
@@ -310,11 +387,11 @@ export async function getPopularServices(): Promise<PopularService[]> {
 
   try {
     // Pobierz wizyty z ostatniego tygodnia
+    // Usuń filtrowanie po statusie
     const appointmentsQuery = query(
       collection(db, "appointments"),
       where("start", ">=", weekStart),
-      where("start", "<=", weekEnd),
-      where("status", "==", "confirmed")
+      where("start", "<=", weekEnd)
     );
     const appointmentsSnapshot = await getDocs(appointmentsQuery);
 
@@ -371,11 +448,11 @@ export async function getStaffAvailability(): Promise<StaffAvailability[]> {
     const employeesSnapshot = await getDocs(collection(db, "employees"));
     
     // Pobierz dzisiejsze wizyty
+    // Usuń filtrowanie po statusie
     const appointmentsQuery = query(
       collection(db, "appointments"),
       where("start", ">=", todayStart),
-      where("start", "<=", todayEnd),
-      where("status", "==", "confirmed")
+      where("start", "<=", todayEnd)
     );
     const appointmentsSnapshot = await getDocs(appointmentsQuery);
 
@@ -452,11 +529,11 @@ export async function getWeeklyTrends(): Promise<WeeklyTrend[]> {
     const weekEnd = endOfWeek(weekStart);
     
     try {
+      // Usuń filtrowanie po statusie
       const appointmentsQuery = query(
         collection(db, "appointments"),
         where("start", ">=", weekStart),
-        where("start", "<=", weekEnd),
-        where("status", "==", "confirmed")
+        where("start", "<=", weekEnd)
       );
       const appointmentsSnapshot = await getDocs(appointmentsQuery);
       
@@ -498,11 +575,11 @@ export async function getReportStats(): Promise<ReportStats> {
     const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
     const quarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
     
+    // Usuń filtrowanie po statusie
     const quarterAppointmentsQuery = query(
       collection(db, "appointments"),
       where("start", ">=", quarterStart),
-      where("start", "<=", quarterEnd),
-      where("status", "==", "confirmed")
+      where("start", "<=", quarterEnd)
     );
     const quarterAppointmentsSnapshot = await getDocs(quarterAppointmentsQuery);
     

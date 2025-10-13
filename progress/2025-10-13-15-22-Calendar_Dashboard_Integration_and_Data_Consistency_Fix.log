@@ -1,0 +1,39 @@
+2025-10-13-15:22 - Calendar Dashboard Integration and Data Consistency Fix
+
+Zadanie: Implementacja kalendarza na dashboardzie z pełną funkcjonalnością wyboru dnia i naprawa problemu z pobieraniem wizyt
+
+Wykonane zadania:
+1. Dodanie nowej funkcji getDayAppointments w dashboard-service.ts - pobiera wizyty dla określonego dnia
+2. Modyfikacja komponentu dashboardu w page.tsx - dodanie stanu dla wybranej daty
+3. Implementacja interaktywnego kalendarza z możliwością wyboru dnia
+4. Aktualizacja logiki pobierania wizyt w zależności od wybranego dnia
+5. Zapewnienie działania przycisku 'zobacz wszystkie wizyty'
+6. Ustawienie dnia dzisiejszego jako domyślnego po odświeżeniu
+7. Naprawa problemu z pobieraniem wizyt - konwersja Timestamp i logika zapytań
+8. Dodanie logowania do debugowania
+9. Wdrożenie poprawek i redeploy
+10. Usunięcie filtrowania po statusie z funkcji w dashboard-service.ts
+11. Wdrożenie poprawek i redeploy po usunięciu filtrowania
+
+Kluczowe zmiany w kodzie:
+- Usunięcie wszystkich where('status', '==', 'confirmed') z zapytań Firestore w dashboard-service.ts
+- Dodanie nowej funkcji getDayAppointments w dashboard-service.ts
+- Modyfikacja komponentu dashboardu w page.tsx - dodanie stanu dla wybranej daty i logiki aktualizacji
+- Poprawka konwersji daty na Timestamp w zapytaniach Firestore
+- Dodanie logowania do debugowania w dashboard-service.ts
+
+Problemy naprawione:
+- Główny problem: dashboard filtrował tylko wizyty ze statusem 'confirmed', podczas gdy kalendarz pokazywał wszystkie wizyty
+- Problem z zapytaniami Firestore wymagającymi złożonego indeksu
+- Problem z konwersją daty na Timestamp
+- Problem z logiką przełączania widoków
+
+Efekt końcowy:
+- Dashboard i kalendarz teraz pokazują identyczną liczbę wizyt
+- Usunięto dysproporcję między widokiem dashboardu a kalendarza
+- Aplikacja jest dostępna pod adresem: https://salonbeautymario-x1.web.app
+- Kalendarz na dashboardzie działa pełno funkcjonalnie z możliwością wyboru dnia
+- Przycisk 'Zobacz wszystkie wizyty' działa niezależnie od wybranego dnia
+- Domyślnie po odświeżeniu pokazuje dzisiejszy dzień
+
+Status: Zakończono pomyślnie
