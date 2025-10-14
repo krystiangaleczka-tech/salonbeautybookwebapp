@@ -23,12 +23,39 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ active, header, children }: DashboardLayoutProps) {
   const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
 
   const handleSignOut = async () => {
     try {
       await signOut(auth);
     } catch (error) {
       console.error("Błąd podczas wylogowywania", error);
+    }
+  };
+
+  // Swipe handlers for mobile menu
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(0);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isRightSwipe && !isMobileMenuOpen) {
+      setIsMobileMenuOpen(true);
+    }
+    if (isLeftSwipe && isMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -187,19 +214,19 @@ export function DashboardLayout({ active, header, children }: DashboardLayoutPro
               {header.subtitle ? <p className="text-xs sm:text-sm text-muted-foreground truncate">{header.subtitle}</p> : null}
             </div>
             <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              {header.actions ? (
+                <>{header.actions}</>
+              ) : null}
               {/* Theme Toggle for Mobile & Tablet */}
               <ThemeToggle />
               {/* Hamburger Menu Button for Mobile & Tablet */}
               <button
                 type="button"
-                className="rounded-md p-2 sm:p-3 text-foreground hover:bg-white lg:hidden transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95"
+                className="rounded-md p-[11px] sm:p-3 text-foreground hover:bg-white lg:hidden transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95"
                 onClick={() => setIsMobileMenuOpen(true)}
               >
-                <Menu className="h-6 w-6 sm:h-8 sm:w-8" />
+                <Menu className="h-7 w-7 sm:h-8 sm:w-8" />
               </button>
-              {header.actions ? (
-                <>{header.actions}</>
-              ) : null}
             </div>
           </div>
         </header>

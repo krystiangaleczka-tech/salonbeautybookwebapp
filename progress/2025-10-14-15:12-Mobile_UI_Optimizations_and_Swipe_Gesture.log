@@ -1,0 +1,28 @@
+DATA: 2025-10-14 15:12
+OPIS: Optymalizacja interfejsu mobilnego i dodanie gestu swipe do menu
+
+ZMIANY W PLIKACH:
+1. admin-frontend/src/app/(protected)/page.tsx
+   - Zmodyfikowano przycisk "+ Nowa wizyta" dla widoku mobilnego
+   - Zmieniono wymiary na 50px x 50px (mobilne) / auto (desktop)
+   - Dodano duży znak "+" (text-xl) i pogrubiony tekst "Nowa wizyta" (text-lg font-semibold)
+   - Zwiększono odstęp od przycisku powiadomień (mr-2 sm:mr-4)
+
+2. admin-frontend/src/components/dashboard/dashboard-layout.tsx
+   - Zwiększono przycisk powiadomień do 44px x 44px (mobilne) / 40px x 40px (desktop)
+   - Zwiększono ikonę hamburger menu do 28x28 (mobilne) / 32x32 (tablety)
+   - Zwiększono padding hamburger menu do 11px (mobilne)
+   - Zmieniono kolejność elementów w nagłówku
+   - Dodano obsługę gestu swipe od prawej do lewej dla otwierania menu
+
+SZCZEGÓŁY ZMIAN:
+- Przycisk "+ Nowa wizyta" jest teraz widoczny na wszystkich urządzeniach
+- Kolejność elementów w nagłówku: "+ Nowa wizyta" → Powiadomienia → Tryb ciemny → Hamburger menu
+- Dodano stany do śledzenia pozycji dotyku (touchStart, touchEnd)
+- Dodano funkcje obsługi gestów (handleTouchStart, handleTouchMove, handleTouchEnd)
+- Swipe od prawej do lewej (odległość > 50px) otwiera menu
+- Swipe od lewej do prawej (odległość > 50px) zamyka menu
+- Event handlery dodane do głównego elementu main
+
+WYNIK:
+Interfejs mobilny jest teraz w pełni zoptymalizowany z lepszą użytecznością dzięki gestowi swipe.

@@ -105,15 +105,16 @@ export default function DashboardPage() {
   };
 
   const headerActions = (
-    <div className="hidden sm:flex items-center gap-2">
-      <button className="btn-primary">
-        <Plus className="mr-2 h-4 w-4" />
-        <span className="hidden sm:inline">Nowa rezerwacja</span>
-        <span className="sm:hidden">Dodaj</span>
+    <div className="flex items-center gap-2">
+      <button className="btn-primary w-[50px] h-[50px] sm:w-auto sm:h-auto flex items-center justify-center mr-2 sm:mr-4">
+        <span className="hidden sm:inline">
+          <span className="text-xl">+</span> <span className="text-lg font-semibold">Nowa wizyta</span>
+        </span>
+        <span className="sm:hidden text-xl">+</span>
       </button>
       <div className="relative">
-        <button 
-          className="group flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground hover:bg-accent/80 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:scale-105 active:scale-95"
+        <button
+          className="group flex h-11 w-11 items-center justify-center rounded-full bg-accent text-accent-foreground hover:bg-accent/80 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:scale-105 active:scale-95 sm:h-10 sm:w-10"
           onClick={() => setIsNotificationsModalOpen(true)}
         >
           <Bell className="h-5 w-5" />
