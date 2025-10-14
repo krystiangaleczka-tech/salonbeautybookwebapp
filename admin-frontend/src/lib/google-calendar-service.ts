@@ -1,5 +1,6 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
+import { auth } from "./firebase";
 
 export interface GoogleCalendarStatus {
     isConnected: boolean;
@@ -25,6 +26,13 @@ export interface BatchSyncResult {
 class GoogleCalendarService {
     // Get OAuth URL for Google Calendar authorization
     async getAuthUrl(): Promise<string> {
+        // Sprawdź czy użytkownik jest zalogowany
+        const user = auth.currentUser;
+        
+        if (!user) {
+            throw new Error('Musisz być zalogowany aby połączyć Google Calendar!');
+        }
+
         try {
             const getAuthUrl = httpsCallable(functions, 'getGoogleAuthUrl');
             const result = await getAuthUrl();

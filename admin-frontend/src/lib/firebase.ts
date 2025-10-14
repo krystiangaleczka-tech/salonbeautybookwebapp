@@ -40,14 +40,14 @@ export const db = dbInstance;
 let functionsInstance: Functions;
 
 if (typeof window !== "undefined") {
-    functionsInstance = getFunctions(app, "europe-west3");
+    functionsInstance = getFunctions(app, "europe-central2");
     
     // Connect to emulator in development
     if (process.env.NODE_ENV === "development") {
         connectFunctionsEmulator(functionsInstance, "localhost", 5001);
     }
 } else {
-    functionsInstance = getFunctions(app, "europe-west3");
+    functionsInstance = getFunctions(app, "europe-central2");
 }
 
 export const functions = functionsInstance;

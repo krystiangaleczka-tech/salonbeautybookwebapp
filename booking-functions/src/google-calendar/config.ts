@@ -1,6 +1,16 @@
-export const GOOGLE_OAUTH_CONFIG = {
-    clientId: process.env.GOOGLE_CLIENT_ID || "",
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    redirectUri: process.env.GOOGLE_REDIRECT_URI || "https://salonbeautymario-x1.web.app/auth/google/callback",
-    scopes: ["https://www.googleapis.com/auth/calendar"],
-};
+import { defineSecret } from "firebase-functions/params";
+
+// Define secrets for production
+export const googleClientId = defineSecret("GOOGLE_CLIENT_ID");
+export const googleClientSecret = defineSecret("GOOGLE_CLIENT_SECRET");
+export const googleRedirectUri = defineSecret("GOOGLE_REDIRECT_URI");
+
+export const getGoogleOAuthConfig = () => ({
+    clientId: googleClientId.value(),
+    clientSecret: googleClientSecret.value(),
+    redirectUri: googleRedirectUri.value(),
+    scopes: [
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/calendar.events",
+    ],
+});

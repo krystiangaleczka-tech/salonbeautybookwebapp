@@ -2,72 +2,88 @@ import { https } from "firebase-functions/v2";
 import { CallableRequest } from "firebase-functions/v2/https";
 import { google } from "googleapis";
 import { getFirestore } from "firebase-admin/firestore";
-import { GOOGLE_OAUTH_CONFIG } from "./config";
+import { googleClientId, googleClientSecret, googleRedirectUri, getGoogleOAuthConfig } from "./config";
 
-export const getGoogleAuthUrl = https.onCall(async (request: CallableRequest<Record<string, never>>) => {
-    if (!request?.auth?.uid) {
-        throw new https.HttpsError("unauthenticated", "User must be authenticated");
-    }
+export const getGoogleAuthUrl = https.onCall(
+    {
+        secrets: [googleClientId, googleClientSecret, googleRedirectUri],
+    },
+    async (request: CallableRequest<Record<string, never>>) => {
+        if (!request?.auth?.uid) {
+            throw new https.HttpsError("unauthenticated", "User must be authenticated");
+        }
 
-    const oauth2Client = new google.auth.OAuth2(
-        GOOGLE_OAUTH_CONFIG.clientId,
-        GOOGLE_OAUTH_CONFIG.clientSecret,
-        GOOGLE_OAUTH_CONFIG.redirectUri
-    );
-
-    const url = oauth2Client.generateAuthUrl({
-        access_type: "offline",
-        scope: GOOGLE_OAUTH_CONFIG.scopes,
-        state: request.auth.uid,
-        prompt: "consent",
-    });
-
-    return { url };
-});
-
-export const handleGoogleCallback = https.onRequest(async (req, res) => {
-    const { code, state, error } = req.query;
-    
-    if (error) {
-        console.error("Google OAuth error:", error);
-        const baseUrl = GOOGLE_OAUTH_CONFIG.redirectUri.split("/auth/google/callback")[0];
-        res.redirect(`${baseUrl}/ustawienia/integracje?error=true`);
-        return;
-    }
-    
-    if (!code || !state) {
-        res.status(400).send("Missing required parameters");
-        return;
-    }
-
-    try {
+        const config = getGoogleOAuthConfig();
         const oauth2Client = new google.auth.OAuth2(
-            GOOGLE_OAUTH_CONFIG.clientId,
-            GOOGLE_OAUTH_CONFIG.clientSecret,
-            GOOGLE_OAUTH_CONFIG.redirectUri,
+            config.clientId,
+            config.clientSecret,
+            config.redirectUri
         );
 
-        const { tokens } = await oauth2Client.getToken(code as string);
-        
-        const db = getFirestore();
-        await db.collection("googleTokens").doc(state as string).set({
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiryDate: new Date(tokens.expiry_date || 0),
-            calendarId: "primary",
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+        const url = oauth2Client.generateAuthUrl({
+            access_type: "offline",
+            scope: config.scopes,
+            state: request.auth.uid,
+            prompt: "consent",
         });
 
-        const baseUrl = GOOGLE_OAUTH_CONFIG.redirectUri.split("/auth/google/callback")[0];
-        res.redirect(`${baseUrl}/ustawienia/integracje?success=true`);
-    } catch (error) {
-        console.error("Error handling Google callback:", error);
-        const baseUrl = GOOGLE_OAUTH_CONFIG.redirectUri.split("/auth/google/callback")[0];
-        res.redirect(`${baseUrl}/ustawienia/integracje?error=true`);
+        return { url };
     }
-});
+);
+
+export const handleGoogleCallback = https.onRequest(
+    {
+        cors: true,
+        invoker: "public",
+        secrets: [googleClientId, googleClientSecret, googleRedirectUri],
+    },
+    async (req, res) => {
+        const { code, state, error } = req.query;
+        
+        if (error) {
+            console.error("Google OAuth error:", error);
+            const config = getGoogleOAuthConfig();
+            const baseUrl = config.redirectUri.split("/auth/google/callback")[0];
+            res.redirect(`${baseUrl}/ustawienia/integracje?error=true`);
+            return;
+        }
+        
+        if (!code || !state) {
+            res.status(400).send("Missing required parameters");
+            return;
+        }
+
+        try {
+            const config = getGoogleOAuthConfig();
+            const oauth2Client = new google.auth.OAuth2(
+                config.clientId,
+                config.clientSecret,
+                config.redirectUri
+            );
+
+            const { tokens } = await oauth2Client.getToken(code as string);
+            
+            const db = getFirestore();
+            await db.collection("googleTokens").doc(state as string).set({
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+                expiryDate: new Date(tokens.expiry_date || 0),
+                calendarId: "primary",
+                isActive: true,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            });
+
+            const baseUrl = config.redirectUri.split("/auth/google/callback")[0];
+            res.redirect(`${baseUrl}/ustawienia/integracje?success=true`);
+        } catch (error) {
+            console.error("Error handling Google callback:", error);
+            const config = getGoogleOAuthConfig();
+            const baseUrl = config.redirectUri.split("/auth/google/callback")[0];
+            res.redirect(`${baseUrl}/ustawienia/integracje?error=true`);
+        }
+    }
+);
 
 export const refreshAccessToken = async (userId: string): Promise<boolean> => {
     try {
@@ -83,10 +99,11 @@ export const refreshAccessToken = async (userId: string): Promise<boolean> => {
             return false;
         }
 
+        const config = getGoogleOAuthConfig();
         const oauth2Client = new google.auth.OAuth2(
-            GOOGLE_OAUTH_CONFIG.clientId,
-            GOOGLE_OAUTH_CONFIG.clientSecret,
-            GOOGLE_OAUTH_CONFIG.redirectUri
+            config.clientId,
+            config.clientSecret,
+            config.redirectUri
         );
 
         oauth2Client.setCredentials({
@@ -107,7 +124,6 @@ export const refreshAccessToken = async (userId: string): Promise<boolean> => {
         return false;
     }
 };
-
 
 export const getGoogleAuthClient = async (userId: string) => {
     const db = getFirestore();

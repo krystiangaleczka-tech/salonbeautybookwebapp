@@ -1,0 +1,39 @@
+DATA: 2025-10-14 18:51
+OPIS: Aktualizacje uwierzytelniania Google i usługi kalendarza
+
+ZMIANY W PLIKACH:
+1. admin-frontend/src/app/(auth)/google/callback/page.tsx
+   - Modyfikacje w procesie callback uwierzytelniania Google
+
+2. admin-frontend/src/app/auth/google/callback/page.tsx
+   - Aktualizacje alternatywnej ścieżki callback uwierzytelniania
+
+3. admin-frontend/src/lib/firebase.ts
+   - Modyfikacje konfiguracji Firebase
+
+4. admin-frontend/src/lib/google-calendar-service.ts
+   - Aktualizacje usługi integracji z Google Calendar
+
+5. booking-functions/.gitignore
+   - Aktualizacje pliku .gitignore dla funkcji booking
+
+6. booking-functions/src/google-calendar/auth.ts
+   - Modyfikacje uwierzytelniania Google Calendar w funkcjach backend
+
+7. booking-functions/src/google-calendar/config.ts
+   - Aktualizacje konfiguracji Google Calendar
+
+8. booking-functions/src/index.ts
+   - Modyfikacje głównego pliku funkcji booking
+
+9. firebase.json
+   - Aktualizacje konfiguracji Firebase
+
+SZCZEGÓŁY ZMIAN:
+- Zmiany dotyczą głównie integracji z Google Calendar
+- Aktualizacje procesu uwierzytelniania Google OAuth
+- Modyfikacje w funkcjach backendowych związanych z synchronizacją kalendarza
+- Konfiguracja Firebase dostosowana do nowych wymagań
+
+WYNIK:
+Zaktualizowano system integracji z Google Calendar oraz proces uwierzytelniania.
