@@ -1,0 +1,28 @@
+## Naprawa systemu powiadomień - 2025-10-14 14:16
+
+### Problem
+Błąd Firestore: "The query requires an index" przy pobieraniu nieprzeczytanych powiadomień
+oraz błąd CORS przy real-time connections (normalne zachowanie Firestore)
+
+### Rozwiązanie
+1. Dodanie brakującego indeksu złożonego do Firestore:
+   - Kolekcja: notifications
+   - Pola: read (ASCENDING), time (DESCENDING)
+   - Plik: firestore.indexes.json
+
+2. Aktualizacja reguł bezpieczeństwa Firestore:
+   - Stare reguły wygasły 2025-10-23
+   - Nowe reguły pozwalają na dostęp dla zautoryzowanych użytkowników
+   - Plik: firestore.rules
+
+### Wdrożenie
+- firebase deploy --only firestore:indexes
+- firebase deploy --only firestore:rules
+
+### Status
+✅ Indeks wdrożony pomyślnie
+✅ Reguły bezpieczeństwa zaktualizowane
+✅ System powiadomień działa poprawnie
+
+### Uwagi
+Błąd CORS jest normalny dla Firestore przy użyciu onSnapshot() i można go zignorować.
