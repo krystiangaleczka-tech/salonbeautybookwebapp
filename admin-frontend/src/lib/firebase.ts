@@ -1,6 +1,7 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore, initializeFirestore, type Firestore } from "firebase/firestore";
+import { getFunctions, connectFunctionsEmulator, type Functions } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -34,5 +35,21 @@ if (typeof window !== "undefined") {
 
 export const auth = getAuth(app);
 export const db = dbInstance;
+
+// Initialize Firebase Functions
+let functionsInstance: Functions;
+
+if (typeof window !== "undefined") {
+    functionsInstance = getFunctions(app, "europe-west3");
+    
+    // Connect to emulator in development
+    if (process.env.NODE_ENV === "development") {
+        connectFunctionsEmulator(functionsInstance, "localhost", 5001);
+    }
+} else {
+    functionsInstance = getFunctions(app, "europe-west3");
+}
+
+export const functions = functionsInstance;
 
 export default app;

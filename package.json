@@ -31,6 +31,20 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@playwright/test": "^1.55.1"
-  }
+    "@playwright/test": "^1.55.1",
+    "sharp": "^0.34.4"
+  },
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/krystiangaleczka-tech/salxnbeautybookwebapp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/krystiangaleczka-tech/salxnbeautybookwebapp/issues"
+  },
+  "homepage": "https://github.com/krystiangaleczka-tech/salxnbeautybookwebapp#readme"
 }

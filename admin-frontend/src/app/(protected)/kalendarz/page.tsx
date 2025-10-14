@@ -24,12 +24,13 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import type { ToneKey } from "@/lib/dashboard-theme";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
-import { createAppointment, subscribeToAppointments, updateAppointment, deleteAppointment, type Appointment } from "@/lib/appointments-service";
+import { createAppointment, subscribeToAppointments, updateAppointment, deleteAppointment, updateGoogleCalendarEventId, type Appointment } from "@/lib/appointments-service";
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
 import { usePendingTimeChanges } from "@/hooks/usePendingTimeChanges";
 import { AppointmentFilters } from "@/components/calendar/appointment-filters";
 import { type AppointmentFilter, type FilterPreset } from "@/lib/filters-service";
+import { googleCalendarService } from "@/lib/google-calendar-service";
 
 type CalendarStatus = "confirmed" | "pending" | "no-show" | "cancelled";
 
@@ -53,6 +54,8 @@ export interface CalendarEvent {
   price?: string;
   offline?: boolean;
   notes?: string;
+  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
+  isGoogleSynced?: boolean; // Czy wydarzenie jest zsynchronizowane z Google Calendar
 }
 
 export interface WorkingHours {
@@ -496,13 +499,18 @@ function WeekBoard({
                       <div className="flex items-center justify-between text-[8px] sm:text-[10px] uppercase text-muted-foreground">
                         <span className="hidden sm:inline">{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end))}</span>
                         <span className="sm:hidden text-[7px]">{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end)).replace(" – ", "-")}</span>
-                        <span className={`h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full ${
-                          event.status === "confirmed"
-                            ? "bg-emerald-500"
-                            : event.status === "pending"
-                              ? "bg-amber-500"
-                              : "bg-rose-500"
-                        }`} />
+                        <div className="flex items-center gap-1">
+                          {event.isGoogleSynced && (
+                            <div className="h-2 w-2 rounded-full bg-blue-500" title="Zsynchronizowano z Google Calendar" />
+                          )}
+                          <span className={`h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full ${
+                            event.status === "confirmed"
+                              ? "bg-emerald-500"
+                              : event.status === "pending"
+                                ? "bg-amber-500"
+                                : "bg-rose-500"
+                          }`} />
+                        </div>
                       </div>
                       <div className="mt-0.5 sm:mt-1 space-y-0.5">
                         <p className="text-[9px] sm:text-[11px] font-semibold lowercase text-foreground overflow-hidden text-ellipsis whitespace-nowrap">
@@ -740,13 +748,18 @@ function DayBoard({
                     <div className="flex items-center justify-between text-[8px] sm:text-[10px] uppercase text-muted-foreground">
                       <span className="hidden sm:inline">{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end))}</span>
                       <span className="sm:hidden text-[7px]">{formatTimeRange(parseIsoDate(event.start), parseIsoDate(event.end)).replace(" – ", "-")}</span>
-                      <span className={`h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full ${
-                        event.status === "confirmed"
-                          ? "bg-emerald-500"
-                          : event.status === "pending"
-                            ? "bg-amber-500"
-                            : "bg-rose-500"
-                      }`} />
+                      <div className="flex items-center gap-1">
+                        {event.isGoogleSynced && (
+                          <div className="h-2 w-2 rounded-full bg-blue-500" title="Zsynchronizowano z Google Calendar" />
+                        )}
+                        <span className={`h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full ${
+                          event.status === "confirmed"
+                            ? "bg-emerald-500"
+                            : event.status === "pending"
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
+                        }`} />
+                      </div>
                     </div>
                     <div className="space-y-0.5 sm:space-y-1">
                       <p className="text-[9px] sm:text-[11px] font-semibold lowercase text-foreground overflow-hidden text-ellipsis whitespace-nowrap">
@@ -881,15 +894,20 @@ function DayAgenda({
               {event.price ? <span className="font-semibold text-foreground">{event.price}</span> : null}
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <div
-                className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${
-                  event.status === "confirmed"
-                    ? "bg-emerald-500"
-                    : event.status === "pending"
-                      ? "bg-amber-500"
-                      : "bg-rose-500"
-                }`}
-              />
+              <div className="flex items-center gap-1">
+                {event.isGoogleSynced && (
+                  <div className="h-2 w-2 rounded-full bg-blue-500" title="Zsynchronizowano z Google Calendar" />
+                )}
+                <div
+                  className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${
+                    event.status === "confirmed"
+                      ? "bg-emerald-500"
+                      : event.status === "pending"
+                        ? "bg-amber-500"
+                        : "bg-rose-500"
+                  }`}
+                />
+              </div>
               <p className="text-xs sm:text-sm font-semibold text-foreground">{event.clientName}</p>
             </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground">{event.staffName}</p>
@@ -1332,6 +1350,9 @@ export default function CalendarPage() {
     
     startTransition(async () => {
       try {
+        // Pobierz oryginalną wizytę, aby sprawdzić ID Google Calendar
+        const originalAppointment = calendarEvents.find(e => e.id === editingAppointmentId);
+        
         // Aktualizuj wizytę w Firebase
         await updateAppointment(editingAppointmentId, {
           serviceId: editForm.serviceId,
@@ -1342,6 +1363,36 @@ export default function CalendarPage() {
           status: "confirmed",
           notes: editForm.notes.trim() || undefined,
         });
+        
+        // Spróbuj zsynchronizować z Google Calendar, jeśli wydarzenie istnieje
+        if (originalAppointment?.googleCalendarEventId) {
+          try {
+            const selectedCustomer = customers.find(c => c.id === editForm.clientId);
+            const selectedService = calendarServices.find(s => s.id === editForm.serviceId);
+            
+            if (selectedCustomer && selectedService) {
+              await googleCalendarService.updateGoogleCalendarEvent({
+                googleCalendarEventId: originalAppointment.googleCalendarEventId,
+                appointment: {
+                  id: editingAppointmentId,
+                  serviceId: editForm.serviceId,
+                  clientId: editForm.clientId,
+                  staffName: editForm.staffName,
+                  start: startDateTime,
+                  end: effectiveEndDateTime,
+                  status: "confirmed",
+                  notes: editForm.notes.trim() || undefined,
+                },
+                clientEmail: selectedCustomer.email,
+                serviceName: selectedService.name,
+                clientName: selectedCustomer.fullName,
+              });
+            }
+          } catch (googleError) {
+            console.warn("Nie udało się zaktualizować wydarzenia w Google Calendar:", googleError);
+            // Nie przerywaj procesu, jeśli synchronizacja się nie udała
+          }
+        }
         
         setEditFormSuccess("Wizyta została pomyślnie zaktualizowana.");
         
@@ -1361,6 +1412,20 @@ export default function CalendarPage() {
     if (window.confirm("Czy na pewno chcesz usunąć tę wizytę? Tej operacji nie można cofnąć.")) {
       startTransition(async () => {
         try {
+          // Pobierz wizytę, aby sprawdzić ID Google Calendar
+          const appointment = calendarEvents.find(e => e.id === appointmentId);
+          
+          // Usuń wydarzenie z Google Calendar, jeśli istnieje
+          if (appointment?.googleCalendarEventId) {
+            try {
+              await googleCalendarService.deleteGoogleCalendarEvent(appointment.googleCalendarEventId);
+            } catch (googleError) {
+              console.warn("Nie udało się usunąć wydarzenia z Google Calendar:", googleError);
+              // Nie przerywaj procesu, jeśli usuwanie z Google się nie udało
+            }
+          }
+          
+          // Usuń wizytę z Firebase
           await deleteAppointment(appointmentId);
           setAppointmentFormSuccess("Wizyta została pomyślnie usunięta.");
           
@@ -1554,6 +1619,8 @@ export default function CalendarPage() {
             price: appointment.price ? formatPrice(appointment.price) : undefined,
             offline: false, // Nowe wizyty nie są offline
             notes: appointment.notes,
+            googleCalendarEventId: appointment.googleCalendarEventId,
+            isGoogleSynced: !!appointment.googleCalendarEventId,
           } satisfies CalendarEvent;
         });
         setCalendarEvents(fetchedEvents);
@@ -2231,7 +2298,7 @@ export default function CalendarPage() {
                     startTransition(async () => {
                       try {
                         // Utwórz wizytę w Firebase z efektywnym czasem zakończenia
-                        await createAppointment({
+                        const newAppointment = await createAppointment({
                           serviceId: appointmentForm.serviceId,
                           clientId: appointmentForm.clientId,
                           staffName: appointmentForm.staffName,
@@ -2240,6 +2307,36 @@ export default function CalendarPage() {
                           status: "confirmed",
                           notes: appointmentForm.notes.trim() || undefined,
                         });
+                        
+                        // Spróbuj zsynchronizować z Google Calendar
+                        try {
+                          const selectedCustomer = customers.find(c => c.id === appointmentForm.clientId);
+                          const selectedService = calendarServices.find(s => s.id === appointmentForm.serviceId);
+                          
+                          if (selectedCustomer && selectedService) {
+                            const googleEventId = await googleCalendarService.syncAppointmentToGoogle({
+                              id: newAppointment.id,
+                              serviceId: appointmentForm.serviceId,
+                              clientId: appointmentForm.clientId,
+                              staffName: appointmentForm.staffName,
+                              start: startDateTime,
+                              end: effectiveEndDateTime,
+                              status: "confirmed",
+                              notes: appointmentForm.notes.trim() || undefined,
+                              clientEmail: selectedCustomer.email,
+                              serviceName: selectedService.name,
+                              clientName: selectedCustomer.fullName,
+                            });
+                            
+                            if (googleEventId) {
+                              // Aktualizuj wizytę z ID wydarzenia Google Calendar
+                              await updateGoogleCalendarEventId(newAppointment.id, googleEventId);
+                            }
+                          }
+                        } catch (googleError) {
+                          console.warn("Nie udało się zsynchronizować z Google Calendar:", googleError);
+                          // Nie przerywaj procesu, jeśli synchronizacja się nie udała
+                        }
                         
                         setAppointmentFormSuccess("Wizyta została pomyślnie dodana.");
                         

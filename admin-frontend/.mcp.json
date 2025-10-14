@@ -1,10 +1,13 @@
 {
-  "servers": {
+  "mcpServers": {
+    "kilocode": {
+      "command": "npx",
+      "args": ["-y", "@kilocode/mcp-server@latest"]
+    },
     "github-mcp": {
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp"
-    }
-    ,
+    },
     "chrome-devtools": {
       "command": "npx",
       "args": ["chrome-devtools-mcp@latest"]

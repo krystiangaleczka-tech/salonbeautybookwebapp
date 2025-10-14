@@ -1,0 +1,59 @@
+# TypeScript Configuration Fix - 2025-10-14-13:41
+
+## Zadania wykonane (5/5)
+
+### ✅ 1. Zaktualizować główny plik tsconfig.json dla admin-frontend
+- **Status**: Zakończony
+- **Zmiany**: 
+  - Usunięto `booking-functions/src/**/*` z include
+  - Dodano `booking-functions` do exclude
+  - Uproszczono konfigurację do frontendu (ES2020, ESNext, bundler)
+
+### ✅ 2. Zaktualizować booking-functions/tsconfig.json dla production build
+- **Status**: Zakończony
+- **Zmiany**:
+  - Usunięto `.eslintrc.js` z include (dodano z powrotem dla ESLint)
+  - Dodano brakujące opcje (`skipLibCheck`, `resolveJsonModule`)
+  - Poprawiono include na `"src/**/*"`
+
+### ✅ 3. Zaktualizować booking-functions/tsconfig.dev.json dla development build
+- **Status**: Zakończony
+- **Zmiany**:
+  - Usunięto `.eslintrc.js` z include
+  - Uproszczono konfigurację dzięki `extends`
+
+### ✅ 4. Zaktualizować booking-functions/.eslintrc.js dla poprawnego działania
+- **Status**: Zakończony
+- **Zmiany**:
+  - Dodano `tsconfigRootDir: __dirname` (krytyczne!)
+  - Poprawiono ścieżki na `["./tsconfig.json", "./tsconfig.dev.json"]`
+  - Dodano `"**/*.js"` do ignorePatterns
+  - Poprawiono wcięcia i dodano reguły TypeScript
+
+### ✅ 5. Przetestować konfigurację ESLint i kompilację TypeScript
+- **Status**: Zakończony
+- **Wyniki**:
+  - ESLint: ✅ Działa bez błędów "Cannot read file tsconfig.dev.json"
+  - TypeScript: ✅ Kompilacja przebiega pomyślnie
+
+## Krytyczne poprawki bezpieczeństwa
+
+### ⚠️ Usunięcie exposed secret
+- **Plik**: `booking-functions/src/google-calendar/config.ts`
+- **Problem**: Exposed Google Client Secret w kodzie źródłowym
+- **Rozwiązanie**: Przeniesiono do environment variables
+- **Status**: ✅ Naprawione
+
+## Podsumowanie
+
+- **Liczba zmienionych plików**: 28
+- **Status konfiguracji TypeScript**: ✅ Poprawna
+- **Status ESLint**: ✅ Działa
+- **Status kompilacji**: ✅ Przebiega pomyślnie
+- **Bezpieczeństwo**: ✅ Usunięto exposed secrets
+
+## Następne kroki
+
+1. Skonfigurować environment variables dla Google OAuth
+2. Rozważyć implementację Firestore Emulator dla developmentu
+3. Przetestować pełny workflow z emulatorami

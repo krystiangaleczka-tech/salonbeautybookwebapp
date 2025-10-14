@@ -25,6 +25,7 @@ export interface Appointment {
   price?: number;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
 }
 
 export interface AppointmentPayload {
@@ -36,6 +37,7 @@ export interface AppointmentPayload {
   status?: 'confirmed' | 'pending' | 'cancelled';
   notes?: string;
   price?: number;
+  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
 }
 
 const appointmentsCollection = collection(db, "appointments");
@@ -48,13 +50,14 @@ function mapAppointment(docData: DocumentData, id: string): Appointment {
     staffName: typeof docData.staffName === "string" ? docData.staffName : "",
     start: docData.start instanceof Timestamp ? docData.start : Timestamp.now(),
     end: docData.end instanceof Timestamp ? docData.end : Timestamp.now(),
-    status: (docData.status === "confirmed" || docData.status === "pending" || docData.status === "cancelled") 
-      ? docData.status 
+    status: (docData.status === "confirmed" || docData.status === "pending" || docData.status === "cancelled")
+      ? docData.status
       : "pending",
     notes: typeof docData.notes === "string" ? docData.notes : undefined,
     price: typeof docData.price === "number" ? docData.price : undefined,
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt : null,
     updatedAt: docData.updatedAt instanceof Timestamp ? docData.updatedAt : null,
+    googleCalendarEventId: typeof docData.googleCalendarEventId === "string" ? docData.googleCalendarEventId : undefined,
   };
 }
 
@@ -85,24 +88,27 @@ function normalizePayload(payload: AppointmentPayload) {
     status: payload.status ?? "pending",
     notes: payload.notes ?? "",
     price: payload.price ?? null,
+    googleCalendarEventId: payload.googleCalendarEventId ?? null,
   };
 }
 
-export async function createAppointment(payload: AppointmentPayload) {
+export async function createAppointment(payload: AppointmentPayload): Promise<{ id: string }> {
   const normalized = normalizePayload(payload);
-  await addDoc(appointmentsCollection, {
+  const docRef = await addDoc(appointmentsCollection, {
     ...normalized,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  return { id: docRef.id };
 }
 
-export async function updateAppointment(id: string, payload: Omit<AppointmentPayload, 'start' | 'end'> & { start: Date; end: Date }) {
+export async function updateAppointment(id: string, payload: Omit<AppointmentPayload, 'start' | 'end'> & { start: Date; end: Date; googleCalendarEventId?: string }) {
   const ref = doc(appointmentsCollection, id);
   await updateDoc(ref, {
     ...payload,
     start: Timestamp.fromDate(payload.start),
     end: Timestamp.fromDate(payload.end),
+    googleCalendarEventId: payload.googleCalendarEventId ?? null,
     updatedAt: serverTimestamp(),
   });
 }
@@ -110,6 +116,15 @@ export async function updateAppointment(id: string, payload: Omit<AppointmentPay
 export async function deleteAppointment(id: string) {
   const ref = doc(appointmentsCollection, id);
   await deleteDoc(ref);
+}
+
+// Funkcja do aktualizacji tylko pola Google Calendar Event ID
+export async function updateGoogleCalendarEventId(id: string, googleCalendarEventId: string) {
+  const ref = doc(appointmentsCollection, id);
+  await updateDoc(ref, {
+    googleCalendarEventId,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // Funkcja do obliczania efektywnego czasu zakończenia wizyty z uwzględnieniem buforów
