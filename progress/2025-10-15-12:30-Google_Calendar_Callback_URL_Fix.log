@@ -1,0 +1,26 @@
+# Google Calendar Callback URL Fix
+Data: 2025-10-15 12:30
+Autor: System
+
+## Problem
+W funkcji handleGoogleCallback w pliku booking-functions/src/google-calendar/auth.ts występował problem z budowaniem URL przekierowania. 
+config.redirectUri zawierał wartość: https://europe-central2-salonbeautymario-x1.cloudfunctions.net/handleGoogleCallback
+Próba splitowania na "/auth/google/callback" nie działała, ponieważ ten ciąg nie istniał w URL.
+
+## Rozwiązanie
+Zastąpiono dynamiczne budowanie URL na hardcoded adres frontendu we wszystkich trzech miejscach:
+1. W przypadku błędu OAuth (linia 45)
+2. W przypadku sukcesu autoryzacji (linia 75) 
+3. W przypadku błędu podczas przetwarzania tokenu (linia 78)
+
+## Zmiany w kodzie
+- booking-functions/src/google-calendar/auth.ts: Zastąpiono config.redirectUri.split("/auth/google/callback")[0] na "https://salonbeautymario-x1.web.app/ustawienia/integracje"
+- Naprawiono błędy ESLint dotyczące cudzysłowów (zmiana z backticks na double quotes)
+
+## Deployment
+- Wykonano deployment funkcji Firebase: firebase deploy --only functions
+- Funkcja handleGoogleCallback zaktualizowana pomyślnie
+- Nowy URL funkcji: https://handlegooglecallback-ramr4b6riq-lm.a.run.app
+
+## Wynik
+Teraz po autoryzacji Google Calendar użytkownik będzie poprawnie przekierowany na stronę integracji w aplikacji frontendowej.

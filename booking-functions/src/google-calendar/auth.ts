@@ -42,9 +42,7 @@ export const handleGoogleCallback = https.onRequest(
         
         if (error) {
             console.error("Google OAuth error:", error);
-            const config = getGoogleOAuthConfig();
-            const baseUrl = config.redirectUri.split("/auth/google/callback")[0];
-            res.redirect(`${baseUrl}/ustawienia/integracje?error=true`);
+            res.redirect("https://salonbeautymario-x1.web.app/ustawienia/integracje?error=true");
             return;
         }
         
@@ -74,13 +72,10 @@ export const handleGoogleCallback = https.onRequest(
                 updatedAt: new Date(),
             });
 
-            const baseUrl = config.redirectUri.split("/auth/google/callback")[0];
-            res.redirect(`${baseUrl}/ustawienia/integracje?success=true`);
+            res.redirect("https://salonbeautymario-x1.web.app/ustawienia/integracje?success=true");
         } catch (error) {
             console.error("Error handling Google callback:", error);
-            const config = getGoogleOAuthConfig();
-            const baseUrl = config.redirectUri.split("/auth/google/callback")[0];
-            res.redirect(`${baseUrl}/ustawienia/integracje?error=true`);
+            res.redirect("https://salonbeautymario-x1.web.app/ustawienia/integracje?error=true");
         }
     }
 );
