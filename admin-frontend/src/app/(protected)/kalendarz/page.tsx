@@ -23,7 +23,7 @@ import {
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import type { ToneKey } from "@/lib/dashboard-theme";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, Timestamp, getDoc, doc } from "firebase/firestore";
 import { createAppointment, subscribeToAppointments, updateAppointment, deleteAppointment, updateGoogleCalendarEventId, type Appointment } from "@/lib/appointments-service";
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
@@ -2310,14 +2310,23 @@ export default function CalendarPage() {
                         
                         // Spróbuj zsynchronizować z Google Calendar
                         try {
+                          console.log('🔍 Synchronizing appointment to Google Calendar:', newAppointment.id);
                           const result = await googleCalendarService.syncAppointment(newAppointment.id);
+                          console.log('📊 Sync result:', result);
                           
                           if (result.success && result.googleEventId) {
-                            // Aktualizuj wizytę z ID wydarzenia Google Calendar
+                            console.log('✅ Saving googleEventId to Firestore:', result.googleEventId);
                             await updateGoogleCalendarEventId(newAppointment.id, result.googleEventId);
+                            console.log('✅ GoogleEventId saved successfully!');
+                            
+                            // ✅ DODAJ SPRAWDZENIE:
+                            const updatedDoc = await getDoc(doc(db, 'appointments', newAppointment.id));
+                            console.log('🔍 Updated appointment data:', updatedDoc.data());
+                          } else {
+                            console.log('❌ Sync failed or no googleEventId returned');
                           }
                         } catch (googleError) {
-                          console.warn("Nie udało się zsynchronizować z Google Calendar:", googleError);
+                          console.error('❌ Google Calendar sync error:', googleError);
                           // Nie przerywaj procesu, jeśli synchronizacja się nie udała
                         }
                         

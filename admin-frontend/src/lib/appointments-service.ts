@@ -102,15 +102,34 @@ export async function createAppointment(payload: AppointmentPayload): Promise<{ 
   return { id: docRef.id };
 }
 
-export async function updateAppointment(id: string, payload: Omit<AppointmentPayload, 'start' | 'end'> & { start: Date; end: Date; googleCalendarEventId?: string }) {
+export async function updateAppointment(
+  id: string,
+  payload: Omit<AppointmentPayload, 'start' | 'end'> & {
+    start: Date;
+    end: Date;
+    googleCalendarEventId?: string;
+  }
+) {
   const ref = doc(appointmentsCollection, id);
-  await updateDoc(ref, {
-    ...payload,
+  
+  const updateData: any = {
+    serviceId: payload.serviceId,
+    clientId: payload.clientId,
+    staffName: payload.staffName,
     start: Timestamp.fromDate(payload.start),
     end: Timestamp.fromDate(payload.end),
-    googleCalendarEventId: payload.googleCalendarEventId ?? null,
+    status: payload.status ?? "pending",
+    notes: payload.notes ?? "",
+    price: payload.price ?? null,
     updatedAt: serverTimestamp(),
-  });
+  };
+  
+  // ✅ TYLKO aktualizuj googleCalendarEventId jeśli jest explicite podane
+  if (payload.googleCalendarEventId !== undefined) {
+    updateData.googleCalendarEventId = payload.googleCalendarEventId;
+  }
+  
+  await updateDoc(ref, updateData);
 }
 
 export async function deleteAppointment(id: string) {

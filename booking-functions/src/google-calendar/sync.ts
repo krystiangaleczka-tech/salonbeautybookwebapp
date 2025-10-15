@@ -408,11 +408,11 @@ export const updateGoogleCalendarEvent = https.onCall(
                 summary: `${serviceName} - ${clientName}`,
                 description: `Usługa: ${serviceName}\nKlient: ${clientName}\n${appointment.notes || ""}`,
                 start: {
-                    dateTime: appointment.start.toISOString(),
+                    dateTime: new Date(appointment.start).toISOString(),
                     timeZone: "Europe/Warsaw",
                 },
                 end: {
-                    dateTime: appointment.end.toISOString(),
+                    dateTime: new Date(appointment.end).toISOString(),
                     timeZone: "Europe/Warsaw",
                 },
                 extendedProperties: {

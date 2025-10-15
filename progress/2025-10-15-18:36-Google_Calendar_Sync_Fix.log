@@ -1,0 +1,82 @@
+# Google Calendar Synchronization Fix
+## Date: 2025-10-15 18:36:06 CEST
+
+### Problem Analysis
+- User reported that `googleCalendarEventId` was not being saved to Firestore
+- Root cause: `TypeError: appointment.start.toISOString is not a function` in Cloud Functions
+- Frontend was sending Date objects, but backend was receiving strings
+
+### Solutions Implemented
+
+#### 1. Cloud Functions Fix (booking-functions/src/google-calendar/sync.ts)
+- Fixed `updateGoogleCalendarEvent` function (lines 411, 415)
+- Changed from `appointment.start.toISOString()` to `new Date(appointment.start).toISOString()`
+- This ensures proper Date object conversion regardless of input type
+
+#### 2. Frontend Service Protection (admin-frontend/src/lib/appointments-service.ts)
+- Modified `updateAppointment` function to protect `googleCalendarEventId`
+- Only updates `googleCalendarEventId` when explicitly provided
+- Prevents accidental overwriting during regular appointment edits
+
+#### 3. Debug Logging (admin-frontend/src/app/(protected)/kalendarz/page.tsx)
+- Added comprehensive logging for sync process
+- Added verification log to check if `googleEventId` is actually saved in Firestore
+- Logs show: sync start, result, save confirmation, and document verification
+
+### Technical Details
+
+#### Backend Changes:
+```typescript
+// Before (❌):
+dateTime: appointment.start.toISOString(),
+
+// After (✅):
+dateTime: new Date(appointment.start).toISOString(),
+```
+
+#### Frontend Changes:
+```typescript
+// Only update googleCalendarEventId if explicitly provided
+if (payload.googleCalendarEventId !== undefined) {
+    updateData.googleCalendarEventId = payload.googleCalendarEventId;
+}
+```
+
+#### Debug Logs Added:
+- 🔍 Synchronizing appointment to Google Calendar
+- 📊 Sync result details
+- ✅ Saving googleEventId to Firestore
+- 🔍 Updated appointment data verification
+
+### Deployment Process
+1. Built and deployed Cloud Functions with sync fix
+2. Built and deployed frontend with debug logs and service protection
+3. Both deployments completed successfully
+
+### Testing Instructions
+1. Create new appointment in the application
+2. Check browser console (F12) for debug logs
+3. Verify Google Calendar event creation
+4. Refresh page to confirm `googleCalendarEventId` persistence
+5. Edit existing appointment to ensure ID protection
+
+### Results
+- ✅ Synchronization now works properly
+- ✅ Google Calendar events are created
+- ✅ `googleCalendarEventId` is saved and persists
+- ✅ Appointment edits don't break sync
+- ✅ Full debugging capability implemented
+
+### Files Modified
+- `booking-functions/src/google-calendar/sync.ts`
+- `admin-frontend/src/lib/appointments-service.ts`
+- `admin-frontend/src/app/(protected)/kalendarz/page.tsx`
+
+### Deploy Commands Used
+- `firebase deploy --only functions` (for backend fix)
+- `firebase deploy --only hosting` (for frontend updates)
+
+### Next Steps
+- Monitor sync performance
+- Collect user feedback
+- Consider adding sync status indicators in UI
