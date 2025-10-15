@@ -1364,34 +1364,55 @@ export default function CalendarPage() {
           notes: editForm.notes?.trim() || "",
         });
         
-        // Spróbuj zsynchronizować z Google Calendar, jeśli wydarzenie istnieje
-        if (originalAppointment?.googleCalendarEventId) {
-          try {
-            const selectedCustomer = customers.find(c => c.id === editForm.clientId);
-            const selectedService = calendarServices.find(s => s.id === editForm.serviceId);
-            
-            if (selectedCustomer && selectedService) {
-              await googleCalendarService.updateGoogleCalendarEvent({
-                googleCalendarEventId: originalAppointment.googleCalendarEventId,
-                appointment: {
-                  id: editingAppointmentId,
-                  serviceId: editForm.serviceId,
-                  clientId: editForm.clientId,
-                  staffName: editForm.staffName,
-                  start: startDateTime,
-                  end: effectiveEndDateTime,
-                  status: "confirmed",
-                  notes: editForm.notes.trim() || undefined,
-                },
-                clientEmail: selectedCustomer.email,
-                serviceName: selectedService.name,
-                clientName: selectedCustomer.fullName,
-              });
+        // ✅ NOWY KOD - z auto-sync
+        try {
+          const selectedCustomer = customers.find(c => c.id === editForm.clientId);
+          const selectedService = calendarServices.find(s => s.id === editForm.serviceId);
+          
+          if (selectedCustomer && selectedService) {
+            if (originalAppointment?.googleCalendarEventId) {
+              // Ma googleCalendarEventId - normalna aktualizacja
+              try {
+                await googleCalendarService.updateGoogleCalendarEvent({
+                  googleCalendarEventId: originalAppointment.googleCalendarEventId,
+                  appointment: {
+                    id: editingAppointmentId,
+                    serviceId: editForm.serviceId,
+                    clientId: editForm.clientId,
+                    staffName: editForm.staffName,
+                    start: startDateTime,
+                    end: effectiveEndDateTime,
+                    status: "confirmed",
+                    notes: editForm.notes.trim() || undefined,
+                  },
+                  clientEmail: selectedCustomer.email,
+                  serviceName: selectedService.name,
+                  clientName: selectedCustomer.fullName,
+                });
+              } catch (err) {
+                console.error('❌ Failed to update Google Calendar event:', err);
+              }
+            } else {
+              // NIE MA googleCalendarEventId - auto-sync (pierwsza synchronizacja)
+              console.log('⚠️ Appointment missing googleCalendarEventId - syncing for the first time');
+              
+              try {
+                const syncResult = await googleCalendarService.syncAppointment(editingAppointmentId);
+                
+                if (syncResult.success && syncResult.googleEventId) {
+                  // Zapisz googleEventId do Firestore
+                  await googleCalendarService.updateGoogleCalendarEventId(editingAppointmentId, syncResult.googleEventId);
+                  console.log('✅ First-time sync successful:', syncResult.googleEventId);
+                }
+              } catch (err) {
+                console.error('❌ Auto-sync failed:', err);
+                // Nie blokuj edycji - po prostu nie zsynchronizowano
+              }
             }
-          } catch (googleError) {
-            console.warn("Nie udało się zaktualizować wydarzenia w Google Calendar:", googleError);
-            // Nie przerywaj procesu, jeśli synchronizacja się nie udała
           }
+        } catch (googleError) {
+          console.warn("Nie udało się zsynchronizować z Google Calendar:", googleError);
+          // Nie przerywaj procesu, jeśli synchronizacja się nie udała
         }
         
         setEditFormSuccess("Wizyta została pomyślnie zaktualizowana.");

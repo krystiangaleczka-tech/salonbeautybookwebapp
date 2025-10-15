@@ -170,34 +170,6 @@ export default function IntegrationsPage() {
                             
                             <div className="mt-4 flex flex-wrap gap-2">
                                 <button
-                                    onClick={handleSyncNow}
-                                    disabled={isSyncing}
-                                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-70 disabled:cursor-not-allowed"
-                                >
-                                    {isSyncing ? (
-                                        <>
-                                            <Loader2 className="inline h-4 w-4 mr-2 animate-spin" />
-                                            Synchronizacja...
-                                        </>
-                                    ) : (
-                                        'Synchronizuj teraz'
-                                    )}
-                                </button>
-                                <button
-                                    onClick={handleBatchSync}
-                                    disabled={isSyncing}
-                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
-                                >
-                                    {isSyncing ? (
-                                        <>
-                                            <Loader2 className="inline h-4 w-4 mr-2 animate-spin" />
-                                            Synchronizacja masowa...
-                                        </>
-                                    ) : (
-                                        'Synchronizuj wszystkie'
-                                    )}
-                                </button>
-                                <button
                                     onClick={handleDisconnectGoogleCalendar}
                                     disabled={isSyncing}
                                     className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-70 disabled:cursor-not-allowed"

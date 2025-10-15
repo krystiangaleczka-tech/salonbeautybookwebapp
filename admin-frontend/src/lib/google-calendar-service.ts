@@ -1,7 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
 import { auth } from "./firebase";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
 
 export interface GoogleCalendarStatus {
     isConnected: boolean;
@@ -212,6 +212,20 @@ class GoogleCalendarService {
         // This is handled by the Cloud Function
         // Just redirect to the callback URL
         window.location.href = `/auth/google/callback?code=${code}&state=${state}`;
+    }
+
+    // Update Google Calendar Event ID in Firestore
+    async updateGoogleCalendarEventId(appointmentId: string, googleEventId: string): Promise<void> {
+        try {
+            const db = getFirestore();
+            const appointmentRef = doc(db, 'appointments', appointmentId);
+            await updateDoc(appointmentRef, {
+                googleCalendarEventId: googleEventId,
+            });
+        } catch (error) {
+            console.error('Error updating Google Calendar Event ID:', error);
+            throw new Error('Failed to update Google Calendar Event ID');
+        }
     }
 }
 
