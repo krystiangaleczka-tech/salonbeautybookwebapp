@@ -1361,7 +1361,7 @@ export default function CalendarPage() {
           start: startDateTime,
           end: effectiveEndDateTime,
           status: "confirmed",
-          notes: editForm.notes.trim() || undefined,
+          notes: editForm.notes?.trim() || "",
         });
         
         // Spróbuj zsynchronizować z Google Calendar, jeśli wydarzenie istnieje
@@ -2305,7 +2305,7 @@ export default function CalendarPage() {
                           start: startDateTime,
                           end: effectiveEndDateTime,
                           status: "confirmed",
-                          notes: appointmentForm.notes.trim() || undefined,
+                          notes: appointmentForm.notes?.trim() || "",
                         });
                         
                         // Spróbuj zsynchronizować z Google Calendar
