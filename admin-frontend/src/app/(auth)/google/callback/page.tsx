@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle, Calendar } from 'lucide-react';
 
-export default function GoogleCallbackPage() {
+function GoogleCallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -19,8 +19,8 @@ export default function GoogleCallbackPage() {
 
             if (errorParam) {
                 setStatus('error');
-                setError(errorParam === 'access_denied' 
-                    ? 'Odmówiono dostępu do Google Calendar. Możesz spróbować ponownie później.' 
+                setError(errorParam === 'access_denied'
+                    ? 'Odmówiono dostępu do Google Calendar. Możesz spróbować ponownie później.'
                     : `Wystąpił błąd: ${errorParam}`);
                 return;
             }
@@ -132,7 +132,7 @@ export default function GoogleCallbackPage() {
                         <div className="mt-6 p-4 bg-green-50 rounded-lg">
                             <p className="text-sm text-green-800">
                                 <strong>Co dalej?</strong><br />
-                                Twoje wizyty będą teraz automatycznie synchronizowane z Google Calendar. 
+                                Twoje wizyty będą teraz automatycznie synchronizowane z Google Calendar.
                                 Możesz zarządzać synchronizacją w ustawieniach integracji.
                             </p>
                         </div>
@@ -151,5 +151,25 @@ export default function GoogleCallbackPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function GoogleCallbackPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gradient-to-br from-rose-50 to-pink-100 flex items-center justify-center p-4">
+                <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+                    <div className="text-center">
+                        <div className="mx-auto w-16 h-16 mb-6 flex items-center justify-center rounded-full bg-rose-100">
+                            <Loader2 className="w-8 h-8 text-rose-600 animate-spin" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-gray-900 mb-2">Ładowanie...</h1>
+                        <p className="text-gray-600">Przetwarzanie...</p>
+                    </div>
+                </div>
+            </div>
+        }>
+            <GoogleCallbackContent />
+        </Suspense>
     );
 }
