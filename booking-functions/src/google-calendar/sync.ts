@@ -350,3 +350,102 @@ export const batchSyncAppointments = https.onCall(async (request: CallableReques
     };
 });
 
+interface UpdateEventData {
+    googleCalendarEventId: string;
+    appointment: {
+        id: string;
+        serviceId: string;
+        clientId: string;
+        staffName: string;
+        start: Date;
+        end: Date;
+        status: string;
+        notes?: string;
+    };
+    clientEmail?: string;
+    serviceName: string;
+    clientName: string;
+}
+
+export const updateGoogleCalendarEvent = https.onCall(async (request: CallableRequest<UpdateEventData>) => {
+    if (!request?.auth?.uid) {
+        throw new https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+
+    const { googleCalendarEventId, appointment, clientEmail, serviceName, clientName } = request.data;
+    
+    if (!googleCalendarEventId || !appointment) {
+        throw new https.HttpsError("invalid-argument", "Google Calendar Event ID and appointment data are required");
+    }
+
+    try {
+        const db = getFirestore();
+        
+        // Get Google auth tokens
+        const tokens = await getGoogleAuthClient(request.auth.uid);
+        
+        // Set up OAuth client
+        const oauth2Client = new google.auth.OAuth2();
+        oauth2Client.setCredentials({
+            access_token: tokens?.accessToken,
+            refresh_token: tokens?.refreshToken,
+        });
+
+        // Create Google Calendar event
+        const calendarEvent: GoogleCalendarEvent = {
+            summary: `${serviceName} - ${clientName}`,
+            description: `Usługa: ${serviceName}\nKlient: ${clientName}\n${appointment.notes || ""}`,
+            start: {
+                dateTime: appointment.start.toISOString(),
+                timeZone: "Europe/Warsaw",
+            },
+            end: {
+                dateTime: appointment.end.toISOString(),
+                timeZone: "Europe/Warsaw",
+            },
+            extendedProperties: {
+                private: {
+                    appointmentId: appointment.id,
+                    salonId: process.env.GCLOUD_PROJECT || "salonbeautymario-x1",
+                    serviceId: appointment.serviceId,
+                },
+            },
+        };
+
+        // Add attendee if customer has email
+        if (clientEmail) {
+            calendarEvent.attendees = [{
+                email: clientEmail,
+                displayName: clientName,
+            }];
+        }
+
+        // Create calendar API client
+        const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+        
+        // Update existing event
+        const response = await calendar.events.update({
+            calendarId: "primary",
+            eventId: googleCalendarEventId,
+            requestBody: calendarEvent,
+        });
+
+        // Update sync record
+        const syncData: CalendarSync = {
+            appointmentId: appointment.id,
+            googleEventId: response.data.id || "",
+            userId: request.auth.uid,
+            lastSyncAt: new Date(),
+            syncDirection: "to_google",
+            status: "synced",
+        };
+
+        await db.collection("calendarSync").doc(appointment.id).set(syncData);
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating Google Calendar event:", error);
+        throw new https.HttpsError("internal", "Failed to update Google Calendar event");
+    }
+});
+

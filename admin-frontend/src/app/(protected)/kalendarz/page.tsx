@@ -2310,28 +2310,11 @@ export default function CalendarPage() {
                         
                         // Spróbuj zsynchronizować z Google Calendar
                         try {
-                          const selectedCustomer = customers.find(c => c.id === appointmentForm.clientId);
-                          const selectedService = calendarServices.find(s => s.id === appointmentForm.serviceId);
+                          const result = await googleCalendarService.syncAppointment(newAppointment.id);
                           
-                          if (selectedCustomer && selectedService) {
-                            const googleEventId = await googleCalendarService.syncAppointmentToGoogle({
-                              id: newAppointment.id,
-                              serviceId: appointmentForm.serviceId,
-                              clientId: appointmentForm.clientId,
-                              staffName: appointmentForm.staffName,
-                              start: startDateTime,
-                              end: effectiveEndDateTime,
-                              status: "confirmed",
-                              notes: appointmentForm.notes.trim() || undefined,
-                              clientEmail: selectedCustomer.email,
-                              serviceName: selectedService.name,
-                              clientName: selectedCustomer.fullName,
-                            });
-                            
-                            if (googleEventId) {
-                              // Aktualizuj wizytę z ID wydarzenia Google Calendar
-                              await updateGoogleCalendarEventId(newAppointment.id, googleEventId);
-                            }
+                          if (result.success && result.googleEventId) {
+                            // Aktualizuj wizytę z ID wydarzenia Google Calendar
+                            await updateGoogleCalendarEventId(newAppointment.id, result.googleEventId);
                           }
                         } catch (googleError) {
                           console.warn("Nie udało się zsynchronizować z Google Calendar:", googleError);

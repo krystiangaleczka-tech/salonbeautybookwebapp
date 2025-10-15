@@ -28,11 +28,9 @@ export default function IntegrationsPage() {
         const error = searchParams.get('error');
         
         if (success === 'true') {
-            // Show success message
-            console.log('Google Calendar connected successfully');
+            console.log('✅ Google Calendar connected successfully');
         } else if (error === 'true') {
-            // Show error message
-            console.error('Failed to connect Google Calendar');
+            console.error('❌ Failed to connect Google Calendar');
         }
         
         // Check connection status
@@ -42,7 +40,9 @@ export default function IntegrationsPage() {
     const checkGoogleCalendarStatus = async () => {
         setIsLoading(true);
         try {
+            console.log('🔍 Checking Google Calendar status...');
             const status = await googleCalendarService.getConnectionStatus();
+            console.log('📊 Status received:', status);
             setGoogleStatus(status);
         } catch (error) {
             console.error('Error checking Google Calendar status:', error);
