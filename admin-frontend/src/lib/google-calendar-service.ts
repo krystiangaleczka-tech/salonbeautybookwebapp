@@ -1,6 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
 import { auth } from "./firebase";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 
 export interface GoogleCalendarStatus {
     isConnected: boolean;
@@ -46,9 +47,28 @@ class GoogleCalendarService {
     // Get Google Calendar connection status
     async getConnectionStatus(): Promise<GoogleCalendarStatus | null> {
         try {
-            // This would be implemented as a Cloud Function
-            // For now, return null - will be implemented later
-            return null;
+            const user = auth.currentUser;
+            
+            if (!user) {
+                return null;
+            }
+
+            // Pobierz token z Firestore
+            const db = getFirestore();
+            const tokenDoc = await getDoc(doc(db, 'googleTokens', user.uid));
+            
+            if (!tokenDoc.exists()) {
+                return null;
+            }
+
+            const data = tokenDoc.data();
+            
+            return {
+                isConnected: data.isActive === true,
+                lastSync: data.updatedAt?.toDate(),
+                calendarId: data.calendarId,
+                syncEnabled: data.isActive === true
+            };
         } catch (error) {
             console.error('Error getting connection status:', error);
             return null;

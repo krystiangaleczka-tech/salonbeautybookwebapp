@@ -1,0 +1,19 @@
+## Google Calendar Connection Status Fix
+
+### Problem
+Funkcja `getConnectionStatus()` w pliku `admin-frontend/src/lib/google-calendar-service.ts` zawsze zwracała `null`, co powodowało, że UI nie pokazywało prawidłowego statusu połączenia z Google Calendar.
+
+### Rozwiązanie
+1. Dodano importy z Firebase Firestore:
+   - `import { getFirestore, doc, getDoc } from "firebase/firestore";`
+
+2. Zaimplementowano poprawną wersję funkcji `getConnectionStatus()`:
+   - Sprawdza status uwierzytelnienia użytkownika
+   - Pobiera tokeny z kolekcji `googleTokens` w Firestore
+   - Zwraca poprawny status połączenia na podstawie danych z bazy
+
+### Zmodyfikowane pliki
+- `admin-frontend/src/lib/google-calendar-service.ts`
+
+### Wynik
+Po odświeżeniu strony UI powinno prawidłowo wyświetlać status połączenia z Google Calendar zamiast zawsze pokazywać "Brak połączenia".
