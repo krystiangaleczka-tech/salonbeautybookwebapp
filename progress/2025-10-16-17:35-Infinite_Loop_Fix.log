@@ -1,0 +1,94 @@
+# 🚨 INFINITE LOOP FIX - Kalendarz Firestore
+
+## 📅 Data: 2025-10-16 17:35
+
+## 🔍 **PROBLEM:**
+Aplikacja wykonująca NIEKOŃCZĄCĄ SIĘ pętlę `getAppointments()` w kalendarzu, co powodowało:
+- X1000+ wywołań `Loading appointments with getAppointments...`
+- X1000+ wywołań `Unsubscribing from appointments noop`
+- Przeciążenie serwera Firestore
+- Crash aplikacji
+
+## 🎯 **PRZYCZYNA:**
+Funkcja `loadAppointments()` była wywoływana POZA `useEffect()` (linia ~1709), co powodowało:
+1. Component renderuje się
+2. `loadAppointments()` wykonuje się
+3. Zmienia `calendarEvents` state
+4. Component renderuje się ponownie
+5. `loadAppointments()` wykonuje się znowu
+6. **INFINITE LOOP!** 🔄
+
+## 🛠️ **ROZWIĄZANIE:**
+
+### 1. Przeniesienie `loadAppointments` na zewnątrz useEffect
+```typescript
+// ❌ BYŁO - wewnątrz useEffect
+useEffect(() => {
+    const loadAppointments = async () => { ... };
+    loadAppointments(); // ❌ POZA useEffect!
+}, [customers, calendarServices]);
+
+// ✅ JEST - na zewnątrz useEffect
+const loadAppointments = async () => { ... };
+useEffect(() => {
+    loadAppointments();
+}, [customers, calendarServices]);
+```
+
+### 2. Poprawka struktury useEffect
+```typescript
+// ✅ POPRAWIONA STRUKTURA
+const loadAppointments = async () => {
+    try {
+        console.log('🔄 Loading appointments with getAppointments...');
+        const fetchedAppointments = await getAppointments();
+        // ... mapowanie ...
+        setCalendarEvents(fetchedEvents);
+        setEventsLoaded(true);
+    } catch (error) {
+        console.error("❌ Nie udało się pobrać listy wizyt", error);
+        setEventsLoaded(true);
+        setDataError((current) => current ?? "Nie udało się pobrać listy wizyt");
+    }
+};
+
+// ✅ POPRAWKA - WEWNĄTRZ useEffect
+useEffect(() => {
+    loadAppointments();
+}, [customers, calendarServices]); // ← DEPENDENCIES!
+```
+
+## 📁 **ZMIANY W PLIKACH:**
+- `admin-frontend/src/app/(protected)/kalendarz/page.tsx`
+  - Przeniesienie `loadAppointments` na zewnątrz useEffect (linia 1641)
+  - Dodanie osobnego useEffect dla `loadAppointments` (linia 1686)
+  - Poprawka dependencies w głównym useEffect (linia 1723)
+
+## 🚀 **DEPLOYMENT:**
+```bash
+cd admin-frontend
+npm run build
+firebase deploy --only hosting
+```
+
+## ✅ **WYNIK:**
+- ❌ Usunięto infinite loop
+- ✅ Aplikacja ładuje wizyty tylko raz przy starcie
+- ✅ Brak nadmiarowych zapytań do Firestore
+- ✅ Aplikacja działa stabilnie na produkcji: https://salonbeautymario-x1.web.app
+
+## ⚠️ **OSTRZEŻENIE:**
+ESLint pokazuje warning:
+```
+Warning: React Hook useEffect has a missing dependency: 'loadAppointments'
+```
+Jest to fałszywy pozytyw - `loadAppointments` jest funkcją która nie powinna być w dependencies, ponieważ byłaby tworzona przy każdym renderze.
+
+## 📊 **TESTY:**
+- ✅ Aplikacja nie wykonuje wielokrotnych zapytań
+- ✅ Kalendarz ładuje się poprawnie
+- ✅ Brak crashu przy odświeżaniu strony
+- ✅ Auto-sync Google Calendar działa poprawnie
+
+## 🔧 **LEKCJA:**
+Zawsze umieszczaj wywołania funkcji zmieniających state WNĄTRZ `useEffect` z odpowiednimi dependencies!

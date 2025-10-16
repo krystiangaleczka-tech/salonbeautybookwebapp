@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -76,6 +77,13 @@ export function subscribeToAppointments(
       onError(error);
     },
   );
+}
+
+// ✅ NOWY KOD (jednorazowy fetch) - zastępuje problematyczne onSnapshot
+export async function getAppointments(): Promise<Appointment[]> {
+  const appointmentsQuery = query(appointmentsCollection, orderBy("start"));
+  const snapshot = await getDocs(appointmentsQuery);
+  return snapshot.docs.map((docSnapshot) => mapAppointment(docSnapshot.data(), docSnapshot.id));
 }
 
 function normalizePayload(payload: AppointmentPayload) {

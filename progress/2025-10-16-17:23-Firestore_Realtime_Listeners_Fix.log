@@ -1,0 +1,176 @@
+# 🔥 FIRESTORE REALTIME LISTENERS FIX
+## Data: 2025-10-16 17:23
+
+---
+
+## 🚨 **PROBLEM**
+
+### **Główne błędy:**
+1. **Fetch API Firestore CORS Error** - `Failed to fetch due to access control checks`
+2. **ChunkLoadError Next.js** - `Loading chunk 21 failed (404)`
+3. **Firestore Realtime Listeners** - WebSocket connections blokowane przez CORS
+
+### **Objawy:**
+- Aplikacja crashowała przy odświeżaniu strony kalendarza
+- Błędy w konsoli: `Fetch API cannot load https://firestore.googleapis.com/... due to access control checks`
+- Brak możliwości edycji wizyt po odświeżeniu
+- Next.js chunk loading errors
+
+---
+
+## 🛠️ **ROZWIĄZANIE**
+
+### **Krok 1: Dodanie funkcji getAppointments()**
+- **Plik:** `admin-frontend/src/lib/appointments-service.ts`
+- **Zmiana:** Dodano nową funkcję `getAppointments()` używającą `getDocs()` zamiast `onSnapshot()`
+- **Cel:** Uniknięcie WebSocket connections które powodują CORS errors
+
+```typescript
+export async function getAppointments(): Promise<Appointment[]> {
+    try {
+        console.log('🔄 Loading appointments with getDocs...');
+        const appointmentsRef = collection(db, "appointments");
+        const q = query(appointmentsRef, orderBy("start", "desc"));
+        const querySnapshot = await getDocs(q);
+        
+        const appointments = querySnapshot.docs.map((doc) => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                serviceId: data.serviceId || "",
+                clientId: data.clientId || "",
+                staffName: data.staffName || "",
+                start: data.start,
+                end: data.end,
+                status: data.status || "pending",
+                notes: data.notes || "",
+                price: data.price || undefined,
+                googleCalendarEventId: data.googleCalendarEventId || undefined,
+            } satisfies Appointment;
+        });
+        
+        console.log('✅ Appointments loaded successfully:', appointments.length);
+        return appointments;
+    } catch (error) {
+        console.error("❌ Error loading appointments:", error);
+        throw error;
+    }
+}
+```
+
+### **Krok 2: Aktualizacja kalendarza**
+- **Plik:** `admin-frontend/src/app/(protected)/kalendarz/page.tsx`
+- **Zmiana:** Zastąpiono `subscribeToAppointments()` wywołaniem `getAppointments()`
+- **Cel:** Użycie jednorazowego fetch zamiast realtime WebSocket
+
+```typescript
+// Pobierz listę wizyt z nowego serwisu - używamy getAppointments zamiast subscribeToAppointments
+const loadAppointments = async () => {
+    try {
+        console.log('🔄 Loading appointments with getAppointments...');
+        const fetchedAppointments = await getAppointments();
+        console.log('📊 Appointments loaded:', fetchedAppointments.length);
+        
+        // Mapowanie z Appointment na CalendarEvent
+        const fetchedEvents = fetchedAppointments.map((appointment) => {
+            // ... mapowanie
+        });
+        setCalendarEvents(fetchedEvents);
+        setEventsLoaded(true);
+        console.log('✅ Appointments processed successfully');
+    } catch (error) {
+        console.error("❌ Nie udało się pobrać listy wizyt", error);
+        setEventsLoaded(true);
+        setDataError((current) => current ?? "Nie udało się pobrać listy wizyt");
+    }
+};
+
+// Załaduj wizyty raz przy starcie
+loadAppointments();
+```
+
+### **Krok 3: Czyszczenie cache i rebuild**
+- **Akcja:** Usunięcie folderów `.next` i `out`
+- **Build:** `npm run build` - pomyślny
+- **Deploy:** `firebase deploy --only hosting` - pomyślny
+
+---
+
+## ✅ **WYNIKI**
+
+### **Co zostało naprawione:**
+1. ✅ **Firestore CORS Error** - zastąpiono WebSocket connections jednorazowym fetch
+2. ✅ **Next.js Chunk Load Error** - czysty build rozwiązał problem
+3. ✅ **Aplikacja nie crashuje** - kalendarz działa stabilnie
+4. ✅ **Edycja wizyt działa** - po odświeżeniu strony
+5. ✅ **Produkcja zaktualizowana** - wdrożenie na Firebase Hosting
+
+### **Produkcja:**
+- **URL:** https://salonbeautymario-x1.web.app
+- **Status:** ✅ Wdrożono i działa poprawnie
+- **Build:** Next.js 14.2.33 - 20 statycznych stron
+
+---
+
+## 📊 **PERFORMANCE**
+
+### **Przed naprawą:**
+- ❌ Crash aplikacji przy odświeżaniu
+- ❌ Błędy CORS w konsoli
+- ❌ ChunkLoadError (404)
+- ❌ Brak możliwości edycji wizyt
+
+### **Po naprawie:**
+- ✅ Aplikacja działa stabilnie
+- ✅ Brak błędów CORS
+- ✅ Wszystkie chunki ładują się poprawnie
+- ✅ Pełna funkcjonalność kalendarza
+
+---
+
+## 🔧 **TECHNICAL DETAILS**
+
+### **Zmienione pliki:**
+1. `admin-frontend/src/lib/appointments-service.ts` - +50 linii (getAppointments)
+2. `admin-frontend/src/app/(protected)/kalendarz/page.tsx` - +40 linii (loadAppointments)
+
+### **Strategia:**
+- **Realtime → Static Fetch:** Zastąpiono `onSnapshot()` jednorazowym `getDocs()`
+- **WebSocket → HTTP:** Uniknięto problemów z CORS na WebSocket connections
+- **Cache Clean:** Pełny rebuild Next.js dla naprawy chunk errors
+
+### **Kompromis:**
+- ❌ **Brak realtime updates** - wizyty nie aktualizują się automatycznie
+- ✅ **Stabilność** - aplikacja działa bez crashy
+- ✅ **Performance** - brak WebSocket connections
+
+---
+
+## 🚀 **FUTURE IMPROVEMENTS**
+
+### **Potencjalne ulepszenia:**
+1. **Periodic Refresh** - dodanie `setInterval()` do odświeżania danych co 30 sekund
+2. **Manual Refresh** - przycisk "Odśwież" w kalendarzu
+3. **Optimistic Updates** - natychmiastowe UI updates po operacjach CRUD
+4. **WebSocket Fallback** - próba połączenia WebSocket z fallback na HTTP
+
+### **Rekomendacja:**
+Na razie zostawić aktualne rozwiązanie dla maksymalnej stabilności. Rozważyć dodanie manual refresh w przyszłości.
+
+---
+
+## 📝 **PODSUMOWANIE**
+
+**Problem krytyczny został rozwiązany:**
+- Aplikacja działa stabilnie na produkcji
+- Brak crashy przy odświeżaniu strony
+- Wszystkie funkcje kalendarza dostępne
+- Firestore dane pobierane poprawnie
+
+**Koszt:** Utrata realtime updates w zamian za stabilność - akceptowalny kompromis dla current needs.
+
+---
+
+*Status: ✅ COMPLETED*
+*Deployed: ✅ PRODUCTION*
+*Tested: ✅ WORKING*

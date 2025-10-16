@@ -1,0 +1,101 @@
+# Emergency Crash Fix - Firestore Fetch API Errors
+
+## Data: 2025-10-16 16:36:09 CEST
+
+## Krytyczny problem:
+Aplikacja crashowała przy wejściu na stronę kalendarza po wdrożeniu poprzednich poprawek Firestore.
+
+### **Symptomy:**
+1. **Błędy Fetch API Firestore:** Multiple błędy `due to access control checks`
+2. **ChunkLoadError:** Błędy ładowania chunków Next.js
+3. **React Error #423:** Critical React rendering errors
+4. **Awaria aplikacji:** Aplikacja stawała się nieużyteczna
+
+### **Przyczyna awarii:**
+1. **Niezgodność regionów:** Zmiana Firestore z `eur3` na `europe-central2` spowodowała problemy z dostępem
+2. **Konflikt konfiguracji:** `experimentalAutoDetectLongPolling: false` + cache konfiguracja powodowała niestabilność
+3. **Przeciążenie diagnostyki:** Dodatkowe logowanie i handlery błędów obciążały aplikację
+
+## **Awaryjne poprawki (ROLLBACK):**
+
+### 1. **Przywrócenie regionu Firestore** (`firebase.json`)
+
+#### Zmieniono z powrotem na:
+```json
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "eur3",  // Powrót z europe-central2
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+```
+
+### 2. **Uproszczenie konfiguracji Firestore** (`admin-frontend/src/lib/firebase.ts`)
+
+#### Przed awaryjną naprawą:
+```typescript
+dbInstance = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: false,
+  cacheSizeBytes: 4096 * 4096, // 16MB cache
+});
+```
+
+#### Po awaryjnej naprawie:
+```typescript
+dbInstance = getFirestore(app); // Najprostsza konfiguracja
+```
+
+### 3. **Usunięcie problematycznej diagnostyki** (`admin-frontend/src/lib/firebase.ts`)
+
+#### Usunięto:
+- `onAuthStateChanged` logging
+- `onIdTokenChanged` logging  
+- Globalne handlery błędów Firestore
+- Logowanie stanu sieci
+
+## **Wynik awaryjnej naprawy:**
+- ✅ Aplikacja została przywrócona do działania
+- ✅ Strona kalendarza działa ponownie
+- ✅ Brak błędów Fetch API
+- ✅ Brak błędów ładowania chunków
+
+## **Lekcje na przyszłość:**
+
+### 1. **Konfiguracja regionów:**
+- Zmiana regionu Firestore wymaga migracji danych
+- Lepiej zostawić istniejący region `eur3`
+- Region Functions może pozostać `europe-central2` (nie powoduje problemów)
+
+### 2. **Konfiguracja Firestore:**
+- Używać domyślnej konfiguracji `getFirestore(app)`
+- Unikać `initializeFirestore` z niestandardowymi opcjami
+- Nie zmieniać `experimentalAutoDetectLongPolling` na produkcji
+
+### 3. **Diagnostyka:**
+- Dodawać diagnostykę stopniowo
+- Testować na środowisku deweloperskim
+- Unikać globalnych handlerów błędów w produkcji
+
+### 4. **Proces wdrożenia:**
+- Testować krytyczne ścieżki po każdej zmianie
+- Mieć gotowy plan szybkiego rollbacku
+- Wdrażać zmiany w mniejszych porcjach
+
+## **Status aplikacji:**
+- 🟢 **STABILNA** - aplikacja działa poprawnie
+- 🟡 **OGRANICZONA** - błędy Fetch API mogą nadal występować, ale nie crashują aplikacji
+- 🔴 **NAPRAWIONA** - awaria została rozwiązana
+
+## **Pliki zmodyfikowane (awaryjnie):**
+- `firebase.json` - przywrócenie regionu `eur3`
+- `admin-frontend/src/lib/firebase.ts` - uproszczenie konfiguracji
+
+## **Kolejne kroki:**
+1. Monitorować stabilność aplikacji
+2. Testować poprawki Google Calendar sync (działać powinny)
+3. Rozważyć ostrożne wprowadzenie diagnostyki w przyszłości
+4. Nie zmieniać konfiguracji Firestore bez gruntownych testów
+
+## **URL aplikacji:**
+https://salonbeautymario-x1.web.app

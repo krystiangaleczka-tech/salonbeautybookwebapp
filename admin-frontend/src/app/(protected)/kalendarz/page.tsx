@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition, useRef } from "react";
+import { useEffect, useMemo, useState, useTransition, useRef, useCallback } from "react";
 import {
   AlarmClock,
   CalendarDays,
@@ -24,7 +24,7 @@ import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import type { ToneKey } from "@/lib/dashboard-theme";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query, Timestamp, getDoc, doc } from "firebase/firestore";
-import { createAppointment, subscribeToAppointments, updateAppointment, deleteAppointment, updateGoogleCalendarEventId, type Appointment } from "@/lib/appointments-service";
+import { createAppointment, subscribeToAppointments, getAppointments, updateAppointment, deleteAppointment, updateGoogleCalendarEventId, type Appointment } from "@/lib/appointments-service";
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
 import { usePendingTimeChanges } from "@/hooks/usePendingTimeChanges";
@@ -1206,6 +1206,9 @@ export default function CalendarPage() {
           // Nie przerywaj procesu, jeśli synchronizacja się nie udała
         }
         
+        // ✅ DODAJ TO - Reload appointments
+        await loadAppointments();
+        
         setAppointmentFormSuccess("Zmiany czasu wizyty zostały pomyślnie zatwierdzone i zapisane.");
         
         // Wyczyść komunikat po 2 sekundach
@@ -1462,6 +1465,9 @@ export default function CalendarPage() {
           // Nie przerywaj procesu, jeśli synchronizacja się nie udała
         }
         
+        // ✅ DODAJ TO - Reload appointments
+        await loadAppointments();
+        
         setEditFormSuccess("Wizyta została pomyślnie zaktualizowana.");
         
         // Zamknij modal po 2 sekundach
@@ -1495,6 +1501,10 @@ export default function CalendarPage() {
           
           // Usuń wizytę z Firebase
           await deleteAppointment(appointmentId);
+          
+          // ✅ DODAJ TO - Reload appointments
+          await loadAppointments();
+          
           setAppointmentFormSuccess("Wizyta została pomyślnie usunięta.");
           
           // Wyczyść komunikat po 2 sekundach
@@ -1638,6 +1648,50 @@ export default function CalendarPage() {
     });
   }, [calendarEvents, filters, employees, customers, calendarServices]);
 
+  // Pobierz listę wizyt z nowego serwisu
+  const loadAppointments = useCallback(async () => {
+    try {
+      console.log('🔄 Loading appointments with getAppointments...');
+      const fetchedAppointments = await getAppointments();
+      console.log('📊 Appointments loaded:', fetchedAppointments.length);
+      
+      // Mapowanie z Appointment na CalendarEvent
+      const fetchedEvents = fetchedAppointments.map((appointment) => {
+        // Znajdź nazwę klienta
+        const customer = customers.find((c) => c.id === appointment.clientId);
+        const clientName = customer ? customer.fullName : "Nieznany klient";
+        
+        // Znajdź nazwę usługi
+        const service = calendarServices.find((s) => s.id === appointment.serviceId);
+        
+        return {
+          id: appointment.id,
+          serviceId: appointment.serviceId,
+          clientName,
+          staffName: appointment.staffName,
+          start: appointment.start.toDate().toISOString(),
+          end: appointment.end.toDate().toISOString(),
+          status: appointment.status,
+          price: appointment.price ? formatPrice(appointment.price) : undefined,
+          offline: false,
+          notes: appointment.notes,
+          googleCalendarEventId: appointment.googleCalendarEventId,
+          isGoogleSynced: !!appointment.googleCalendarEventId,
+        } satisfies CalendarEvent;
+      });
+      
+      setCalendarEvents(fetchedEvents);
+      setEventsLoaded(true);
+      console.log('✅ Appointments processed successfully');
+    } catch (error) {
+      console.error("❌ Nie udało się pobrać listy wizyt", error);
+      setEventsLoaded(true);
+      setDataError((current) => current ?? "Nie udało się pobrać listy wizyt");
+    }
+  }, [customers, calendarServices]);
+  
+  // ✅ POPRAWKA - Usunięto podwójne wywołanie loadAppointments()
+
   useEffect(() => {
     const servicesQuery = collection(db, "services");
     const unsubscribeServices = onSnapshot(
@@ -1663,43 +1717,11 @@ export default function CalendarPage() {
         setDataError((current) => current ?? "Nie udało się pobrać listy usług");
       }
     );
-
-    // Pobierz listę wizyt z nowego serwisu
-    const unsubscribeAppointments = subscribeToAppointments(
-      (fetchedAppointments) => {
-        // Mapowanie z Appointment na CalendarEvent
-        const fetchedEvents = fetchedAppointments.map((appointment) => {
-          // Znajdź nazwę klienta
-          const customer = customers.find(c => c.id === appointment.clientId);
-          const clientName = customer ? customer.fullName : "Nieznany klient";
-          
-          // Znajdź nazwę usługi
-          const service = calendarServices.find(s => s.id === appointment.serviceId);
-          
-          return {
-            id: appointment.id,
-            serviceId: appointment.serviceId,
-            clientName,
-            staffName: appointment.staffName,
-            start: appointment.start.toDate().toISOString(),
-            end: appointment.end.toDate().toISOString(),
-            status: appointment.status,
-            price: appointment.price ? formatPrice(appointment.price) : undefined,
-            offline: false, // Nowe wizyty nie są offline
-            notes: appointment.notes,
-            googleCalendarEventId: appointment.googleCalendarEventId,
-            isGoogleSynced: !!appointment.googleCalendarEventId,
-          } satisfies CalendarEvent;
-        });
-        setCalendarEvents(fetchedEvents);
-        setEventsLoaded(true);
-      },
-      (error) => {
-        console.error("Nie udało się pobrać listy wizyt", error);
-        setEventsLoaded(true);
-        setDataError((current) => current ?? "Nie udało się pobrać listy wizyt");
-      }
-    );
+    
+    // Symuluj unsubscribe dla kompatybilności
+    const unsubscribeAppointments = () => {
+      console.log('🔄 Unsubscribing from appointments (noop)');
+    };
 
     // Pobierz listę klientów
     const unsubscribeCustomers = subscribeToCustomers(
@@ -1731,7 +1753,14 @@ export default function CalendarPage() {
       unsubscribeCustomers();
       unsubscribeEmployees();
     };
-  }, [customers, calendarServices]);
+  }, []); // Puste dependencies - wykonaj raz
+
+  // ✅ NOWY - załaduj appointments gdy dane są gotowe
+  useEffect(() => {
+    if (customersLoaded && servicesLoaded) {
+      loadAppointments();
+    }
+  }, [customersLoaded, servicesLoaded, loadAppointments]);
 
   const loadingData = !servicesLoaded || !eventsLoaded;
 
@@ -2397,6 +2426,9 @@ export default function CalendarPage() {
                           console.error('❌ Google Calendar sync error:', googleError);
                           // Nie przerywaj procesu, jeśli synchronizacja się nie udała
                         }
+                        
+                        // ✅ DODAJ TO - Reload appointments
+                        await loadAppointments();
                         
                         setAppointmentFormSuccess("Wizyta została pomyślnie dodana.");
                         

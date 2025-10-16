@@ -1,0 +1,161 @@
+# Firestore Fetch API Diagnostics and Fixes
+
+## Data: 2025-10-16 16:36:09 CEST
+
+## Problem:
+Użytkownik zgłosił błędy Fetch API Firestore po odświeżeniu stron, szczególnie na stronach ustawień i kalendarza:
+
+```
+Fetch API cannot load https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen/channel?gsessionid=... due to access control checks.
+```
+
+## Analiza przyczyn:
+
+### 1. **Niezgodność regionów:**
+- Firestore: `eur3` (Europa Zachodnia)
+- Functions: `europe-central2` (Frankfurt)
+- Firebase Auth: domyślnie w USA
+
+### 2. **Problem z konfiguracją Firestore:**
+- Używany `experimentalAutoDetectLongPolling: true` powodujący problemy na produkcji
+- Brak odpowiedniej obsługi błędów sieciowych
+
+### 3. **Brak diagnostyki:**
+- Brak logowania stanu uwierzytelniania
+- Brak przechwytywania błędów Firestore
+
+## Przeprowadzone poprawki:
+
+### 1. **Poprawa konfiguracji Firestore** (`admin-frontend/src/lib/firebase.ts`)
+
+#### Przed:
+```typescript
+dbInstance = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+});
+```
+
+#### Po:
+```typescript
+dbInstance = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: false,
+  cacheSizeBytes: 4096 * 4096, // 16MB cache
+});
+```
+
+### 2. **Dodanie diagnostyki uwierzytelniania** (`admin-frontend/src/lib/firebase.ts`)
+
+```typescript
+// Dodaj diagnostykę uwierzytelniania
+if (typeof window !== "undefined") {
+  auth.onAuthStateChanged((user) => {
+    if (user) {
+      console.log('✅ Firebase Auth: User authenticated', user.uid);
+      // Sprawdź token
+      user.getIdToken().then((token) => {
+        console.log('✅ Firebase Auth: Token valid');
+      }).catch((error) => {
+        console.error('❌ Firebase Auth: Token error', error);
+      });
+    } else {
+      console.log('⚠️ Firebase Auth: User not authenticated');
+    }
+  });
+
+  // Obsługa błędów uwierzytelniania
+  auth.onIdTokenChanged(() => {
+    console.log('🔄 Firebase Auth: Token changed');
+  });
+}
+```
+
+### 3. **Dodanie globalnych handlerów błędów** (`admin-frontend/src/lib/firebase.ts`)
+
+```typescript
+// Dodaj globalny handler błędów Firestore
+if (typeof window !== "undefined") {
+  // Przechwytuj błędy sieciowe Firestore
+  window.addEventListener('error', (event) => {
+    if (event.message && event.message.includes('firestore.googleapis.com')) {
+      console.error('❌ Firestore Network Error:', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        online: navigator.onLine
+      });
+    }
+  });
+
+  // Przechwytuj błędy Promise ( Firestore używa Promise )
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason && event.reason.message && event.reason.message.includes('firestore.googleapis.com')) {
+      console.error('❌ Firestore Promise Rejection:', {
+        reason: event.reason,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        online: navigator.onLine
+      });
+    }
+  });
+
+  // Logowanie stanu połączenia
+  window.addEventListener('online', () => {
+    console.log('🌐 Network: Online');
+  });
+
+  window.addEventListener('offline', () => {
+    console.log('📵 Network: Offline');
+  });
+}
+```
+
+### 4. **Ujednolicenie regionów Firebase** (`firebase.json`)
+
+#### Przed:
+```json
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "eur3",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+```
+
+#### Po:
+```json
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "europe-central2",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+```
+
+## Wdrożenie:
+- Zmiany zostały zbudowane pomyślnie (`npm run build`)
+- Wdrożone na Firebase Hosting (`firebase deploy --only hosting`)
+- Aplikacja dostępna pod adresem: https://salonbeautymario-x1.web.app
+
+## Oczekiwane rezultaty:
+1. **Eliminacja błędów Fetch API:** Poprawa konfiguracji Firestore powinna rozwiązać problemy z dostępem
+2. **Lepsza diagnostyka:** Logi pomogą zidentyfikować przyczyny przyszłych problemów
+3. **Spójność regionów:** Ujednolicenie regionów powinno poprawić komunikację między usługami
+
+## Monitorowanie:
+- W konsoli przeglądarki pojawią się szczegółowe logi diagnostyczne
+- Błędy Firestore będą teraz lepiej dokumentowane
+- Stan uwierzytelniania będzie monitorowany w czasie rzeczywistym
+
+## Pliki zmodyfikowane:
+- `admin-frontend/src/lib/firebase.ts` - poprawa konfiguracji i dodanie diagnostyki
+- `firebase.json` - zmiana regionu Firestore na `europe-central2`
+
+## Uwagi:
+- Zmiana regionu Firestore może wymagać ponownego wdrożenia reguł i indeksów
+- Diagnostyka została dodana tylko dla środowiska przeglądarki (typeof window !== "undefined")
+- Dodatkowe logowanie można usunąć po rozwiązaniu problemów z wydajnością

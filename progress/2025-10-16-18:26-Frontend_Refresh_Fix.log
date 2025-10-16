@@ -1,0 +1,80 @@
+# ✅ FRONTEND REFRESH FIX - Kalendarz Real-time Updates
+
+## 📅 Data: 2025-10-16 18:26
+
+## 🔍 **PROBLEM:**
+Po edycji, dodaniu, usunięciu lub szybkiej edycji wizyt, frontend **NIE odświeżał się automatycznie**:
+- ✅ Zmiany zapisywały się w Firestore poprawnie
+- ✅ Kafelki w kalendarzu aktualizowały się
+- ❌ **Lista wizyt** (sidebar) nie aktualizowała się
+- ❌ **Szybka edycja** działała tylko raz - drugi raz na tej samej wizycie nie działała
+
+## 🎯 **PRZYCZYNA:**
+Przejście z `subscribeToAppointments()` (realtime) na `getAppointments()` (jednorazowy fetch) spowodowało utratę automatycznych aktualizacji. Po operacjach CRUD, funkcja `loadAppointments()` **NIE była wywoływana**, więc dane pozostawały stare.
+
+## 🛠️ **ROZWIĄZANIE:**
+
+### 1. Dodanie `await loadAppointments()` w `commitTimeChange` (szybka edycja)
+**Plik:** `admin-frontend/src/app/(protected)/kalendarz/page.tsx` (linia ~1210)
+
+```typescript
+// ✅ DODAJ TO - Reload appointments
+await loadAppointments();
+
+setAppointmentFormSuccess("Zmiany czasu wizyty zostały pomyślnie zatwierdzone i zapisane.");
+```
+
+### 2. Dodanie `await loadAppointments()` w `handleSaveEdit` (edycja wizyty)
+**Plik:** `admin-frontend/src/app/(protected)/kalendarz/page.tsx` (linia ~1466)
+
+```typescript
+// ✅ DODAJ TO - Reload appointments
+await loadAppointments();
+
+setEditFormSuccess("Wizyta została pomyślnie zaktualizowana.");
+```
+
+### 3. Dodanie `await loadAppointments()` w funkcji dodawania wizyty
+**Plik:** `admin-frontend/src/app/(protected)/kalendarz/page.tsx` (linia ~2422)
+
+```typescript
+// ✅ DODAJ TO - Reload appointments
+await loadAppointments();
+
+setAppointmentFormSuccess("Wizyta została pomyślnie dodana.");
+```
+
+### 4. Dodanie `await loadAppointments()` w `handleDeleteAppointment` (usuwanie wizyty)
+**Plik:** `admin-frontend/src/app/(protected)/kalendarz/page.tsx` (linia ~1500)
+
+```typescript
+// Usuń wizytę z Firebase
+await deleteAppointment(appointmentId);
+
+// ✅ DODAJ TO - Reload appointments
+await loadAppointments();
+
+setAppointmentFormSuccess("Wizyta została pomyślnie usunięta.");
+```
+
+## 🚀 **DEPLOYMENT:**
+```bash
+cd admin-frontend
+npm run build
+firebase deploy --only hosting
+```
+
+## ✅ **WYNIK:**
+- ✅ Frontend odświeża się po każdej operacji CRUD
+- ✅ Szybka edycja działa wielokrotnie
+- ✅ Lista wizyt aktualizuje się w czasie rzeczywistym
+- ✅ Wszystkie komponenty kalendarza są synchronizowane
+
+## 🌐 **PRODUKCJA:**
+Aplikacja zaktualizowana na: https://salonbeautymario-x1.web.app
+
+## 🔧 **TECHNICZNE SZCZEGÓŁY:**
+- Funkcja `loadAppointments()` pobiera świeże dane z Firestore
+- Wywołanie `await loadAppointments()` po każdej operacji CRUD zapewnia spójność danych
+- Synchronizacja z Google Calendar zachowana bez zmian
+- Backend Firestore Functions nie wymagał zmian

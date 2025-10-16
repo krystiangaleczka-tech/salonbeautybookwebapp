@@ -22,9 +22,7 @@ let dbInstance: Firestore;
 
 if (typeof window !== "undefined") {
   try {
-    dbInstance = initializeFirestore(app, {
-      experimentalAutoDetectLongPolling: true,
-    });
+    dbInstance = getFirestore(app);
   } catch (error) {
     console.warn("Falling back to default Firestore initialization", error);
     dbInstance = getFirestore(app);
