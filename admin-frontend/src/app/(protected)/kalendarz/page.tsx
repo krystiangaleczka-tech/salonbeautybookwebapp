@@ -946,17 +946,10 @@ function DayAgenda({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (selectedAppointmentId === event.id) {
-                      onEditAppointment(event);
-                    }
+                    onEditAppointment(event);
                   }}
-                  disabled={selectedAppointmentId !== event.id}
-                  className={`inline-flex items-center justify-center rounded-md border p-1 sm:p-1.5 transition-transform hover:-translate-y-0.5 ${
-                    selectedAppointmentId === event.id
-                      ? "border-border text-foreground hover:bg-accent"
-                      : "border-gray-300 text-gray-400 cursor-not-allowed"
-                  }`}
-                  title={selectedAppointmentId === event.id ? "Edytuj wizytę" : "Kliknij w wizytę, aby zaznaczyć"}
+                  className="inline-flex items-center justify-center rounded-md border p-1 sm:p-1.5 transition-transform hover:-translate-y-0.5 border-border text-foreground hover:bg-accent"
+                  title="Edytuj wizytę"
                 >
                   <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </button>
@@ -1145,9 +1138,7 @@ export default function CalendarPage() {
 
     startTransition(async () => {
       try {
-        await commitChange(appointmentId);
-        
-        // Aktualizuj wizytę z efektywnym czasem zakończenia
+        // ✅ POPRAWKA: Najpierw aktualizuj wizytę w bazie danych
         await updateAppointment(appointmentId, {
           serviceId: pendingChange.serviceId,
           clientId: pendingChange.clientId,
@@ -1158,6 +1149,62 @@ export default function CalendarPage() {
           notes: pendingChange.notes,
           price: pendingChange.price
         });
+        
+        // ✅ POPRAWKA: Potem zatwierdź zmianę w hooku (usunięcie oczekującej zmiany)
+        await commitChange(appointmentId);
+        
+        // ✅ NOWY KOD - synchronizacja z Google Calendar dla szybkich zmian czasu
+        try {
+          const originalAppointment = calendarEvents.find(e => e.id === appointmentId);
+          const selectedCustomer = customers.find(c => c.id === pendingChange.clientId);
+          const selectedService = calendarServices.find(s => s.id === pendingChange.serviceId);
+          
+          if (selectedCustomer && selectedService) {
+            if (originalAppointment?.googleCalendarEventId) {
+              // Ma googleCalendarEventId - normalna aktualizacja
+              try {
+                await googleCalendarService.updateGoogleCalendarEvent({
+                  googleCalendarEventId: originalAppointment.googleCalendarEventId,
+                  appointment: {
+                    id: appointmentId,
+                    serviceId: pendingChange.serviceId,
+                    clientId: pendingChange.clientId,
+                    staffName: pendingChange.staffName,
+                    start: pendingChange.newStart,
+                    end: effectiveEndDateTime,
+                    status: pendingChange.status,
+                    notes: pendingChange.notes?.trim() || undefined,
+                  },
+                  clientEmail: selectedCustomer.email,
+                  serviceName: selectedService.name,
+                  clientName: selectedCustomer.fullName,
+                });
+                console.log('✅ Google Calendar event updated for time change');
+              } catch (err) {
+                console.error('❌ Failed to update Google Calendar event:', err);
+              }
+            } else {
+              // NIE MA googleCalendarEventId - auto-sync (pierwsza synchronizacja)
+              console.log('⚠️ Appointment missing googleCalendarEventId - syncing for the first time');
+              
+              try {
+                const syncResult = await googleCalendarService.syncAppointment(appointmentId);
+                
+                if (syncResult.success && syncResult.googleEventId) {
+                  // Zapisz googleEventId do Firestore
+                  await googleCalendarService.updateGoogleCalendarEventId(appointmentId, syncResult.googleEventId);
+                  console.log('✅ First-time sync successful for time change:', syncResult.googleEventId);
+                }
+              } catch (err) {
+                console.error('❌ Auto-sync failed for time change:', err);
+                // Nie blokuj edycji - po prostu nie zsynchronizowano
+              }
+            }
+          }
+        } catch (googleError) {
+          console.warn("Nie udało się zsynchronizować z Google Calendar:", googleError);
+          // Nie przerywaj procesu, jeśli synchronizacja się nie udała
+        }
         
         setAppointmentFormSuccess("Zmiany czasu wizyty zostały pomyślnie zatwierdzone i zapisane.");
         

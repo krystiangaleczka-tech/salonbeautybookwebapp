@@ -1,0 +1,72 @@
+# Google Calendar Quick Edit Sync Implementation
+
+## Data: 2025-10-16 16:36:09 CEST
+
+## Cel:
+Implementacja synchronizacji z Google Calendar dla szybkich zmian czasu (+/- 5 min) w kalendarzu.
+
+## Problem:
+Użytkownik zgłosił, że szybka edycja czasu wizyty (+/- 5 min) nie synchronizuje się z Google Calendar, podczas gdy normalna edycja przez modal działa poprawnie.
+
+## Przeprowadzone prace:
+
+### 1. Analiza problemu
+- Zidentyfikowano, że funkcja `commitTimeChange` (linia 1118) nie ma synchronizacji z Google Calendar
+- Funkcja `handleSaveEdit` (linia 1307) ma już zaimplementowany auto-sync
+- Szybkie zmiany czasu używają innej logiki niż normalna edycja
+
+### 2. Implementacja rozwiązania
+- Dodano logikę synchronizacji do funkcji `commitTimeChange` w pliku `admin-frontend/src/app/(protected)/kalendarz/page.tsx`
+- Sprawdzanie czy wizyta ma `googleCalendarEventId`
+- Aktualizacja istniejących wydarzeń w Google Calendar
+- Auto-sync dla wizyt bez `googleCalendarEventId` (pierwsza synchronizacja)
+- Obsługa błędów bez blokowania operacji
+
+### 3. Szczegóły implementacji
+```typescript
+// Po pomyślnej aktualizacji wizyty w Firestore
+try {
+  const originalAppointment = calendarEvents.find(e => e.id === appointmentId);
+  const selectedCustomer = customers.find(c => c.id === pendingChange.clientId);
+  const selectedService = calendarServices.find(s => s.id === pendingChange.serviceId);
+  
+  if (selectedCustomer && selectedService) {
+    if (originalAppointment?.googleCalendarEventId) {
+      // Aktualizuj istniejące wydarzenie
+      await googleCalendarService.updateGoogleCalendarEvent({...});
+    } else {
+      // Auto-sync dla pierwszej synchronizacji
+      const syncResult = await googleCalendarService.syncAppointment(appointmentId);
+      if (syncResult.success && syncResult.googleEventId) {
+        await googleCalendarService.updateGoogleCalendarEventId(appointmentId, syncResult.googleEventId);
+      }
+    }
+  }
+} catch (googleError) {
+  console.warn("Nie udało się zsynchronizować z Google Calendar:", googleError);
+}
+```
+
+### 4. Testowanie
+- Przeprowadzono testy na produkcji
+- Sprawdzono logi konsoli
+- Potwierdzono poprawne działanie synchronizacji
+
+### 5. Wyniki testów
+Logi z konsoli potwierdziły prawidłowe działanie:
+```
+⚠️ Appointment missing googleCalendarEventId - syncing for the first time
+✅ First-time sync successful for time change: – "of82p7lh6ffukh7q8i29iifaqo"
+✅ Google Calendar event updated for time change
+```
+
+## Wdrożenie:
+- Zmiany zostały zbudowane pomyślnie (`npm run build`)
+- Wdrożone na Firebase Hosting (`firebase deploy --only hosting`)
+- Aplikacja dostępna pod adresem: https://salonbeautymario-x1.web.app
+
+## Podsumowanie:
+Szybkie zmiany czasu (+/- 5 min) teraz automatycznie synchronizują się z Google Calendar, tak samo jak normalna edycja przez modal. System obsługuje zarówno pierwszą synchronizację, jak i aktualizacje istniejących wydarzeń.
+
+## Pliki zmodyfikowane:
+- `admin-frontend/src/app/(protected)/kalendarz/page.tsx` (linia 1139)
