@@ -1153,57 +1153,52 @@ export default function CalendarPage() {
         // ✅ POPRAWKA: Potem zatwierdź zmianę w hooku (usunięcie oczekującej zmiany)
         await commitChange(appointmentId);
         
-        // ✅ NOWY KOD - synchronizacja z Google Calendar dla szybkich zmian czasu
-        try {
-          const originalAppointment = calendarEvents.find(e => e.id === appointmentId);
-          const selectedCustomer = customers.find(c => c.id === pendingChange.clientId);
-          const selectedService = calendarServices.find(s => s.id === pendingChange.serviceId);
-          
-          if (selectedCustomer && selectedService) {
-            if (originalAppointment?.googleCalendarEventId) {
-              // Ma googleCalendarEventId - normalna aktualizacja
-              try {
-                await googleCalendarService.updateGoogleCalendarEvent({
-                  googleCalendarEventId: originalAppointment.googleCalendarEventId,
-                  appointment: {
-                    id: appointmentId,
-                    serviceId: pendingChange.serviceId,
-                    clientId: pendingChange.clientId,
-                    staffName: pendingChange.staffName,
-                    start: pendingChange.newStart,
-                    end: effectiveEndDateTime,
-                    status: pendingChange.status,
-                    notes: pendingChange.notes?.trim() || undefined,
-                  },
-                  clientEmail: selectedCustomer.email,
-                  serviceName: selectedService.name,
-                  clientName: selectedCustomer.fullName,
-                });
-                console.log('✅ Google Calendar event updated for time change');
-              } catch (err) {
-                console.error('❌ Failed to update Google Calendar event:', err);
-              }
-            } else {
-              // NIE MA googleCalendarEventId - auto-sync (pierwsza synchronizacja)
-              console.log('⚠️ Appointment missing googleCalendarEventId - syncing for the first time');
-              
-              try {
-                const syncResult = await googleCalendarService.syncAppointment(appointmentId);
-                
+        // ✅ Synchronizuj z Google Calendar W TLE (nie czekaj)
+        const originalAppointment = calendarEvents.find(e => e.id === appointmentId);
+        const selectedCustomer = customers.find(c => c.id === pendingChange.clientId);
+        const selectedService = calendarServices.find(s => s.id === pendingChange.serviceId);
+        
+        if (selectedCustomer && selectedService) {
+          if (originalAppointment?.googleCalendarEventId) {
+            // Ma googleCalendarEventId - normalna aktualizacja W TLE
+            googleCalendarService.updateGoogleCalendarEvent({
+              googleCalendarEventId: originalAppointment.googleCalendarEventId,
+              appointment: {
+                id: appointmentId,
+                serviceId: pendingChange.serviceId,
+                clientId: pendingChange.clientId,
+                staffName: pendingChange.staffName,
+                start: pendingChange.newStart,
+                end: effectiveEndDateTime,
+                status: pendingChange.status,
+                notes: pendingChange.notes?.trim() || undefined,
+              },
+              clientEmail: selectedCustomer.email,
+              serviceName: selectedService.name,
+              clientName: selectedCustomer.fullName,
+            })
+            .then(() => {
+              console.log('✅ Google Calendar event updated for time change');
+            })
+            .catch((err) => {
+              console.error('❌ Failed to update Google Calendar event:', err);
+            });
+          } else {
+            // NIE MA googleCalendarEventId - auto-sync W TLE
+            console.log('Appointment missing googleCalendarEventId - syncing in background');
+            googleCalendarService.syncAppointment(appointmentId)
+              .then((syncResult) => {
                 if (syncResult.success && syncResult.googleEventId) {
-                  // Zapisz googleEventId do Firestore
-                  await googleCalendarService.updateGoogleCalendarEventId(appointmentId, syncResult.googleEventId);
-                  console.log('✅ First-time sync successful for time change:', syncResult.googleEventId);
+                  return googleCalendarService.updateGoogleCalendarEventId(appointmentId, syncResult.googleEventId);
                 }
-              } catch (err) {
+              })
+              .then(() => {
+                console.log('✅ First-time sync successful for time change');
+              })
+              .catch((err) => {
                 console.error('❌ Auto-sync failed for time change:', err);
-                // Nie blokuj edycji - po prostu nie zsynchronizowano
-              }
-            }
+              });
           }
-        } catch (googleError) {
-          console.warn("Nie udało się zsynchronizować z Google Calendar:", googleError);
-          // Nie przerywaj procesu, jeśli synchronizacja się nie udała
         }
         
         // ✅ DODAJ TO - Reload appointments
@@ -1414,55 +1409,47 @@ export default function CalendarPage() {
           notes: editForm.notes?.trim() || "",
         });
         
-        // ✅ NOWY KOD - z auto-sync
-        try {
-          const selectedCustomer = customers.find(c => c.id === editForm.clientId);
-          const selectedService = calendarServices.find(s => s.id === editForm.serviceId);
-          
-          if (selectedCustomer && selectedService) {
-            if (originalAppointment?.googleCalendarEventId) {
-              // Ma googleCalendarEventId - normalna aktualizacja
-              try {
-                await googleCalendarService.updateGoogleCalendarEvent({
-                  googleCalendarEventId: originalAppointment.googleCalendarEventId,
-                  appointment: {
-                    id: editingAppointmentId,
-                    serviceId: editForm.serviceId,
-                    clientId: editForm.clientId,
-                    staffName: editForm.staffName,
-                    start: startDateTime,
-                    end: effectiveEndDateTime,
-                    status: "confirmed",
-                    notes: editForm.notes.trim() || undefined,
-                  },
-                  clientEmail: selectedCustomer.email,
-                  serviceName: selectedService.name,
-                  clientName: selectedCustomer.fullName,
-                });
-              } catch (err) {
-                console.error('❌ Failed to update Google Calendar event:', err);
-              }
-            } else {
-              // NIE MA googleCalendarEventId - auto-sync (pierwsza synchronizacja)
-              console.log('⚠️ Appointment missing googleCalendarEventId - syncing for the first time');
-              
-              try {
-                const syncResult = await googleCalendarService.syncAppointment(editingAppointmentId);
-                
+        // ✅ Synchronizuj z Google Calendar W TLE (nie czekaj)
+        const selectedCustomer = customers.find(c => c.id === editForm.clientId);
+        const selectedService = calendarServices.find(s => s.id === editForm.serviceId);
+        
+        if (selectedCustomer && selectedService) {
+          if (originalAppointment?.googleCalendarEventId) {
+            // Ma googleCalendarEventId - normalna aktualizacja W TLE
+            googleCalendarService.updateGoogleCalendarEvent({
+              googleCalendarEventId: originalAppointment.googleCalendarEventId,
+              appointment: {
+                id: editingAppointmentId,
+                serviceId: editForm.serviceId,
+                clientId: editForm.clientId,
+                staffName: editForm.staffName,
+                start: startDateTime,
+                end: effectiveEndDateTime,
+                status: "confirmed",
+                notes: editForm.notes.trim() || undefined,
+              },
+              clientEmail: selectedCustomer.email,
+              serviceName: selectedService.name,
+              clientName: selectedCustomer.fullName,
+            }).catch((err) => {
+              console.error('❌ Failed to update Google Calendar event:', err);
+            });
+          } else {
+            // NIE MA googleCalendarEventId - auto-sync W TLE
+            console.log('Appointment missing googleCalendarEventId - syncing in background');
+            googleCalendarService.syncAppointment(editingAppointmentId)
+              .then((syncResult) => {
                 if (syncResult.success && syncResult.googleEventId) {
-                  // Zapisz googleEventId do Firestore
-                  await googleCalendarService.updateGoogleCalendarEventId(editingAppointmentId, syncResult.googleEventId);
-                  console.log('✅ First-time sync successful:', syncResult.googleEventId);
+                  return googleCalendarService.updateGoogleCalendarEventId(editingAppointmentId, syncResult.googleEventId);
                 }
-              } catch (err) {
+              })
+              .then(() => {
+                console.log('✅ First-time sync successful');
+              })
+              .catch((err) => {
                 console.error('❌ Auto-sync failed:', err);
-                // Nie blokuj edycji - po prostu nie zsynchronizowano
-              }
-            }
+              });
           }
-        } catch (googleError) {
-          console.warn("Nie udało się zsynchronizować z Google Calendar:", googleError);
-          // Nie przerywaj procesu, jeśli synchronizacja się nie udała
         }
         
         // ✅ DODAJ TO - Reload appointments
@@ -1489,14 +1476,15 @@ export default function CalendarPage() {
           // Pobierz wizytę, aby sprawdzić ID Google Calendar
           const appointment = calendarEvents.find(e => e.id === appointmentId);
           
-          // Usuń wydarzenie z Google Calendar, jeśli istnieje
+          // ✅ Usuń wydarzenie z Google Calendar W TLE (nie czekaj)
           if (appointment?.googleCalendarEventId) {
-            try {
-              await googleCalendarService.deleteGoogleCalendarEvent(appointment.googleCalendarEventId);
-            } catch (googleError) {
-              console.warn("Nie udało się usunąć wydarzenia z Google Calendar:", googleError);
-              // Nie przerywaj procesu, jeśli usuwanie z Google się nie udało
-            }
+            googleCalendarService.deleteGoogleCalendarEvent(appointment.googleCalendarEventId)
+              .then(() => {
+                console.log('✅ Google Calendar event deleted');
+              })
+              .catch((googleError) => {
+                console.warn('❌ Nie udało się usunąć wydarzenia z Google Calendar:', googleError);
+              });
           }
           
           // Usuń wizytę z Firebase
@@ -2405,27 +2393,23 @@ export default function CalendarPage() {
                           notes: appointmentForm.notes?.trim() || "",
                         });
                         
-                        // Spróbuj zsynchronizować z Google Calendar
-                        try {
-                          console.log('🔍 Synchronizing appointment to Google Calendar:', newAppointment.id);
-                          const result = await googleCalendarService.syncAppointment(newAppointment.id);
-                          console.log('📊 Sync result:', result);
-                          
-                          if (result.success && result.googleEventId) {
-                            console.log('✅ Saving googleEventId to Firestore:', result.googleEventId);
-                            await updateGoogleCalendarEventId(newAppointment.id, result.googleEventId);
-                            console.log('✅ GoogleEventId saved successfully!');
+                        // ✅ Synchronizuj z Google Calendar W TLE (nie czekaj)
+                        googleCalendarService.syncAppointment(newAppointment.id)
+                          .then((result) => {
+                            console.log('✅ Sync result:', result);
                             
-                            // ✅ DODAJ SPRAWDZENIE:
-                            const updatedDoc = await getDoc(doc(db, 'appointments', newAppointment.id));
-                            console.log('🔍 Updated appointment data:', updatedDoc.data());
-                          } else {
-                            console.log('❌ Sync failed or no googleEventId returned');
-                          }
-                        } catch (googleError) {
-                          console.error('❌ Google Calendar sync error:', googleError);
-                          // Nie przerywaj procesu, jeśli synchronizacja się nie udała
-                        }
+                            if (result.success && result.googleEventId) {
+                              console.log('Saving googleEventId to Firestore:', result.googleEventId);
+                              return updateGoogleCalendarEventId(newAppointment.id, result.googleEventId);
+                            }
+                          })
+                          .then(() => {
+                            console.log('✅ GoogleEventId saved successfully!');
+                          })
+                          .catch((googleError) => {
+                            console.error('❌ Google Calendar sync error:', googleError);
+                            // Sync w tle - nie przerywa dodawania wizyty
+                          });
                         
                         // ✅ DODAJ TO - Reload appointments
                         await loadAppointments();
