@@ -64,10 +64,12 @@ Używaj zmiennych środowiskowych dla konfiguracji
 Unikaj nadmiernych zapytań do bazy danych
 Używaj listenerów do aktualizacji w czasie rzeczywistym zamiast częstego odświeżania
 Stosuj paginację dla dużych zbiorów danych
+✅ **NOWE**: Używaj static fetch (getDocs) zamiast realtime listeners dla stabilności
 15. Obsługa błędów
 Zawsze implementuj obsługę błędów dla operacji Firebase
 Używaj try-catch bloków dla operacji asynchronicznych
 Zapewnij czytelne komunikaty błędów dla użytkownika
+✅ **NOWE**: Implementuj retry logic dla operacji Google Calendar
 Praca z React/Next.js
 16. Komponenty
 Twórz małe, reużywalne komponenty
@@ -77,6 +79,7 @@ Używaj TypeScript do definiowania props komponentów
 Używaj React Context do globalnego stanu
 Dla lokalnego stanu preferuj useState i useReducer
 Unikaj nadmiernego ponownego renderowania
+✅ **NOWE**: Unikaj infinite loops w useEffect - sprawdzaj dependencies
 18. Routing
 Używaj Next.js App Router
 Przechowuj logikę autentykacji w middleware
@@ -95,10 +98,12 @@ Testowanie
 Piszę testy jednostkowe dla wszystkich nowych funkcji
 Używaj Jest i React Testing Library
 Pokrycie kodu testami powinno wynosić minimum 80%
+✅ **NOWE**: Testuj custom hooks (usePendingTimeChanges, useAuth)
 22. Testy E2E
 Twórz testy E2E dla krytycznych ścieżek użytkownika
 Używaj Playwright do automatyzacji testów
 Testy powinny być uruchamiane przed każdym wdrożeniem
+✅ **NOWE**: Testuj integrację z Google Calendar
 Dokumentacja
 23. Komentarze w kodzie
 Dokumentuj wszystkie nietypowe rozwiązania
@@ -117,10 +122,12 @@ Wdrożenie
 Używaj GitHub Actions do automatyzacji wdrożenia
 Każdy commit na main powinien być automatycznie wdrożony
 Testy powinny być uruchamiane przed wdrożeniem
+✅ **NOWE**: Oddzielne deployment dla frontend i functions
 27. Environment
 Rozróżniaj środowiska development, staging i production
 Używaj zmiennych środowiskowych dla konfiguracji
 Nigdy nie umieszczaj danych produkcyjnych w kodzie
+✅ **NOWE**: Konfiguruj regiony (Firestore eur3, Functions europe-central2)
 28. Monitoring
 Implementuj monitoring błędów (np. Sentry)
 Śledź metryki wydajności aplikacji
@@ -130,6 +137,7 @@ Zasady specyficzne dla projektu
 Używaj hooka usePendingTimeChanges do zarządzania zmianami czasu
 Zawsze waliduj konflikty terminów przed zapisaniem
 Używaj optimistycznych update dla lepszej UX
+✅ **NOWE**: Po każdej operacji CRUD wywołuj loadAppointments() dla odświeżenia
 30. System powiadomień
 Wszystkie powiadomienia powinny być zapisywane w Firestore
 Używaj real-time listeners do wyświetlania powiadomień
@@ -142,20 +150,61 @@ Waliduj dostępność z uwzględnieniem buforów
 Używaj role-based access control
 Sprawdzaj uprawnienia przed wykonaniem operacji
 Implementuj bezpieczne sesje użytkowników
+✅ **NOWE**: Google Calendar Integration Rules
+33. OAuth2 Security
+Zawsze używaj bezpiecznego przepływu OAuth2 dla Google Calendar
+Przechowuj tokeny access i refresh w Firestore z ograniczonym dostępem
+Automatycznie odświeżaj tokeny access przed wygaśnięciem
+Używaj limited scopes dla Google Calendar API (tylko potrzebne uprawnienia)
+34. Synchronizacja wydarzeń
+Zawsze zapisuj ID wydarzenia Google Calendar w dokumencie wizyty
+Ochron ID wydarzenia przed przypadkowym nadpisaniem przy edycji wizyty
+Implementuj batch synchronization dla wielu wizyt
+Obsługuj błędy synchronizacji z retry logic
+35. Token Management
+Nigdy nie przechowuj tokenów OAuth2 w kodzie frontend
+Używaj Firebase Functions do operacji na tokenach
+Implementuj automatyczne odświeżanie tokenów
+Monitoruj wygaśnięcie tokenów i wymagaj ponownej autentykacji
+✅ **NOWE**: Firestore Stability Rules
+36. useEffect Patterns
+Zawsze umieszczaj funkcje zmieniające state wewnątrz useEffect
+Sprawdzaj dependencies w useEffect - unikaj infinite loops
+Nie wywołuj funkcji asynchronicznych bezpośrednio w useEffect
+Używaj useCallback dla funkcji przekazywanych do dependencies
+37. Realtime vs Static Fetch
+Używaj static fetch (getDocs) zamiast realtime listeners dla stabilności
+Po operacjach CRUD wywołuj manualne odświeżenie danych
+Unikaj WebSocket connections które powodują problemy CORS
+Implementuj mechanizm odświeżania zamiast polegania na automatycznych update'ach
+38. Error Handling
+Zawsze implementuj try-catch dla operacji Firestore
+Loguj błędy Firestore do konsoli dla debugowania
+Implementuj fallback dla operacji Google Calendar
+Pokazuj użytkownikowi czytelne komunikaty o błędach synchronizacji
 Narzędzia i konwencje
-33. Formatowanie kodu
+39. Formatowanie kodu
 Używaj Prettier do formatowania kodu
 Konfiguruj ESLint do sprawdzania jakości kodu
 Używaj pre-commit hooks do automatycznego formatowania
-34. Nazewnictwo
+40. Nazewnictwo
 Używaj camelCase dla zmiennych i funkcji
 Używaj PascalCase dla komponentów i klas
 Używaj UPPER_SNAKE_CASE dla stałych
-35. Git workflow
+✅ **NOWE**: Używaj prefixed nazw dla funkcji Google Calendar (sync*, google*)
+41. Git workflow
 Używaj feature branches dla nowych funkcjonalności
 Commity powinny mieć czytelne komunikaty
 Używaj pull requests do code review
+✅ **NOWE**: Twórz oddzielne commity dla frontend i functions changes
+42. Region Configuration
+Używaj eur3 region dla Firestore dla stabilności
+Używaj europe-central2 region dla Cloud Functions
+Dokumentuj wybór regionów w konfiguracji projektu
+Nie zmieniaj regionów bez gruntownych testów migracji
 Podsumowanie
 Te zasady mają na celu zapewnienie wysokiej jakości kodu, spójności projektu i efektywnej współpracy w zespole. Przestrzeganie tych zasad ułatwi utrzymanie i rozwój aplikacji w długim terminie.
+
+✅ **NOWE**: Zasady zostały zaktualizowane o doświadczenia z implementacji Google Calendar i rozwiązywania problemów ze stabilnością Firestore.
 
 Wszelkie wyjątki od tych zasad powinny być dokładnie uzasadnione i skonsultowane z zespołem.

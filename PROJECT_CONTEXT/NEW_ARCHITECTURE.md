@@ -4,10 +4,12 @@ System rezerwacji dla małego salonu piękności oparty na architekturze JAMstac
 
 Kluczowe założenia architektoniczne
 Serverless-first - Wykorzystanie Firebase jako managed solution
-Real-time by default - Wszystkie dane synchronizowane w czasie rzeczywistym
+Real-time by default - Wszystkie dane synchronizowane w czasie rzeczywistym (z fallbackiem na static fetch)
 Mobile-first - Optymalizacja dla tabletów i urządzeń mobilnych
 Progressive enhancement - Podstawowe funkcje działają bez JavaScript
 Security by design - Ochrona danych na każdym poziomie
+Integration-ready - Przygotowanie na integracje zewnętrzne (Google Calendar)
+
 Stack technologiczny - Aktualny Stan
 Frontend - ZAIMPLEMENTOWANE ✅
 Framework i biblioteki
@@ -46,7 +48,7 @@ admin-frontend/
 │   │   ├── useAuth.ts         # Hook autentykacji
 │   │   └── usePendingTimeChanges.ts  # Hook zmian czasu
 │   ├── lib/                   # Biblioteki i usługi
-│   │   ├── appointments-service.ts  # Serwis wizyt
+│   │   ├── appointments-service.ts  # Serwis wizyt z Google Calendar sync
 │   │   ├── customers-service.ts     # Serwis klientów
 │   │   ├── employees-service.ts     # Serwis pracowników
 │   │   ├── services-service.ts      # Serwis usług
@@ -62,8 +64,8 @@ admin-frontend/
 Backend - ZAIMPLEMENTOWANE ✅
 Firebase Stack
 Firebase Authentication - Autentykacja użytkowników
-Firestore - NoSQL baza danych w czasie rzeczywistym
-Cloud Functions - Serverless functions dla logiki biznesowej
+Firestore (eur3) - NoSQL baza danych w czasie rzeczywistym
+Cloud Functions (europe-central2) - Serverless functions dla logiki biznesowej
 Firebase Hosting - Hosting dla aplikacji frontend
 Firebase Storage - Przechowywanie plików i zdjęć
 Firebase Analytics - Analityka i monitorowanie
@@ -71,7 +73,11 @@ Struktura backend
 booking-functions/
 ├── src/
 │   ├── index.ts               # Główny plik functions
-│   └── lib/                   # Biblioteki funkcji
+│   └── google-calendar/       # Google Calendar integration
+│       ├── auth.ts            # OAuth2 authentication
+│       ├── config.ts          # Configuration
+│       ├── sync.ts            # Synchronization logic
+│       └── types.ts           # Type definitions
 ├── package.json               # Zależności
 └── tsconfig.json              # Konfiguracja TypeScript
 Model danych - ZAIMPLEMENTOWANE ✅
@@ -82,7 +88,9 @@ salons/{salonId}
 ├── services/{serviceId}            # Usługi
 ├── employees/{employeeId}          # Pracownicy
 ├── notifications/{notificationId}  # Powiadomienia
-└── settings/{settingKey}          # Ustawienia salonu
+├── settings/{settingKey}          # Ustawienia salonu
+├── googleTokens/{userId}           # Google OAuth tokens
+└── calendarSync/{appointmentId}   # Google Calendar sync records
 Schemat danych
 Appointments (Wizyty)
 interface Appointment {
@@ -97,6 +105,7 @@ interface Appointment {
   price: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
 }
 Customers (Klienci)
 interface Customer {
@@ -173,6 +182,27 @@ interface Settings {
     smsProvider: string;
   };
 }
+Google Tokens (OAuth2 tokens)
+interface GoogleToken {
+  userId: string;
+  accessToken: string;
+  refreshToken: string;
+  expiryDate: Date;
+  calendarId: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+Calendar Sync (Synchronizacja z Google Calendar)
+interface CalendarSync {
+  appointmentId: string;
+  googleEventId: string;
+  userId: string;
+  lastSyncAt: Date;
+  syncDirection: "to_google" | "from_google" | "bidirectional";
+  status: "synced" | "pending" | "error";
+  errorMessage?: string;
+}
 Architektura komponentów - ZAIMPLEMENTOWANE ✅
 Struktura komponentów frontend
 Komponenty autentykacji
@@ -222,10 +252,13 @@ class AppointmentsService {
   // Pobranie wizyt dla pracownika w zakresie dat
   async getAppointmentsForStaff(staffId: string, startDate: Date, endDate: Date): Promise<Appointment[]>
   
+  // ✅ NOWE: Jednorazowy pobieranie wizyt (zamiast realtime)
+  async getAppointments(): Promise<Appointment[]>
+  
   // Tworzenie nowej wizyty
   async createAppointment(appointment: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
   
-  // Aktualizacja wizyty
+  // Aktualizacja wizyty z ochroną googleCalendarEventId
   async updateAppointment(id: string, updates: Partial<Appointment>): Promise<void>
   
   // Usuwanie wizyty
@@ -233,6 +266,12 @@ class AppointmentsService {
   
   // Sprawdzanie konfliktów terminów
   async checkConflicts(appointment: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<boolean>
+  
+  // ✅ NOWE: Aktualizacja tylko Google Calendar Event ID
+  async updateGoogleCalendarEventId(id: string, googleCalendarEventId: string): Promise<void>
+  
+  // ✅ NOWE: Obliczanie efektywnego czasu zakończenia z buforami
+  calculateEffectiveEndTime(baseEndTime: Date, employee: Employee, serviceId: string): Date
 }
 Customer Service
 class CustomersService {
@@ -402,6 +441,17 @@ service cloud.firestore {
           request.auth.uid == resource.data.userId;
         allow write: if request.auth != null;
       }
+      
+      // ✅ NOWE: Google tokens - tylko właściciel może czytać i pisać
+      match /googleTokens/{userId} {
+        allow read, write: if request.auth != null && 
+          request.auth.uid == userId;
+      }
+      
+      // ✅ NOWE: Calendar sync - tylko właściciel może czytać i pisać
+      match /calendarSync/{appointmentId} {
+        allow read, write: if request.auth != null;
+      }
     }
   }
 }
@@ -415,6 +465,10 @@ Role-based access control (RBAC)
 Bezpieczne sesje z tokenami JWT
 Automatyczne wylogowanie po bezczynności
 Ograniczenie liczby prób logowania
+✅ NOWE: OAuth2 security dla Google Calendar
+Secure token storage w Firestore
+Automatic token refresh
+Limited scopes dla Google Calendar API
 Architektura wydajności - ZAIMPLEMENTOWANE ✅
 Optymalizacja frontend
 Lazy loading komponentów
@@ -422,17 +476,21 @@ Dynamiczny import bibliotek
 Optymalizacja obrazów
 Minimalizacja bundle size
 Code splitting na poziomie tras
+✅ NOWE: Fixed infinite loops w useEffect
+✅ NOWE: Static fetch zamiast realtime listeners (stabilność)
 Optymalizacja backend
 Indeksy Firestore dla optymalnych zapytań
 Paginacja dla dużych zbiorów danych
-Caching danych w pamięci
-Real-time listeners zamiast częstego odpytywania
+✅ NOWE: Reduced Firestore queries (getAppointments zamiast subscribeToAppointments)
 Batch operations dla wielu zmian
+Region separation (Firestore eur3, Functions europe-central2)
 Metryki wydajności
 Page load time < 2 sekundy (95th percentile)
 API response time < 300ms (95th percentile)
 Time to Interactive < 3 sekundy
 First Contentful Paint < 1.5 sekundy
+✅ NOWE: Zero infinite loops
+✅ NOWE: Stable Firestore connections
 Architektura skalowalności - ZAIMPLEMENTOWANE ✅
 Skalowalność frontend
 Bezstanowy frontend (stateless)
@@ -444,23 +502,35 @@ Firebase auto-scaling
 Horizontal scaling dla Cloud Functions
 Sharding danych na poziomie salonu
 Load balancing wbudowany we Firebase
+✅ NOWE: Google Calendar API rate limiting
+✅ NOWE: Token refresh management
 Limity skalowalności
 Do 10 pracowników jednocześnie
 Do 500 rezerwacji na tydzień
 Do 5000 klientów w bazie danych
 Do 1000 użytkowników miesięcznie
-Architektura integracji - PLANOWANE ⏳
+✅ NOWE: Do 100 Google Calendar API calls/hour per user
+Architektura integracji - ZAIMPLEMENTOWANE ✅
 Zewnętrzne integracje
-Google Calendar - Dwukierunkowa synchronizacja kalendarzy
-SMS Providers - Wysyłka powiadomień SMS (multiple providers)
-Email Services - Wysyłka powiadomień email
-Payment Gateways - Płatności online
-Social Media - Integracja z mediami społecznościowymi
-API integracji
+✅ Google Calendar - Dwukierunkowa synchronizacja kalendarzy - ZAIMPLEMENTOWANE
+SMS Providers - Wysyłka powiadomień SMS (multiple providers) - PLANOWANE
+Email Services - Wysyłka powiadomień email - PLANOWANE
+Payment Gateways - Płatności online - PLANOWANE
+Social Media - Integracja z mediami społecznościowymi - PLANOWANE
+✅ API integracji Google Calendar - ZAIMPLEMENTOWANE
 interface GoogleCalendarIntegration {
-  syncAppointment(appointment: Appointment): Promise<void>;
+  // ✅ ZAIMPLEMENTOWANE
+  getAuthUrl(): Promise<{ url: string }>;
+  handleCallback(code: string, state: string): Promise<void>;
+  syncAppointment(appointmentId: string): Promise<{ success: boolean; googleEventId?: string }>;
+  updateGoogleCalendarEvent(googleCalendarEventId: string, appointment: Appointment): Promise<void>;
+  deleteGoogleCalendarEvent(appointmentId: string): Promise<void>;
+  batchSyncAppointments(appointmentIds: string[]): Promise<{ success: boolean; synced: string[]; errors: any[] }>;
+  
+  // PLANOWANE
   getAvailability(staffId: string, startDate: Date, endDate: Date): Promise<TimeSlot[]>;
   createEvent(event: CalendarEvent): Promise<string>;
+  syncFromGoogle(): Promise<void>;
 }
 
 interface SMSIntegration {
@@ -478,10 +548,12 @@ Jest + React Testing Library
 Pokrycie kodu testami > 80%
 Mockowanie Firebase dla testów
 Testy custom hooks
+✅ NOWE: Testy dla usePendingTimeChanges
 Testy integracji
 Testy komponentów z kontekstem
 Testy serwisów z mockowanym Firebase
 Testy przepływu danych
+✅ NOWE: Testy Google Calendar integration
 Testy E2E
 Playwright dla automatyzacji testów
 Testy krytycznych ścieżek użytkownika
@@ -497,23 +569,29 @@ GitHub Actions dla automatyzacji
 Testy uruchamiane przed każdym wdrożeniem
 Automatyczne wdrożenie na Firebase Hosting
 Environment separation (dev/staging/prod)
+✅ NOWE: Separate deployment dla frontend i functions
 Environment management
 Zmienne środowiskowe dla konfiguracji
 Separate Firebase projects dla różnych środowisk
+✅ NOWE: Region configuration (Firestore eur3, Functions europe-central2)
 Automated backups i disaster recovery
 Monitoring i alerting
 Sentry dla monitorowania błędów
 Firebase Analytics dla metryk użytkowania
 Uptime monitoring
 Performance monitoring
+✅ NOWE: Google Calendar API monitoring
 Podsumowanie architektury
 Architektura systemu rezerwacji dla salonu piękności została zaprojektowana z myślą o prostocie, skalowalności i niskich kosztach utrzymania. Wykorzystanie Firebase jako managed solution pozwala na minimalizację kodu backend i skupienie się na funkcjonalnościach frontend.
 
 Kluczowe cechy architektury:
 
 Serverless-first - Brak tradycyjnego serwera do utrzymania
-Real-time by default - Wszystkie dane synchronizowane w czasie rzeczywistym
+Real-time by default - Wszystkie dane synchronizowane w czasie rzeczywistym (z fallbackiem na static fetch dla stabilności)
 Mobile-first - Optymalizacja dla urządzeń mobilnych
 Security by design - Ochrona danych na każdym poziomie
 Performance optimized - Szybkie ładowanie i płynne działanie
+✅ NOWE: Integration-ready - Przygotowanie na integracje zewnętrzne (Google Calendar zaimplementowane)
+✅ NOWE: Stability-focused - Poprawki problemów z Firestore i infinite loops
+
 Architektura jest elastyczna i pozwala na łatwe rozszerzanie funkcjonalności w przyszłości, w tym integracje zewnętrzne i dodatkowe moduły biznesowe.

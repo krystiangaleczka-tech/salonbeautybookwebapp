@@ -41,7 +41,7 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 - **`src/app/(protected)/ustawienia/`** - Settings pages
   - **`bufory/page.tsx`** - Time buffers management
   - **`godziny-pracy/page.tsx`** - Working hours management
-  - **`integracje/page.tsx`** - Integrations settings
+  - **`integracje/page.tsx`** - Integrations settings (Google Calendar)
   - **`powiadomienia/page.tsx`** - Notifications settings
   - **`profil-salonu/page.tsx`** - Salon profile settings
   - **`prywatnosc/page.tsx`** - Privacy settings
@@ -67,7 +67,7 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 - **`src/hooks/usePendingTimeChanges.ts`** - Pending time changes hook
 
 #### Services
-- **`src/lib/appointments-service.ts`** - Appointments CRUD service
+- **`src/lib/appointments-service.ts`** - Appointments CRUD service with Google Calendar sync
 - **`src/lib/customers-service.ts`** - Customers CRUD service
 - **`src/lib/employees-service.ts`** - Employees CRUD service
 - **`src/lib/services-service.ts`** - Services CRUD service
@@ -87,7 +87,11 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 
 ### Source
 - **`src/index.ts`** - Main functions entry point
-- **`lib/`** - Function libraries
+- **`src/google-calendar/`** - Google Calendar integration
+  - **`auth.ts`** - Google OAuth authentication
+  - **`config.ts`** - Google Calendar configuration
+  - **`sync.ts`** - Google Calendar synchronization
+  - **`types.ts`** - Google Calendar types
 
 ## Design Files
 - **`.superdesign/design_iterations/`** - HTML design mockups
@@ -105,8 +109,9 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 - **Admin**: Next.js 14, TypeScript, Tailwind CSS
 - **Auth**: Firebase Authentication
 - **Database**: Firestore
-- **Backend**: Firebase Cloud Functions
+- **Backend**: Firebase Cloud Functions (europe-central2)
 - **Styling**: Tailwind CSS with custom themes
+- **Integrations**: Google Calendar API
 
 ## Key Features
 - Admin panel for salon management
@@ -119,6 +124,8 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 - Settings management (working hours, holidays, buffers, etc.)
 - Advanced filtering and search
 - Mobile and tablet responsive design
+- **NEW**: Google Calendar two-way synchronization
+- **NEW**: OAuth2 authentication for Google Calendar
 
 ## Recent Changes
 - Implemented comprehensive calendar with multiple views
@@ -130,16 +137,23 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 - Added appointment filters with presets
 - Integrated real data with Firestore
 - Implemented pending time changes for appointments
+- **NEW**: Google Calendar integration with OAuth2 authentication
+- **NEW**: Fixed Firestore CORS and infinite loop issues
+- **NEW**: Implemented frontend refresh after CRUD operations
+- **NEW**: Added Google Calendar event ID protection in appointments
 
 ## Development Notes
 - Admin uses Next.js App Router with protected routes
 - Tailwind CSS for styling with custom themes
 - Firebase provides backend services (Auth, Firestore, Functions)
-- Real-time updates using Firestore listeners
+- Real-time updates using Firestore listeners (with fallback to static fetch)
 - Comprehensive error handling and loading states
 - Responsive design optimized for tablets and desktop
+- **NEW**: Google Calendar integration uses OAuth2 flow with refresh tokens
+- **NEW**: Firestore region set to eur3 for stability
+- **NEW**: Functions region set to europe-central2
 
-## Complete graph up-to-date 13.10.2025-16:44
+## Complete graph up-to-date 17.10.2025-12:02
 graph TB
     %% ========== FRONTEND NEXT.JS ==========
     subgraph Frontend["🖥️ Frontend Next.js Application"]
@@ -279,22 +293,52 @@ graph TB
         SettingsCategories --> SettingsFlow
     end
 
+    %% ========== GOOGLE CALENDAR INTEGRATION ==========
+    subgraph GoogleCalendarSystem["📅 Google Calendar Integration"]
+        GC1[OAuth2 Authentication]
+        GC2[Token Management]
+        GC3[Event Synchronization]
+        GC4[Batch Operations]
+        
+        subgraph AuthFlow["OAuth2 Flow"]
+            AF1[Get Auth URL]
+            AF2[Handle Callback]
+            AF3[Store Tokens]
+            AF4[Refresh Tokens]
+        end
+        
+        subgraph SyncOperations["Sync Operations"]
+            SO1[Create Event]
+            SO2[Update Event]
+            SO3[Delete Event]
+            SO4[Batch Sync]
+        end
+        
+        GC1 --> AuthFlow
+        GC2 --> AuthFlow
+        GC3 --> SyncOperations
+        GC4 --> SyncOperations
+    end
+
     %% ========== FIREBASE BACKEND ==========
     subgraph FirebaseBackend["🔥 Firebase Backend"]
-        subgraph FirestoreDB["🗄️ Firestore Database"]
+        subgraph FirestoreDB["🗄️ Firestore Database (eur3)"]
             FS1[appointments]
             FS2[customers]
             FS3[services]
             FS4[employees]
             FS5[notifications]
             FS6[settings]
+            FS7[googleTokens]
+            FS8[calendarSync]
         end
         
-        subgraph CloudFunctions["☁️ Cloud Functions"]
+        subgraph CloudFunctions["☁️ Cloud Functions (europe-central2)"]
             CF1[Business Logic]
             CF2[Firebase Storage]
-            CF3[Redbridge]
+            CF3[Google Calendar API]
             CF4[Notifications]
+            CF5[OAuth2 Handlers]
         end
         
         subgraph Auth["🔐 Authentication"]
@@ -326,13 +370,13 @@ graph TB
             AF5[Save Appointment]
             AF6[Appointment ID]
             AF7[Success Response]
-            AF8[Appointment Created]
+            AF8[Google Calendar Sync]
         end
         
         subgraph RealTimeFlow["Aktualizacje w Czasie Rzeczywistym"]
-            RT1[Real-time Updates]
-            RT2[Appointment List Updated]
-            RT3[Refreshed Calendar View]
+            RT1[Static Fetch (getAppointments)]
+            RT2[Manual Refresh]
+            RT3[Calendar View Update]
         end
         
         LoginFlow --> AppointmentFlow
@@ -351,6 +395,7 @@ graph TB
             AM7[string status]
             AM8[string notes]
             AM9[number price]
+            AM10[string googleCalendarEventId]
         end
         
         subgraph CustomersModel["Customers Collection"]
@@ -396,6 +441,24 @@ graph TB
             STM4[array holidays]
             STM5[object notifications]
         end
+        
+        subclass GoogleTokensModel["Google Tokens Collection"]
+            GTM1[string userId]
+            GTM2[string accessToken]
+            GTM3[string refreshToken]
+            GTM4[timestamp expiryDate]
+            GTM5[string calendarId]
+            GTM6[boolean isActive]
+        end
+        
+        subclass CalendarSyncModel["Calendar Sync Collection"]
+            CSM1[string appointmentId]
+            CSM2[string googleEventId]
+            CSM3[string userId]
+            CSM4[timestamp lastSyncAt]
+            CSM5[string syncDirection]
+            CSM6[string status]
+        end
     end
 
     %% ========== POŁĄCZENIA MIĘDZY SYSTEMAMI ==========
@@ -406,6 +469,9 @@ graph TB
     %% Kalendarz -> Powiadomienia
     CalendarSystem --> NotificationSystem
     
+    %% Kalendarz -> Google Calendar
+    CalendarSystem --> GoogleCalendarSystem
+    
     %% Ustawienia -> Firebase
     SettingsSystem --> FirebaseBackend
     
@@ -415,11 +481,16 @@ graph TB
     %% Firebase Functions -> Collections
     CloudFunctions --> FirestoreDB
     
+    %% Google Calendar -> Firestore
+    GoogleCalendarSystem --> FirestoreDB
+    
     %% Relacje między kolekcjami
     AppointmentsModel -.->|belongs_to| CustomersModel
     AppointmentsModel -.->|belongs_to| ServicesModel
     AppointmentsModel -.->|belongs_to| EmployeesModel
     NotificationsModel -.->|relates_to| AppointmentsModel
+    AppointmentsModel -.->|syncs_to| CalendarSyncModel
+    GoogleTokensModel -.->|authenticates| GoogleCalendarSystem
 
     %% Stylowanie
     classDef frontend fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
@@ -429,3 +500,4 @@ graph TB
     classDef firebase fill:#ffebee,stroke:#f44336,stroke-width:2px
     classDef dataflow fill:#fce4ec,stroke:#e91e63,stroke-width:2px
     classDef datamodel fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
+    classDef googlecalendar fill:#f1f8e9,stroke:#689f38,stroke-width:2px
