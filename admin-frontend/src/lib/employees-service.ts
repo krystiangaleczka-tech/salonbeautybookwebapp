@@ -21,11 +21,22 @@ export interface Employee {
   phone?: string;
   isActive: boolean;
   services?: string[];
-  // Bufory czasowe per pracownik
+  // Bufory czasowe per pracownik (zostaną usunięte w przyszłości)
   personalBuffers: Record<string, number>; // serviceId -> bufferMinutes
   defaultBuffer: number; // domyślny buffer w minutach
+  // Pola wielopracownicze
+  googleCalendarEmail?: string; // osobisty email Google Calendar
+  userRole: 'owner' | 'employee' | 'tester'; // rola użytkownika w systemie
+  workingHours?: WorkingHours[]; // osobiste godziny pracy
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+export interface WorkingHours {
+  dayOfWeek: number; // 0 = niedziela, 1 = poniedziałek, etc.
+  startTime: string; // "09:00"
+  endTime: string; // "17:00"
+  isActive: boolean;
 }
 
 export interface EmployeePayload {
@@ -35,9 +46,13 @@ export interface EmployeePayload {
   phone?: string;
   isActive?: boolean;
   services?: string[];
-  // Bufory czasowe per pracownik
+  // Bufory czasowe per pracownik (zostaną usunięte w przyszłości)
   personalBuffers?: Record<string, number>;
   defaultBuffer?: number;
+  // Pola wielopracownicze
+  googleCalendarEmail?: string;
+  userRole?: 'owner' | 'employee' | 'tester';
+  workingHours?: WorkingHours[];
 }
 
 const employeesCollection = collection(db, "employees");
@@ -52,10 +67,16 @@ function mapEmployee(docData: DocumentData, id: string): Employee {
     isActive: typeof docData.isActive === "boolean" ? docData.isActive : true,
     services: Array.isArray(docData.services) ? docData.services as string[] : [],
     // Bufory czasowe - domyślne wartości dla kompatybilności wstecznej
-    personalBuffers: typeof docData.personalBuffers === "object" && docData.personalBuffers !== null 
-      ? docData.personalBuffers as Record<string, number> 
+    personalBuffers: typeof docData.personalBuffers === "object" && docData.personalBuffers !== null
+      ? docData.personalBuffers as Record<string, number>
       : {},
     defaultBuffer: typeof docData.defaultBuffer === "number" ? docData.defaultBuffer : 0,
+    // Pola wielopracownicze - domyślne wartości
+    googleCalendarEmail: typeof docData.googleCalendarEmail === "string" ? docData.googleCalendarEmail : undefined,
+    userRole: typeof docData.userRole === "string" && ['owner', 'employee', 'tester'].includes(docData.userRole)
+      ? docData.userRole as 'owner' | 'employee' | 'tester'
+      : 'employee', // domyślnie employee
+    workingHours: Array.isArray(docData.workingHours) ? docData.workingHours as WorkingHours[] : [],
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt : null,
     updatedAt: docData.updatedAt instanceof Timestamp ? docData.updatedAt : null,
   };
@@ -89,6 +110,10 @@ function normalizePayload(payload: EmployeePayload) {
     // Bufory czasowe - domyślne wartości dla kompatybilności wstecznej
     personalBuffers: payload.personalBuffers ?? {},
     defaultBuffer: payload.defaultBuffer ?? 0,
+    // Pola wielopracownicze - domyślne wartości
+    googleCalendarEmail: payload.googleCalendarEmail ?? undefined,
+    userRole: payload.userRole ?? 'employee',
+    workingHours: payload.workingHours ?? [],
   };
 }
 
