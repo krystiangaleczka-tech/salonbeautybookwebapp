@@ -23,7 +23,7 @@ import {
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 import type { ToneKey } from "@/lib/dashboard-theme";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, orderBy, query, Timestamp, getDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, Timestamp, getDoc, doc, serverTimestamp } from "firebase/firestore";
 import { createAppointment, subscribeToAppointments, getAppointments, updateAppointment, deleteAppointment, updateGoogleCalendarEventId, type Appointment } from "@/lib/appointments-service";
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
@@ -31,6 +31,13 @@ import { usePendingTimeChanges } from "@/hooks/usePendingTimeChanges";
 import { AppointmentFilters } from "@/components/calendar/appointment-filters";
 import { type AppointmentFilter, type FilterPreset } from "@/lib/filters-service";
 import { googleCalendarService } from "@/lib/google-calendar-service";
+import {
+    generateTempId,
+    isOptimistic,
+    replaceOptimistic,
+    removeOptimistic,
+    type OptimisticAppointment,
+} from "@/lib/optimistic-updates";
 
 type CalendarStatus = "confirmed" | "pending" | "no-show" | "cancelled";
 
@@ -490,7 +497,9 @@ function WeekBoard({
                       key={event.id}
                       className={`absolute inset-x-1 sm:inset-x-2 flex h-full flex-col justify-between overflow-hidden rounded-lg sm:rounded-xl border bg-card p-1 sm:p-2 shadow-lg transition-all hover-pulse-shadow ${
                         STATUS_CLASSNAME[event.status].border
-                      } ${event.isOutsideWorkingHours ? "ring-1 sm:ring-2 ring-amber-400" : ""}`}
+                      } ${event.isOutsideWorkingHours ? "ring-1 sm:ring-2 ring-amber-400" : ""} ${
+                        (event as any)._optimistic ? "opacity-70 animate-pulse" : ""
+                      }`}
                       style={{
                         top: Math.max(0, event.top * PIXELS_PER_MINUTE),
                         height: Math.max(40, event.height * PIXELS_PER_MINUTE),
@@ -739,7 +748,7 @@ function DayBoard({
                        selectedAppointmentId === event.id
                          ? "bg-red-50 border-red-400 shadow-[inset_0_1px_3px_rgba(239,68,68,0.2)]"
                          : ""
-                     }`}
+                     } ${(event as any)._optimistic ? "opacity-70 animate-pulse" : ""}`}
                     style={{
                       left: clamp(event.left, 0, Math.max(0, timelineWidth - 120)),
                       width: clamp(event.width, 80, 150),
@@ -833,7 +842,7 @@ function DayAgenda({
               selectedAppointmentId === event.id
                 ? "bg-red-50 border-red-400 shadow-[inset_0_1px_3px_rgba(239,68,68,0.2)]"
                 : ""
-            }`}
+            } ${(event as any)._optimistic ? "opacity-70 animate-pulse" : ""}`}
           >
             {/* Przyciski zatwierdzenia/cofania zmian w prawym górnym rogu */}
             {hasPendingChange(event.id) && (
@@ -1075,8 +1084,8 @@ export default function CalendarPage() {
     }
 
     // Pobierz oryginalny czas rozpoczęcia i zakończenia
-    const originalStart = new Date(appointment.start);
-    const originalEnd = new Date(appointment.end);
+    const originalStart = timestampToDate(appointment.start);
+    const originalEnd = timestampToDate(appointment.end);
     
     // Sprawdź, czy już istnieje oczekująca zmiana dla tej wizyty
     const existingChange = getPendingChange(appointmentId);
@@ -1099,7 +1108,7 @@ export default function CalendarPage() {
         start: originalStart,
         end: originalEnd,
         serviceId: appointment.serviceId,
-        clientId: customers.find(c => c.fullName === appointment.clientName)?.id || "",
+        clientId: appointment.clientId || customers.find(c => c.fullName === appointment.clientName)?.id || "",
         staffName: appointment.staffName,
         status: appointment.status as any,
         notes: appointment.notes
@@ -1220,7 +1229,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<typeof VIEW_OPTIONS[number]["value"]>("week");
   const [referenceDate, setReferenceDate] = useState(() => new Date());
   const [calendarServices, setCalendarServices] = useState<CalendarService[]>([]);
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<OptimisticAppointment[]>([]);
   const [servicesLoaded, setServicesLoaded] = useState(false);
   const [eventsLoaded, setEventsLoaded] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
@@ -1395,75 +1404,63 @@ export default function CalendarPage() {
     
     startTransition(async () => {
       try {
-        // Pobierz oryginalną wizytę, aby sprawdzić ID Google Calendar
-        const originalAppointment = calendarEvents.find(e => e.id === editingAppointmentId);
-        
-        // Aktualizuj wizytę w Firebase
-        await updateAppointment(editingAppointmentId, {
+        const updatedData = {
           serviceId: editForm.serviceId,
           clientId: editForm.clientId,
           staffName: editForm.staffName,
           start: startDateTime,
           end: effectiveEndDateTime,
-          status: "confirmed",
+          status: "confirmed" as const,
           notes: editForm.notes?.trim() || "",
-        });
-        
-        // ✅ Synchronizuj z Google Calendar W TLE (nie czekaj)
-        const selectedCustomer = customers.find(c => c.id === editForm.clientId);
-        const selectedService = calendarServices.find(s => s.id === editForm.serviceId);
-        
-        if (selectedCustomer && selectedService) {
-          if (originalAppointment?.googleCalendarEventId) {
-            // Ma googleCalendarEventId - normalna aktualizacja W TLE
-            googleCalendarService.updateGoogleCalendarEvent({
-              googleCalendarEventId: originalAppointment.googleCalendarEventId,
-              appointment: {
-                id: editingAppointmentId,
-                serviceId: editForm.serviceId,
-                clientId: editForm.clientId,
-                staffName: editForm.staffName,
-                start: startDateTime,
-                end: effectiveEndDateTime,
-                status: "confirmed",
-                notes: editForm.notes.trim() || undefined,
-              },
-              clientEmail: selectedCustomer.email,
-              serviceName: selectedService.name,
-              clientName: selectedCustomer.fullName,
-            }).catch((err) => {
-              console.error('❌ Failed to update Google Calendar event:', err);
-            });
-          } else {
-            // NIE MA googleCalendarEventId - auto-sync W TLE
-            console.log('Appointment missing googleCalendarEventId - syncing in background');
-            googleCalendarService.syncAppointment(editingAppointmentId)
-              .then((syncResult) => {
-                if (syncResult.success && syncResult.googleEventId) {
-                  return googleCalendarService.updateGoogleCalendarEventId(editingAppointmentId, syncResult.googleEventId);
+          price: undefined,
+        };
+
+        // ✅ 1. OPTIMISTIC UPDATE - pokaż natychmiast
+        setCalendarEvents(prev =>
+          prev.map(appt =>
+            appt.id === editingAppointmentId
+              ? {
+                  ...appt,
+                  ...updatedData,
+                  _optimistic: true,
+                  clientName: customers.find(c => c.id === editForm.clientId)?.fullName || appt.clientName,
+                  start: startDateTime.toISOString(),
+                  end: effectiveEndDateTime.toISOString(),
                 }
-              })
-              .then(() => {
-                console.log('✅ First-time sync successful');
-              })
-              .catch((err) => {
-                console.error('❌ Auto-sync failed:', err);
-              });
-          }
-        }
+              : appt
+          )
+        );
+
+        setIsEditModalOpen(false);
+        setEditFormSuccess("✨ Zapisywanie zmian...");
+
+        // ✅ 2. SAVE TO FIRESTORE (w tle)
+        await updateAppointment(editingAppointmentId, updatedData);
+
+        // ✅ 3. CONFIRM - remove optimistic flag
+        setCalendarEvents(prev =>
+          prev.map(appt =>
+            appt.id === editingAppointmentId
+              ? { ...appt, _optimistic: false }
+              : appt
+          )
+        );
+
+        setEditFormSuccess("✅ Wizyta zaktualizowana!");
         
-        // ✅ DODAJ TO - Reload appointments
-        await loadAppointments();
-        
-        setEditFormSuccess("Wizyta została pomyślnie zaktualizowana.");
+        // ✅ 4. GOOGLE CALENDAR SYNC happens automatically via Firestore Trigger!
         
         // Zamknij modal po 2 sekundach
         setTimeout(() => {
           handleCloseEditModal();
         }, 2000);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Błąd podczas aktualizacji wizyty:", error);
-        setEditFormError("Nie udało się zaktualizować wizyty. Spróbuj ponownie.");
+        
+        // ✅ ROLLBACK - reload appointments
+        await loadAppointments();
+        
+        setEditFormError(error.message || "Nie udało się zaktualizować wizyty.");
       }
     });
   };
@@ -1473,35 +1470,28 @@ export default function CalendarPage() {
     if (window.confirm("Czy na pewno chcesz usunąć tę wizytę? Tej operacji nie można cofnąć.")) {
       startTransition(async () => {
         try {
-          // Pobierz wizytę, aby sprawdzić ID Google Calendar
-          const appointment = calendarEvents.find(e => e.id === appointmentId);
-          
-          // ✅ Usuń wydarzenie z Google Calendar W TLE (nie czekaj)
-          if (appointment?.googleCalendarEventId) {
-            googleCalendarService.deleteGoogleCalendarEvent(appointment.googleCalendarEventId)
-              .then(() => {
-                console.log('✅ Google Calendar event deleted');
-              })
-              .catch((googleError) => {
-                console.warn('❌ Nie udało się usunąć wydarzenia z Google Calendar:', googleError);
-              });
-          }
-          
-          // Usuń wizytę z Firebase
+          // ✅ 1. OPTIMISTIC UPDATE - usuń natychmiast z UI
+          const deletedAppointment = calendarEvents.find(appt => appt.id === appointmentId);
+          setCalendarEvents(prev => prev.filter(appt => appt.id !== appointmentId));
+
+          // ✅ 2. DELETE FROM FIRESTORE (w tle)
           await deleteAppointment(appointmentId);
+
+          setAppointmentFormSuccess("✅ Wizyta usunięta!");
           
-          // ✅ DODAJ TO - Reload appointments
-          await loadAppointments();
-          
-          setAppointmentFormSuccess("Wizyta została pomyślnie usunięta.");
+          // ✅ 3. GOOGLE CALENDAR DELETE happens automatically via Firestore Trigger!
           
           // Wyczyść komunikat po 2 sekundach
           setTimeout(() => {
             setAppointmentFormSuccess(null);
           }, 2000);
-        } catch (error) {
-          console.error("Błąd podczas usuwania wizyty:", error);
-          setAppointmentFormError("Nie udało się usunąć wizyty. Spróbuj ponownie.");
+        } catch (error: any) {
+          console.error(error);
+          
+          // ✅ ROLLBACK - reload appointments
+          await loadAppointments();
+          
+          alert("❌ Błąd podczas usuwania wizyty: " + error.message);
         }
       });
     }
@@ -1531,8 +1521,8 @@ export default function CalendarPage() {
                 serviceId: event.serviceId,
                 clientId: customer.id,
                 staffName: event.staffName,
-                start: new Date(event.start),
-                end: new Date(event.end),
+                start: timestampToDate(event.start),
+                end: timestampToDate(event.end),
                 status: "confirmed",
                 notes: event.notes,
               });
@@ -1601,11 +1591,11 @@ export default function CalendarPage() {
 
       // Date range filter
       if (filters.dateRange.from) {
-        const eventDate = new Date(event.start);
+        const eventDate = timestampToDate(event.start);
         if (eventDate < filters.dateRange.from) return false;
       }
       if (filters.dateRange.to) {
-        const eventDate = new Date(event.start);
+        const eventDate = timestampToDate(event.start);
         eventDate.setHours(23, 59, 59, 999); // Koniec dnia
         if (eventDate > filters.dateRange.to) return false;
       }
@@ -1643,7 +1633,7 @@ export default function CalendarPage() {
       const fetchedAppointments = await getAppointments();
       console.log('📊 Appointments loaded:', fetchedAppointments.length);
       
-      // Mapowanie z Appointment na CalendarEvent
+      // Mapowanie z Appointment na OptimisticAppointment
       const fetchedEvents = fetchedAppointments.map((appointment) => {
         // Znajdź nazwę klienta
         const customer = customers.find((c) => c.id === appointment.clientId);
@@ -1665,7 +1655,10 @@ export default function CalendarPage() {
           notes: appointment.notes,
           googleCalendarEventId: appointment.googleCalendarEventId,
           isGoogleSynced: !!appointment.googleCalendarEventId,
-        } satisfies CalendarEvent;
+          clientId: appointment.clientId,
+          createdAt: appointment.createdAt,
+          updatedAt: appointment.updatedAt,
+        } satisfies OptimisticAppointment;
       });
       
       setCalendarEvents(fetchedEvents);
@@ -2097,7 +2090,7 @@ export default function CalendarPage() {
                       </div>
                       <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
                         {dayEvents.slice(0, 2).map((event) => (
-                          <div key={event.id} className={`flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] ${STATUS_CLASSNAME[event.status].border} rounded px-0.5 sm:px-1 py-0.5`}>
+                          <div key={event.id} className={`flex items-center gap-0.5 sm:gap-1 text-[8px] sm:text-[10px] ${STATUS_CLASSNAME[event.status].border} rounded px-0.5 sm:px-1 py-0.5 ${(event as any)._optimistic ? "opacity-70 animate-pulse" : ""}`}>
                             <span className={`h-1 w-1 sm:h-2 sm:w-2 rounded-full ${
                               event.status === "confirmed"
                                 ? "bg-emerald-500"
@@ -2382,56 +2375,84 @@ export default function CalendarPage() {
                     
                     startTransition(async () => {
                       try {
-                        // Utwórz wizytę w Firebase z efektywnym czasem zakończenia
-                        const newAppointment = await createAppointment({
+                        const newAppointmentData = {
                           serviceId: appointmentForm.serviceId,
                           clientId: appointmentForm.clientId,
                           staffName: appointmentForm.staffName,
                           start: startDateTime,
                           end: effectiveEndDateTime,
-                          status: "confirmed",
+                          status: "confirmed" as const,
                           notes: appointmentForm.notes?.trim() || "",
+                          price: undefined,
+                        };
+
+                        // ✅ 1. OPTIMISTIC UPDATE - pokaż natychmiast
+                        const tempId = generateTempId();
+                        const optimisticAppointment: OptimisticAppointment = {
+                          ...newAppointmentData,
+                          id: tempId,
+                          _optimistic: true,
+                          _tempId: tempId,
+                          createdAt: undefined,
+                          updatedAt: undefined,
+                          clientName: selectedCustomer?.fullName || "Nieznany klient",
+                          googleCalendarEventId: undefined,
+                          isGoogleSynced: false,
+                          offline: false,
+                          start: startDateTime.toISOString(),
+                          end: effectiveEndDateTime.toISOString(),
+                        };
+
+                        setCalendarEvents(prev => [...prev, optimisticAppointment]);
+                        setIsAppointmentModalOpen(false);
+                        setAppointmentFormSuccess("✨ Wizyta dodawana...");
+                        setAppointmentForm({
+                          serviceId: "",
+                          clientId: "",
+                          staffName: "",
+                          date: "",
+                          time: "",
+                          notes: ""
                         });
-                        
-                        // ✅ Synchronizuj z Google Calendar W TLE (nie czekaj)
-                        googleCalendarService.syncAppointment(newAppointment.id)
-                          .then((result) => {
-                            console.log('✅ Sync result:', result);
-                            
-                            if (result.success && result.googleEventId) {
-                              console.log('Saving googleEventId to Firestore:', result.googleEventId);
-                              return updateGoogleCalendarEventId(newAppointment.id, result.googleEventId);
-                            }
+
+                        // ✅ 2. SAVE TO FIRESTORE (w tle)
+                        const result = await createAppointment(newAppointmentData);
+
+                        // ✅ 3. REPLACE OPTIMISTIC with REAL
+                        setCalendarEvents(prev =>
+                          replaceOptimistic(prev, tempId, {
+                            id: result.id,
+                            serviceId: newAppointmentData.serviceId,
+                            clientName: selectedCustomer?.fullName || "Nieznany klient",
+                            staffName: newAppointmentData.staffName,
+                            start: startDateTime.toISOString(),
+                            end: effectiveEndDateTime.toISOString(),
+                            status: newAppointmentData.status,
+                            price: newAppointmentData.price,
+                            offline: false,
+                            notes: newAppointmentData.notes,
+                            googleCalendarEventId: undefined,
+                            isGoogleSynced: false,
                           })
-                          .then(() => {
-                            console.log('✅ GoogleEventId saved successfully!');
-                          })
-                          .catch((googleError) => {
-                            console.error('❌ Google Calendar sync error:', googleError);
-                            // Sync w tle - nie przerywa dodawania wizyty
-                          });
+                        );
+
+                        setAppointmentFormSuccess("✅ Wizyta dodana pomyślnie!");
                         
-                        // ✅ DODAJ TO - Reload appointments
-                        await loadAppointments();
+                        // ✅ 4. GOOGLE CALENDAR SYNC happens automatically via Firestore Trigger!
                         
-                        setAppointmentFormSuccess("Wizyta została pomyślnie dodana.");
-                        
-                        // Czyszczenie formularza po 2 sekundach
+                        // Wyczyść komunikat po 2 sekundach
                         setTimeout(() => {
-                          setIsAppointmentModalOpen(false);
-                          setAppointmentForm({
-                            serviceId: "",
-                            clientId: "",
-                            staffName: "",
-                            date: "",
-                            time: "",
-                            notes: ""
-                          });
                           setAppointmentFormSuccess(null);
                         }, 2000);
-                      } catch (error) {
+                      } catch (error: any) {
                         console.error("Błąd podczas dodawania wizyty:", error);
-                        setAppointmentFormError("Nie udało się dodać wizyty. Spróbuj ponownie.");
+                        
+                        // ✅ ROLLBACK OPTIMISTIC UPDATE on error
+                        setCalendarEvents(prev =>
+                          prev.filter(appt => !appt._optimistic)
+                        );
+                        
+                        setAppointmentFormError(error.message || "Nie udało się dodać wizyty.");
                       }
                     });
                   }}

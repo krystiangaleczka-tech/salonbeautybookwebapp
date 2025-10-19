@@ -39,5 +39,6 @@ module.exports = {
         "no-multiple-empty-lines": ["error", { "max": 2 }],
         "@typescript-eslint/no-non-null-assertion": "error",
         "@typescript-eslint/no-explicit-any": "warn",
+        "valid-jsdoc": "off",
     },
 };

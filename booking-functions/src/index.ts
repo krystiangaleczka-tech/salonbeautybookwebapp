@@ -15,4 +15,11 @@ export {
     updateGoogleCalendarEvent,
 } from "./google-calendar/sync";
 
+// Export Firestore Triggers
+export {
+    onAppointmentCreated,
+    onAppointmentUpdated,
+    onAppointmentDeleted,
+} from "./firestore-triggers";
+
 initializeApp();
