@@ -1,0 +1,61 @@
+# 2025-10-20-17:08-Admin_Employee_Auto_Creation_Fix.log
+
+## Problem zidentyfikowany
+Użytkownik zalogowany jako `admin@admin.com` nie ma odpowiadającego mu dokumentu w kolekcji `employees`, co powoduje, że `currentEmployee` jest `null` i nie może widzieć pracowników w kalendarzu.
+
+## Przyczyna
+W kodzie `employee-context.tsx` następuje wyszukiwanie pracownika po emailu:
+```typescript
+const userEmployee = employees.find(emp => emp.email === user.email);
+```
+Jeśli nie znajduje pracownika z tym emailem, `currentEmployee` staje się `null`, co blokuje dostęp do listy pracowników.
+
+## Rozwiązanie wdrożone
+1. Dodano import funkcji `createEmployee` z `employees-service.ts`
+2. Dodano logikę automatycznego tworzenia pracownika admina, jeśli nie istnieje
+3. Użyto useCallback dla `refreshEmployees` aby naprawić błąd zależności w useEffect
+4. Skonfigurowano Next.js do prawidłowego wdrożenia na Firebase Hosting
+
+## Kluczowe zmiany w employee-context.tsx
+```typescript
+// Jeśli nie znaleziono pracownika i użytkownik to admin@admin.com, utwórz go
+if (!userEmployee && user.email === 'admin@admin.com') {
+    console.log('🔧 Tworzę pracownika admin@admin.com...');
+    createEmployee({
+        name: 'Administrator',
+        email: 'admin@admin.com',
+        userRole: 'owner',
+        isActive: true,
+        phone: '',
+        googleCalendarEmail: '',
+        workingHours: [],
+        personalBuffers: {},
+        defaultBuffer: 0
+    }).then(() => {
+        console.log('✅ Utworzono pracownika admin@admin.com z rolą owner');
+        // Odśwież listę pracowników po utworzeniu
+        setTimeout(() => {
+            console.log('🔄 Odświeżam listę pracowników...');
+            refreshEmployees();
+        }, 1000);
+    }).catch((error) => {
+        console.error('❌ Błąd tworzenia pracownika admin:', error);
+    });
+}
+```
+
+## Wdrożenie
+Aplikacja została pomyślnie wdrożona na Firebase Hosting pod adresem: https://salonbeautymario-x1.web.app
+
+## Weryfikacja
+1. Zaloguj się jako `admin@admin.com` na https://salonbeautymario-x1.web.app
+2. Sprawdź konsolę - powinny pojawić się logi tworzenia pracownika
+3. Sprawdź kalendarz - powinien pokazywać pracowników w selectach
+4. W Firebase Console sprawdź kolekcję `employees` - powinien pojawić się nowy dokument
+
+## Pliki zmodyfikowane
+- admin-frontend/src/contexts/employee-context.tsx
+- admin-frontend/next.config.js
+
+## Status
+✅ Zakończono - Problem z brakiem pracownika admina został rozwiązany

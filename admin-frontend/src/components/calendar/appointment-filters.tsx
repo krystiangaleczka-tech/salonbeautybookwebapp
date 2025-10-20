@@ -54,6 +54,10 @@ export function AppointmentFilters({
     // Pobieranie unikalnych wartości dla filtrów
     const uniqueEmployees = useMemo(() => {
         // Użyj filteredEmployees zamiast employees, aby respektować uprawnienia
+        // Dodaj warunek sprawdzający, czy dane są załadowane
+        if (!filteredEmployees || filteredEmployees.length === 0) {
+            return [];
+        }
         return filteredEmployees.filter(emp => emp.isActive !== false);
     }, [filteredEmployees]);
 

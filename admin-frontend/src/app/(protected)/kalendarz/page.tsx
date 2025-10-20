@@ -1331,9 +1331,7 @@ export default function CalendarPage() {
   
   // Dane dla formularza
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [customersLoaded, setCustomersLoaded] = useState(false);
-  const [employeesLoaded, setEmployeesLoaded] = useState(false);
   
   // Funkcja do przełączania zaznaczenia wizyty
   const toggleAppointmentSelection = (appointmentId: string) => {
@@ -1764,23 +1762,12 @@ export default function CalendarPage() {
       }
     );
 
-    // Pobierz listę pracowników
-    const unsubscribeEmployees = subscribeToEmployees(
-      (fetchedEmployees) => {
-        setEmployees(fetchedEmployees);
-        setEmployeesLoaded(true);
-      },
-      (error) => {
-        console.error("Nie udało się pobrać listy pracowników", error);
-        setEmployeesLoaded(true);
-      }
-    );
+    // Subskrypcja pracowników jest obsługiwana przez useEmployee hook
 
     return () => {
       unsubscribeServices();
       unsubscribeAppointments();
       unsubscribeCustomers();
-      unsubscribeEmployees();
     };
   }, []); // Puste dependencies - wykonaj raz
 
@@ -1791,7 +1778,7 @@ export default function CalendarPage() {
     }
   }, [customersLoaded, servicesLoaded, loadAppointments]);
 
-  const loadingData = !servicesLoaded || !eventsLoaded;
+  const loadingData = !servicesLoaded || !eventsLoaded || employeesLoading;
 
   const { start, days } = useWeek(referenceDate);
   const positionedEvents = useMemo(
@@ -2350,11 +2337,15 @@ export default function CalendarPage() {
                     required
                   >
                     <option value="">Wybierz pracownika</option>
-                    {filteredEmployees.filter(emp => emp.isActive !== false).map((employee) => (
-                      <option key={employee.id} value={employee.name}>
-                        {employee.name} ({employee.role})
-                      </option>
-                    ))}
+                    {filteredEmployees.length === 0 ? (
+                      <option value="" disabled>Brak dostępnych pracowników</option>
+                    ) : (
+                      filteredEmployees.filter(emp => emp.isActive !== false).map((employee) => (
+                        <option key={employee.id} value={employee.name}>
+                          {employee.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -2636,7 +2627,7 @@ export default function CalendarPage() {
                     <option value="">Wybierz pracownika</option>
                     {filteredEmployees.filter(emp => emp.isActive !== false).map((employee) => (
                       <option key={employee.id} value={employee.name}>
-                        {employee.name} ({employee.role})
+                        {employee.name}
                       </option>
                     ))}
                   </select>

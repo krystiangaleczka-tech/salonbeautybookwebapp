@@ -39,7 +39,6 @@ const mockEmployees: Employee[] = [
   {
     id: 'emp1',
     name: 'Jan Kowalski',
-    role: 'Fryzjer',
     email: 'jan@example.com',
     phone: '123456789',
     isActive: true,
@@ -56,7 +55,6 @@ const mockEmployees: Employee[] = [
   {
     id: 'emp2',
     name: 'Anna Nowak',
-    role: 'Kosmetyczka',
     email: 'anna@example.com',
     phone: '987654321',
     isActive: true,
@@ -73,7 +71,6 @@ const mockEmployees: Employee[] = [
   {
     id: 'emp3',
     name: 'Piotr Wiśniewski',
-    role: 'Manicurzysta',
     email: 'piotr@example.com',
     phone: '555555555',
     isActive: false,

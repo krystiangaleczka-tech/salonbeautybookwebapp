@@ -75,7 +75,6 @@ const mockEmployees: Employee[] = [
   {
     id: 'emp1',
     name: 'Jan Kowalski',
-    role: 'Fryzjer',
     email: 'jan@example.com',
     phone: '123456789',
     isActive: true,
@@ -92,7 +91,6 @@ const mockEmployees: Employee[] = [
   {
     id: 'emp2',
     name: 'Anna Nowak',
-    role: 'Kosmetyczka',
     email: 'anna@example.com',
     phone: '987654321',
     isActive: true,
@@ -160,7 +158,6 @@ describe('EmployeesService', () => {
     test('powinien tworzyć nowego pracownika', async () => {
       const employeePayload: EmployeePayload = {
         name: 'Nowy Pracownik',
-        role: 'Fryzjer',
         email: 'nowy@example.com',
         phone: '555555555',
         isActive: true,
@@ -182,7 +179,6 @@ describe('EmployeesService', () => {
         expect.objectContaining({ id: 'mock-collection' }), // CollectionReference mock
         expect.objectContaining({
           name: employeePayload.name,
-          role: employeePayload.role,
           email: employeePayload.email,
           phone: employeePayload.phone,
           isActive: employeePayload.isActive,
@@ -200,7 +196,6 @@ describe('EmployeesService', () => {
     test('powinien aktualizować istniejącego pracownika', async () => {
       const employeePayload: EmployeePayload = {
         name: 'Zaktualizowany Pracownik',
-        role: 'Kosmetyczka',
         email: 'updated@example.com',
         phone: '999999999',
         isActive: false,
@@ -216,7 +211,6 @@ describe('EmployeesService', () => {
         { id: 'mock-doc' },
         expect.objectContaining({
           name: employeePayload.name,
-          role: employeePayload.role,
           email: employeePayload.email,
           phone: employeePayload.phone,
           isActive: employeePayload.isActive,

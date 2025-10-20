@@ -36,7 +36,6 @@ export function EmployeeSelector({
             opts.push({
                 id: "all",
                 name: "Wszyscy pracownicy",
-                role: "Wszyscy",
                 email: "",
                 isActive: true,
                 userRole: "owner" as const
@@ -97,11 +96,6 @@ export function EmployeeSelector({
                             <span className="text-sm font-medium">
                                 {selectedOption.name}
                             </span>
-                            {selectedOption.id !== "all" && (
-                                <span className="text-xs text-gray-500">
-                                    ({selectedOption.role})
-                                </span>
-                            )}
                         </div>
                     </>
                 ) : (
@@ -147,11 +141,6 @@ export function EmployeeSelector({
                                             <span className="text-sm font-medium">
                                                 {employee.name}
                                             </span>
-                                            {employee.id !== "all" && (
-                                                <span className="text-xs text-gray-500">
-                                                    {employee.role}
-                                                </span>
-                                            )}
                                         </div>
                                     </div>
                                     {selectedOption?.id === employee.id && (

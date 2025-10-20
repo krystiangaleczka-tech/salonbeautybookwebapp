@@ -16,17 +16,16 @@ import { db } from "@/lib/firebase";
 export interface Employee {
   id: string;
   name: string;
-  role: string;
   email: string;
-  phone?: string;
+  userRole: 'owner' | 'employee' | 'tester'; // rola użytkownika w systemie
   isActive: boolean;
+  phone?: string;
   services?: string[];
   // Bufory czasowe per pracownik (zostaną usunięte w przyszłości)
   personalBuffers: Record<string, number>; // serviceId -> bufferMinutes
   defaultBuffer: number; // domyślny buffer w minutach
   // Pola wielopracownicze
   googleCalendarEmail?: string; // osobisty email Google Calendar
-  userRole: 'owner' | 'employee' | 'tester'; // rola użytkownika w systemie
   workingHours?: WorkingHours[]; // osobiste godziny pracy
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -41,7 +40,6 @@ export interface WorkingHours {
 
 export interface EmployeePayload {
   name: string;
-  role: string;
   email: string;
   phone?: string;
   isActive?: boolean;
@@ -61,10 +59,12 @@ function mapEmployee(docData: DocumentData, id: string): Employee {
   return {
     id,
     name: typeof docData.name === "string" ? docData.name : "",
-    role: typeof docData.role === "string" ? docData.role : "",
     email: typeof docData.email === "string" ? docData.email : "",
-    phone: typeof docData.phone === "string" ? docData.phone : undefined,
+    userRole: typeof docData.userRole === "string" && ['owner', 'employee', 'tester'].includes(docData.userRole)
+      ? docData.userRole as 'owner' | 'employee' | 'tester'
+      : 'employee', // domyślnie employee
     isActive: typeof docData.isActive === "boolean" ? docData.isActive : true,
+    phone: typeof docData.phone === "string" ? docData.phone : undefined,
     services: Array.isArray(docData.services) ? docData.services as string[] : [],
     // Bufory czasowe - domyślne wartości dla kompatybilności wstecznej
     personalBuffers: typeof docData.personalBuffers === "object" && docData.personalBuffers !== null
@@ -73,9 +73,6 @@ function mapEmployee(docData: DocumentData, id: string): Employee {
     defaultBuffer: typeof docData.defaultBuffer === "number" ? docData.defaultBuffer : 0,
     // Pola wielopracownicze - domyślne wartości
     googleCalendarEmail: typeof docData.googleCalendarEmail === "string" ? docData.googleCalendarEmail : undefined,
-    userRole: typeof docData.userRole === "string" && ['owner', 'employee', 'tester'].includes(docData.userRole)
-      ? docData.userRole as 'owner' | 'employee' | 'tester'
-      : 'employee', // domyślnie employee
     workingHours: Array.isArray(docData.workingHours) ? docData.workingHours as WorkingHours[] : [],
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt : null,
     updatedAt: docData.updatedAt instanceof Timestamp ? docData.updatedAt : null,
@@ -100,9 +97,8 @@ export function subscribeToEmployees(
 }
 
 function normalizePayload(payload: EmployeePayload) {
-  return {
+  const normalized: any = {
     name: payload.name,
-    role: payload.role,
     email: payload.email,
     phone: payload.phone ?? "",
     isActive: payload.isActive ?? true,
@@ -111,10 +107,16 @@ function normalizePayload(payload: EmployeePayload) {
     personalBuffers: payload.personalBuffers ?? {},
     defaultBuffer: payload.defaultBuffer ?? 0,
     // Pola wielopracownicze - domyślne wartości
-    googleCalendarEmail: payload.googleCalendarEmail ?? undefined,
     userRole: payload.userRole ?? 'employee',
     workingHours: payload.workingHours ?? [],
   };
+  
+  // Dodaj googleCalendarEmail tylko jeśli ma wartość
+  if (payload.googleCalendarEmail && payload.googleCalendarEmail.trim() !== "") {
+    normalized.googleCalendarEmail = payload.googleCalendarEmail;
+  }
+  
+  return normalized;
 }
 
 export async function createEmployee(payload: EmployeePayload) {

@@ -230,7 +230,7 @@ export default function BuffersPage() {
               <option value="">Wybierz pracownika</option>
               {employees.filter(emp => emp.isActive).map((employee) => (
                 <option key={employee.id} value={employee.id}>
-                  {employee.name} ({employee.role})
+                  {employee.name}
                 </option>
               ))}
             </select>
