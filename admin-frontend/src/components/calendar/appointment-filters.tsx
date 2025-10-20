@@ -5,6 +5,7 @@ import { Search, Filter, Calendar, User, Scissors, Clock, CheckCircle, XCircle, 
 import { format, isAfter, isBefore, isEqual, startOfMonth, endOfMonth } from "date-fns";
 import { pl } from "date-fns/locale";
 import { AppointmentFilter, FilterPreset } from "@/lib/filters-service";
+import { useEmployee } from "@/contexts/employee-context";
 
 const statusOptions = [
     { value: "confirmed", label: "Potwierdzone", icon: CheckCircle, color: "text-green-600" },
@@ -46,12 +47,15 @@ export function AppointmentFilters({
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [showBatchActions, setShowBatchActions] = useState(false);
     const filterRef = useRef<HTMLDivElement>(null);
+    
+    // Hook do zarządzania pracownikami z uprawnieniami
+    const { filteredEmployees } = useEmployee();
 
     // Pobieranie unikalnych wartości dla filtrów
     const uniqueEmployees = useMemo(() => {
-        // Pokaż wszystkich aktywnych pracowników, nie tylko tych z wizytami
-        return employees.filter(emp => emp.isActive !== false);
-    }, [employees]);
+        // Użyj filteredEmployees zamiast employees, aby respektować uprawnienia
+        return filteredEmployees.filter(emp => emp.isActive !== false);
+    }, [filteredEmployees]);
 
     const uniqueServices = useMemo(() => {
         const serviceIds = [...new Set(appointments.map(apt => apt.serviceId).filter(Boolean))];
@@ -71,7 +75,7 @@ export function AppointmentFilters({
                 const searchLower = filters.search.toLowerCase();
                 const customer = customers.find(c => c.id === appointment.customerId);
                 const service = services.find(s => s.id === appointment.serviceId);
-                const employee = employees.find(e => e.id === appointment.employeeId);
+                const employee = filteredEmployees.find(e => e.id === appointment.employeeId);
                 
                 const matchesSearch =
                     (customer && customer.fullName.toLowerCase().includes(searchLower)) ||
@@ -112,7 +116,7 @@ export function AppointmentFilters({
 
             return true;
         });
-    }, [appointments, filters, customers, services, employees]);
+    }, [appointments, filters, customers, services, filteredEmployees]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -155,8 +159,6 @@ export function AppointmentFilters({
             customers: [],
         });
     };
-
-
 
     const hasActiveFilters = useMemo(() => {
         return filters.search ||
@@ -440,7 +442,7 @@ export function AppointmentFilters({
                             </button>
                         )}
                         {filters.employees.map(empId => {
-                            const emp = employees.find(e => e.id === empId);
+                            const emp = filteredEmployees.find(e => e.id === empId);
                             return emp ? (
                                 <button
                                     key={empId}

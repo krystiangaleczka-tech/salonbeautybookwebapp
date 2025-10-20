@@ -13,6 +13,10 @@ interface EmployeeContextType {
     filteredEmployees: Employee[];
     setCurrentEmployee: (employee: Employee | null) => void;
     refreshEmployees: () => void;
+    // Metody pomocnicze
+    getEmployeeWorkingHours: (employee: Employee) => any[];
+    getEmployeesWithGoogleCalendar: () => Employee[];
+    getEmployeeGoogleCalendarEmail: (employee: Employee) => string | undefined;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -91,6 +95,19 @@ export function EmployeeProvider({ children }: EmployeeProviderProps) {
         }
     };
 
+    // Metody pomocnicze
+    const getEmployeeWorkingHours = (employee: Employee) => {
+        return employee.workingHours || [];
+    };
+
+    const getEmployeesWithGoogleCalendar = () => {
+        return allEmployees.filter(emp => emp.googleCalendarEmail && emp.isActive);
+    };
+
+    const getEmployeeGoogleCalendarEmail = (employee: Employee) => {
+        return employee.googleCalendarEmail;
+    };
+
     const value: EmployeeContextType = {
         currentEmployee,
         allEmployees,
@@ -100,6 +117,9 @@ export function EmployeeProvider({ children }: EmployeeProviderProps) {
         filteredEmployees,
         setCurrentEmployee,
         refreshEmployees,
+        getEmployeeWorkingHours,
+        getEmployeesWithGoogleCalendar,
+        getEmployeeGoogleCalendarEmail,
     };
 
     return (

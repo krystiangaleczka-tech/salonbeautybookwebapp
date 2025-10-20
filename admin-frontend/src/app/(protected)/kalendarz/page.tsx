@@ -28,6 +28,8 @@ import { createAppointment, subscribeToAppointments, getAppointments, updateAppo
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
 import { usePendingTimeChanges } from "@/hooks/usePendingTimeChanges";
+import { useEmployee } from "@/contexts/employee-context";
+import { EmployeeSelector } from "@/components/calendar/employee-selector";
 import { AppointmentFilters } from "@/components/calendar/appointment-filters";
 import { type AppointmentFilter, type FilterPreset } from "@/lib/filters-service";
 import { googleCalendarService } from "@/lib/google-calendar-service";
@@ -253,11 +255,28 @@ function formatTimeRange(start: Date, end: Date) {
   return `${pad(start.getHours())}:${pad(start.getMinutes())} – ${pad(end.getHours())}:${pad(end.getMinutes())}`;
 }
 
-function getWorkingWindow(day: Date): WorkingHours | null {
+function getWorkingWindow(day: Date, selectedEmployee?: Employee): WorkingHours | null {
   const override = dailyOverrides[toDateKey(day)];
   if (override) {
     return override;
   }
+  
+  // Jeśli wybrano pracownika i ma zdefiniowane godziny pracy, użyj ich
+  if (selectedEmployee && selectedEmployee.workingHours && selectedEmployee.workingHours.length > 0) {
+    const dayOfWeek = day.getDay();
+    const employeeWorkingHours = selectedEmployee.workingHours.find(
+      (wh: any) => wh.dayOfWeek === dayOfWeek && wh.isActive
+    );
+    
+    if (employeeWorkingHours) {
+      return {
+        start: employeeWorkingHours.startTime,
+        end: employeeWorkingHours.endTime
+      };
+    }
+  }
+  
+  // W przeciwnym razie użyj globalnych godzin salonu
   const base = baseSalonHours[day.getDay()];
   return base ?? null;
 }
@@ -266,7 +285,8 @@ function buildEventsForRange(
   events: CalendarEvent[],
   weekStart: Date,
   services: CalendarService[],
-  minutesWindow: TimeRange
+  minutesWindow: TimeRange,
+  selectedEmployee?: Employee
 ) {
   const pedicureIds = new Set(services.filter((service) => service.noParallel).map((service) => service.id));
   const serviceLookup = new Map(services.map((service) => [service.id, service]));
@@ -309,7 +329,7 @@ function buildEventsForRange(
     const minutesEnd = minutesSinceStartOfDay(end) - minutesWindow.start;
     const top = Math.max(0, minutesStart);
     const height = Math.max(30, minutesEnd - minutesStart);
-    const workingWindow = getWorkingWindow(start);
+    const workingWindow = getWorkingWindow(start, selectedEmployee);
     const isOutsideWorkingHours = workingWindow
       ? minutesSinceStartOfDay(start) < timeStringToMinutes(workingWindow.start) ||
         minutesSinceStartOfDay(end) > timeStringToMinutes(workingWindow.end)
@@ -404,11 +424,13 @@ function WeekBoard({
   events,
   selectedDate,
   onSelectDate,
+  selectedEmployee,
 }: {
   weekDays: Date[];
   events: PositionedEvent[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
+  selectedEmployee?: Employee;
 }) {
   const hours = useMemo(() => {
     const range: number[] = [];
@@ -423,10 +445,10 @@ function WeekBoard({
   const workingWindows = useMemo(() => {
     const entries = new Map<string, WorkingHours | null>();
     weekDays.forEach((day) => {
-      entries.set(toDateKey(day), getWorkingWindow(day));
+      entries.set(toDateKey(day), getWorkingWindow(day, selectedEmployee));
     });
     return entries;
-  }, [weekDays]);
+  }, [weekDays, selectedEmployee]);
 
   return (
     <div className="rounded-3xl border border-[#f2dcd4] bg-[#f8f3ec] p-2 sm:p-4">
@@ -549,11 +571,13 @@ function DayBoard({
   events,
   onSelectAppointment,
   selectedAppointmentId,
+  selectedEmployee,
 }: {
   date: Date;
   events: PositionedEvent[];
   onSelectAppointment: (appointmentId: string) => void;
   selectedAppointmentId: string;
+  selectedEmployee?: Employee;
 }) {
   const timeSlots = useMemo(() => {
     const slots: { hour: number; minute: number; showLabel: boolean }[] = [];
@@ -583,7 +607,7 @@ function DayBoard({
 
   const timelineWidth = (minutesWindow.end - minutesWindow.start) * DAY_PIXELS_PER_MINUTE;
   const hourWidth = 60 * DAY_PIXELS_PER_MINUTE;
-  const workingWindow = getWorkingWindow(date);
+  const workingWindow = getWorkingWindow(date, selectedEmployee);
   const workingLeft = workingWindow
     ? clamp((timeStringToMinutes(workingWindow.start) - minutesWindow.start) * DAY_PIXELS_PER_MINUTE, 0, timelineWidth)
     : 0;
@@ -1063,6 +1087,13 @@ export default function CalendarPage() {
     hasPendingChange,
     getPendingChange
   } = usePendingTimeChanges();
+  // Hook do zarządzania pracownikami z uprawnieniami
+  const { 
+    currentEmployee, 
+    filteredEmployees, 
+    canViewAllEmployees,
+    isLoading: employeesLoading 
+  } = useEmployee();
 
   // Funkcja do poprawnego tworzenia daty w lokalnej strefie czasowej
   function createLocalDate(dateString: string, timeString: string): Date {
@@ -1073,6 +1104,10 @@ export default function CalendarPage() {
     // Miesiące w JavaScript są numerowane od 0 (styczeń = 0)
     return new Date(year, month - 1, day, hours, minutes);
   }
+  // Stan dla selektora pracowników
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(
+    currentEmployee?.id
+  );
 
   // Funkcja do szybkiej korekty czasu wizyty - teraz używa stanu lokalnego
   const adjustAppointmentTime = (appointmentId: string, minutesDelta: number) => {
@@ -1134,7 +1169,7 @@ export default function CalendarPage() {
     if (!pendingChange) return;
 
     // Znajdź pracownika, aby uwzględnić jego bufory czasowe
-    const selectedEmployee = employees.find(emp => emp.name === pendingChange.staffName);
+    const selectedEmployee = filteredEmployees.find(emp => emp.name === pendingChange.staffName);
     
     if (!selectedEmployee) {
       setAppointmentFormError("Nie znaleziono pracownika.");
@@ -1169,8 +1204,8 @@ export default function CalendarPage() {
         
         if (selectedCustomer && selectedService) {
           if (originalAppointment?.googleCalendarEventId) {
-            // Ma googleCalendarEventId - normalna aktualizacja W TLE
-            googleCalendarService.updateGoogleCalendarEvent({
+            // Ma googleCalendarEventId - normalna aktualizacja W TLE per pracownik
+            googleCalendarService.updateGoogleCalendarEventForEmployee({
               googleCalendarEventId: originalAppointment.googleCalendarEventId,
               appointment: {
                 id: appointmentId,
@@ -1185,7 +1220,7 @@ export default function CalendarPage() {
               clientEmail: selectedCustomer.email,
               serviceName: selectedService.name,
               clientName: selectedCustomer.fullName,
-            })
+            }, selectedEmployee)
             .then(() => {
               console.log('✅ Google Calendar event updated for time change');
             })
@@ -1388,7 +1423,7 @@ export default function CalendarPage() {
     }
     
     // Znajdź wybranego pracownika
-    const selectedEmployee = employees.find(emp => emp.name === editForm.staffName);
+    const selectedEmployee = filteredEmployees.find(emp => emp.name === editForm.staffName);
     if (!selectedEmployee) {
       setEditFormError("Wybrany pracownik jest nieprawidłowy.");
       return;
@@ -1600,10 +1635,23 @@ export default function CalendarPage() {
         if (eventDate > filters.dateRange.to) return false;
       }
 
-      // Employee filter
+      // Employee filter - użyj filteredEmployees z EmployeeContext
       if (filters.employees.length > 0) {
-        const employee = employees.find(emp => emp.name === event.staffName);
+        const employee = filteredEmployees.find(emp => emp.name === event.staffName);
         if (!employee || !filters.employees.includes(employee.id)) return false;
+      }
+      
+      // Automatyczne filtrowanie per pracownik na podstawie uprawnień
+      if (!canViewAllEmployees && currentEmployee) {
+        if (event.staffName !== currentEmployee.name) return false;
+      }
+      
+      // Filtruj według wybranego pracownika w selektorze
+      if (selectedEmployeeId && selectedEmployeeId !== "all") {
+        const selectedEmployee = filteredEmployees.find(emp => emp.id === selectedEmployeeId);
+        if (selectedEmployee && event.staffName !== selectedEmployee.name) {
+          return false;
+        }
       }
 
       // Service filter
@@ -1624,7 +1672,7 @@ export default function CalendarPage() {
 
       return true;
     });
-  }, [calendarEvents, filters, employees, customers, calendarServices]);
+  }, [calendarEvents, filters, filteredEmployees, customers, calendarServices, selectedEmployeeId, currentEmployee, canViewAllEmployees]);
 
   // Pobierz listę wizyt z nowego serwisu
   const loadAppointments = useCallback(async () => {
@@ -1747,8 +1795,12 @@ export default function CalendarPage() {
 
   const { start, days } = useWeek(referenceDate);
   const positionedEvents = useMemo(
-    () => buildEventsForRange(filteredCalendarEvents, start, calendarServices, minutesWindow),
-    [filteredCalendarEvents, calendarServices, start]
+    () => buildEventsForRange(filteredCalendarEvents, start, calendarServices, minutesWindow,
+      selectedEmployeeId && selectedEmployeeId !== "all"
+        ? filteredEmployees.find(emp => emp.id === selectedEmployeeId)
+        : currentEmployee
+    ),
+    [filteredCalendarEvents, calendarServices, start, selectedEmployeeId, filteredEmployees, currentEmployee]
   );
 
   const monthInfo = useMonth(referenceDate);
@@ -1853,6 +1905,20 @@ export default function CalendarPage() {
               </span>
             </div>
           </div>
+          
+          {/* Selektor pracowników - tylko dla użytkowników z uprawnieniami */}
+          {canViewAllEmployees && (
+            <div className="flex items-center gap-2 min-w-[200px]">
+              <span className="text-xs font-semibold uppercase text-muted-foreground">Pracownik:</span>
+              <EmployeeSelector
+                selectedEmployeeId={selectedEmployeeId}
+                onEmployeeChange={setSelectedEmployeeId}
+                showAllOption={true}
+                placeholder="Wszyscy pracownicy"
+              />
+            </div>
+          )}
+          
           <ViewSwitcher value={view} onChange={(next) => {
             setView(next);
             setReferenceDate((prev) => new Date(prev));
@@ -1984,7 +2050,7 @@ export default function CalendarPage() {
                     onFiltersChange={handleFiltersChange}
                     appointments={calendarEvents.map(event => {
                       const customer = customers.find(c => c.fullName === event.clientName);
-                      const employee = employees.find(e => e.name === event.staffName);
+                      const employee = filteredEmployees.find(e => e.name === event.staffName);
                       return {
                         id: event.id,
                         customerId: customer?.id || "",
@@ -1996,7 +2062,7 @@ export default function CalendarPage() {
                         notes: event.notes,
                       };
                     })}
-                    employees={employees}
+                    employees={filteredEmployees}
                     services={calendarServices}
                     customers={customers}
                     onBatchAction={handleBatchAction}
@@ -2019,7 +2085,7 @@ export default function CalendarPage() {
             onFiltersChange={handleFiltersChange}
             appointments={calendarEvents.map(event => {
               const customer = customers.find(c => c.fullName === event.clientName);
-              const employee = employees.find(e => e.name === event.staffName);
+              const employee = filteredEmployees.find(e => e.name === event.staffName);
               return {
                 id: event.id,
                 customerId: customer?.id || "",
@@ -2031,7 +2097,7 @@ export default function CalendarPage() {
                 notes: event.notes,
               };
             })}
-            employees={employees}
+            employees={filteredEmployees}
             services={calendarServices}
             customers={customers}
             onBatchAction={handleBatchAction}
@@ -2045,13 +2111,28 @@ export default function CalendarPage() {
 
         <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1.1fr)] lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           {view === "week" ? (
-            <WeekBoard weekDays={days} events={positionedEvents} selectedDate={referenceDate} onSelectDate={setReferenceDate} />
+            <WeekBoard
+              weekDays={days}
+              events={positionedEvents}
+              selectedDate={referenceDate}
+              onSelectDate={setReferenceDate}
+              selectedEmployee={
+                selectedEmployeeId && selectedEmployeeId !== "all"
+                  ? filteredEmployees.find(emp => emp.id === selectedEmployeeId)
+                  : currentEmployee
+              }
+            />
           ) : null}
           {view === "day" ? <DayBoard
             date={referenceDate}
             events={dayEvents}
             onSelectAppointment={toggleAppointmentSelection}
             selectedAppointmentId={selectedAppointmentId}
+            selectedEmployee={
+              selectedEmployeeId && selectedEmployeeId !== "all"
+                ? filteredEmployees.find(emp => emp.id === selectedEmployeeId)
+                : currentEmployee
+            }
           /> : null}
           {view === "month" ? (
             <div className="rounded-2xl sm:rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-2 sm:p-4">
@@ -2269,7 +2350,7 @@ export default function CalendarPage() {
                     required
                   >
                     <option value="">Wybierz pracownika</option>
-                    {employees.filter(emp => emp.isActive).map((employee) => (
+                    {filteredEmployees.filter(emp => emp.isActive !== false).map((employee) => (
                       <option key={employee.id} value={employee.name}>
                         {employee.name} ({employee.role})
                       </option>
@@ -2359,7 +2440,7 @@ export default function CalendarPage() {
                     }
                     
                     // Znajdź wybranego pracownika, aby uwzględnić jego bufory czasowe
-                    const selectedEmployee = employees.find(emp => emp.name === appointmentForm.staffName);
+                    const selectedEmployee = filteredEmployees.find(emp => emp.name === appointmentForm.staffName);
                     if (!selectedEmployee) {
                       setAppointmentFormError("Wybrany pracownik jest nieprawidłowy.");
                       return;
@@ -2553,7 +2634,7 @@ export default function CalendarPage() {
                     required
                   >
                     <option value="">Wybierz pracownika</option>
-                    {employees.filter(emp => emp.isActive).map((employee) => (
+                    {filteredEmployees.filter(emp => emp.isActive !== false).map((employee) => (
                       <option key={employee.id} value={employee.name}>
                         {employee.name} ({employee.role})
                       </option>
