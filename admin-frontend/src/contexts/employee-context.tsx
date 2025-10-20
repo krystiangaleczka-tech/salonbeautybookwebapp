@@ -16,7 +16,7 @@ interface EmployeeContextType {
     // Metody pomocnicze
     getEmployeeWorkingHours: (employee: Employee) => any[];
     getEmployeesWithGoogleCalendar: () => Employee[];
-    getEmployeeGoogleCalendarEmail: (employee: Employee) => string | undefined;
+    getEmployeeGoogleCalendarId: (employee: Employee) => string | undefined;
 }
 
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
@@ -89,7 +89,7 @@ export function EmployeeProvider({ children }: EmployeeProviderProps) {
                         userRole: 'owner',
                         isActive: true,
                         phone: '',
-                        googleCalendarEmail: '',
+                        googleCalendarId: '',
                         workingHours: [],
                         personalBuffers: {},
                         defaultBuffer: 0
@@ -159,11 +159,11 @@ export function EmployeeProvider({ children }: EmployeeProviderProps) {
     };
 
     const getEmployeesWithGoogleCalendar = () => {
-        return allEmployees.filter(emp => emp.googleCalendarEmail && emp.isActive);
+        return allEmployees.filter(emp => emp.googleCalendarId && emp.isActive);
     };
 
-    const getEmployeeGoogleCalendarEmail = (employee: Employee) => {
-        return employee.googleCalendarEmail;
+    const getEmployeeGoogleCalendarId = (employee: Employee) => {
+        return employee.googleCalendarId;
     };
 
     const value: EmployeeContextType = {
@@ -177,7 +177,7 @@ export function EmployeeProvider({ children }: EmployeeProviderProps) {
         refreshEmployees,
         getEmployeeWorkingHours,
         getEmployeesWithGoogleCalendar,
-        getEmployeeGoogleCalendarEmail,
+        getEmployeeGoogleCalendarId,
     };
 
     return (

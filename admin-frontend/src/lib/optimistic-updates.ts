@@ -12,7 +12,8 @@ export interface CalendarEvent {
   price?: string;
   offline?: boolean;
   notes?: string;
-  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
+  mainCalendarEventId?: string; // ID wydarzenia w głównym kalendarzu Google
+  employeeCalendarEventId?: string; // ID wydarzenia w kalendarzu pracownika Google
   isGoogleSynced?: boolean; // Czy wydarzenie jest zsynchronizowane z Google Calendar
 }
 

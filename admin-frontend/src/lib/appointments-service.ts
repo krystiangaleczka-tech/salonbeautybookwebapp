@@ -26,7 +26,8 @@ export interface Appointment {
   price?: number;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
-  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
+  mainCalendarEventId?: string; // ID wydarzenia w głównym kalendarzu Google
+  employeeCalendarEventId?: string; // ID wydarzenia w kalendarzu pracownika Google
 }
 
 export interface AppointmentPayload {
@@ -38,7 +39,8 @@ export interface AppointmentPayload {
   status?: 'confirmed' | 'pending' | 'cancelled';
   notes?: string;
   price?: number;
-  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
+  mainCalendarEventId?: string; // ID wydarzenia w głównym kalendarzu Google
+  employeeCalendarEventId?: string; // ID wydarzenia w kalendarzu pracownika Google
 }
 
 const appointmentsCollection = collection(db, "appointments");
@@ -58,7 +60,8 @@ function mapAppointment(docData: DocumentData, id: string): Appointment {
     price: typeof docData.price === "number" ? docData.price : undefined,
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt : null,
     updatedAt: docData.updatedAt instanceof Timestamp ? docData.updatedAt : null,
-    googleCalendarEventId: typeof docData.googleCalendarEventId === "string" ? docData.googleCalendarEventId : undefined,
+    mainCalendarEventId: typeof docData.mainCalendarEventId === "string" ? docData.mainCalendarEventId : undefined,
+    employeeCalendarEventId: typeof docData.employeeCalendarEventId === "string" ? docData.employeeCalendarEventId : undefined,
   };
 }
 
@@ -96,7 +99,8 @@ function normalizePayload(payload: AppointmentPayload) {
     status: payload.status ?? "pending",
     notes: payload.notes ?? "",
     price: payload.price ?? null,
-    googleCalendarEventId: payload.googleCalendarEventId ?? null,
+    mainCalendarEventId: payload.mainCalendarEventId ?? null,
+    employeeCalendarEventId: payload.employeeCalendarEventId ?? null,
   };
 }
 
@@ -115,7 +119,8 @@ export async function updateAppointment(
   payload: Omit<AppointmentPayload, 'start' | 'end'> & {
     start: Date;
     end: Date;
-    googleCalendarEventId?: string;
+    mainCalendarEventId?: string;
+    employeeCalendarEventId?: string;
   }
 ) {
   const ref = doc(appointmentsCollection, id);
@@ -132,9 +137,14 @@ export async function updateAppointment(
     updatedAt: serverTimestamp(),
   };
   
-  // ✅ TYLKO aktualizuj googleCalendarEventId jeśli jest explicite podane
-  if (payload.googleCalendarEventId !== undefined) {
-    updateData.googleCalendarEventId = payload.googleCalendarEventId;
+  // ✅ TYLKO aktualizuj mainCalendarEventId jeśli jest explicite podane
+  if (payload.mainCalendarEventId !== undefined) {
+    updateData.mainCalendarEventId = payload.mainCalendarEventId;
+  }
+  
+  // ✅ TYLKO aktualizuj employeeCalendarEventId jeśli jest explicite podane
+  if (payload.employeeCalendarEventId !== undefined) {
+    updateData.employeeCalendarEventId = payload.employeeCalendarEventId;
   }
   
   await updateDoc(ref, updateData);
@@ -145,13 +155,33 @@ export async function deleteAppointment(id: string) {
   await deleteDoc(ref);
 }
 
-// Funkcja do aktualizacji tylko pola Google Calendar Event ID
-export async function updateGoogleCalendarEventId(id: string, googleCalendarEventId: string) {
+// Funkcja do aktualizacji pól Google Calendar Event IDs
+export async function updateGoogleCalendarEventIds(
+  id: string,
+  { mainCalendarEventId, employeeCalendarEventId }: {
+    mainCalendarEventId?: string;
+    employeeCalendarEventId?: string;
+  }
+) {
   const ref = doc(appointmentsCollection, id);
-  await updateDoc(ref, {
-    googleCalendarEventId,
+  const updateData: any = {
     updatedAt: serverTimestamp(),
-  });
+  };
+  
+  if (mainCalendarEventId !== undefined) {
+    updateData.mainCalendarEventId = mainCalendarEventId;
+  }
+  
+  if (employeeCalendarEventId !== undefined) {
+    updateData.employeeCalendarEventId = employeeCalendarEventId;
+  }
+  
+  await updateDoc(ref, updateData);
+}
+
+// Funkcja do aktualizacji tylko pola Google Calendar Event ID (dla kompatybilności wstecznej)
+export async function updateGoogleCalendarEventId(id: string, googleCalendarEventId: string) {
+  return updateGoogleCalendarEventIds(id, { mainCalendarEventId: googleCalendarEventId });
 }
 
 // Funkcja do obliczania efektywnego czasu zakończenia wizyty z uwzględnieniem buforów

@@ -63,7 +63,8 @@ export interface CalendarEvent {
   price?: string;
   offline?: boolean;
   notes?: string;
-  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
+  mainCalendarEventId?: string; // ID wydarzenia w głównym kalendarzu Google
+  employeeCalendarEventId?: string; // ID wydarzenia w kalendarzu pracownika Google
   isGoogleSynced?: boolean; // Czy wydarzenie jest zsynchronizowane z Google Calendar
 }
 
@@ -1203,10 +1204,10 @@ export default function CalendarPage() {
         const selectedService = calendarServices.find(s => s.id === pendingChange.serviceId);
         
         if (selectedCustomer && selectedService) {
-          if (originalAppointment?.googleCalendarEventId) {
-            // Ma googleCalendarEventId - normalna aktualizacja W TLE per pracownik
+          if (originalAppointment?.mainCalendarEventId || originalAppointment?.employeeCalendarEventId) {
+            // Ma mainCalendarEventId lub employeeCalendarEventId - normalna aktualizacja W TLE per pracownik
             googleCalendarService.updateGoogleCalendarEventForEmployee({
-              googleCalendarEventId: originalAppointment.googleCalendarEventId,
+              mainCalendarEventId: originalAppointment.employeeCalendarEventId || originalAppointment.mainCalendarEventId,
               appointment: {
                 id: appointmentId,
                 serviceId: pendingChange.serviceId,
@@ -1699,8 +1700,9 @@ export default function CalendarPage() {
           price: appointment.price ? formatPrice(appointment.price) : undefined,
           offline: false,
           notes: appointment.notes,
-          googleCalendarEventId: appointment.googleCalendarEventId,
-          isGoogleSynced: !!appointment.googleCalendarEventId,
+          mainCalendarEventId: appointment.mainCalendarEventId,
+          employeeCalendarEventId: appointment.employeeCalendarEventId,
+          isGoogleSynced: !!(appointment.mainCalendarEventId || appointment.employeeCalendarEventId),
           clientId: appointment.clientId,
           createdAt: appointment.createdAt,
           updatedAt: appointment.updatedAt,
@@ -2468,7 +2470,8 @@ export default function CalendarPage() {
                           createdAt: undefined,
                           updatedAt: undefined,
                           clientName: selectedCustomer?.fullName || "Nieznany klient",
-                          googleCalendarEventId: undefined,
+                          mainCalendarEventId: undefined,
+                          employeeCalendarEventId: undefined,
                           isGoogleSynced: false,
                           offline: false,
                           start: startDateTime.toISOString(),
@@ -2487,10 +2490,32 @@ export default function CalendarPage() {
                           notes: ""
                         });
 
-                        // ✅ 2. SAVE TO FIRESTORE (w tle)
-                        const result = await createAppointment(newAppointmentData);
+                        // ✅ 2. SYNCHRONIZACJA Z GOOGLE CALENDAR
+                        const { mainEventId, employeeEventId } = await googleCalendarService.syncAppointmentToGoogleCalendar(
+                          {
+                            id: tempId, // Tymczasowe ID
+                            serviceId: newAppointmentData.serviceId,
+                            clientId: newAppointmentData.clientId,
+                            staffName: newAppointmentData.staffName,
+                            start: startDateTime,
+                            end: effectiveEndDateTime,
+                            status: newAppointmentData.status,
+                            notes: newAppointmentData.notes?.trim() || undefined,
+                            serviceName: selectedService.name,
+                            clientName: selectedCustomer.fullName,
+                            clientEmail: selectedCustomer.email,
+                          },
+                          selectedEmployee
+                        );
 
-                        // ✅ 3. REPLACE OPTIMISTIC with REAL
+                        // ✅ 3. SAVE TO FIRESTORE (w tle) z ID wydarzeń Google Calendar
+                        const result = await createAppointment({
+                          ...newAppointmentData,
+                          mainCalendarEventId: mainEventId,
+                          employeeCalendarEventId: employeeEventId
+                        });
+
+                        // ✅ 4. REPLACE OPTIMISTIC with REAL
                         setCalendarEvents(prev =>
                           replaceOptimistic(prev, tempId, {
                             id: result.id,
@@ -2503,14 +2528,13 @@ export default function CalendarPage() {
                             price: newAppointmentData.price,
                             offline: false,
                             notes: newAppointmentData.notes,
-                            googleCalendarEventId: undefined,
-                            isGoogleSynced: false,
+                            mainCalendarEventId: mainEventId,
+                            employeeCalendarEventId: employeeEventId,
+                            isGoogleSynced: !!(mainEventId || employeeEventId),
                           })
                         );
 
                         setAppointmentFormSuccess("✅ Wizyta dodana pomyślnie!");
-                        
-                        // ✅ 4. GOOGLE CALENDAR SYNC happens automatically via Firestore Trigger!
                         
                         // Wyczyść komunikat po 2 sekundach
                         setTimeout(() => {

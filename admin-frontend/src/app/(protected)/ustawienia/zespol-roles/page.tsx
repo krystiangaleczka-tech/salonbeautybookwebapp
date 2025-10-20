@@ -32,7 +32,7 @@ export default function TeamAndRolesPage() {
     phone: "",
     isActive: true,
     userRole: "employee" as 'owner' | 'employee' | 'tester',
-    googleCalendarEmail: "",
+    googleCalendarId: "",
   });
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
@@ -75,7 +75,7 @@ export default function TeamAndRolesPage() {
         phone: employee.phone || "",
         isActive: employee.isActive,
         userRole: employee.userRole || 'employee',
-        googleCalendarEmail: employee.googleCalendarEmail || "",
+        googleCalendarId: employee.googleCalendarId || "",
       });
     } else {
       setEditingEmployee(null);
@@ -85,7 +85,7 @@ export default function TeamAndRolesPage() {
         phone: "",
         isActive: true,
         userRole: "employee",
-        googleCalendarEmail: "",
+        googleCalendarId: "",
       });
     }
     setIsFormOpen(true);
@@ -101,7 +101,7 @@ export default function TeamAndRolesPage() {
       phone: "",
       isActive: true,
       userRole: "employee",
-      googleCalendarEmail: "",
+      googleCalendarId: "",
     });
     setFeedback(null);
   };
@@ -399,14 +399,14 @@ export default function TeamAndRolesPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Email Google Calendar
+                  ID Google Calendar
                 </label>
                 <input
                   type="email"
-                  value={formData.googleCalendarEmail}
-                  onChange={(e) => setFormData(prev => ({ ...prev, googleCalendarEmail: e.target.value }))}
+                  value={formData.googleCalendarId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, googleCalendarId: e.target.value }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
-                  placeholder="email@gmail.com"
+                  placeholder="calendar_id@group.calendar.google.com"
                 />
               </div>
               <div className="flex items-center">

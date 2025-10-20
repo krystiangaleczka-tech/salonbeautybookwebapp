@@ -32,7 +32,7 @@ export interface EmployeeGoogleCalendarStatus {
     syncEnabled: boolean;
     employeeId: string;
     employeeName: string;
-    googleCalendarEmail?: string;
+    googleCalendarId?: string;
 }
 
 class GoogleCalendarService {
@@ -89,7 +89,7 @@ class GoogleCalendarService {
     // Get Google Calendar connection status for specific employee
     async getEmployeeConnectionStatus(employee: Employee): Promise<EmployeeGoogleCalendarStatus | null> {
         try {
-            if (!employee.googleCalendarEmail) {
+            if (!employee.googleCalendarId) {
                 return {
                     isConnected: false,
                     syncEnabled: false,
@@ -98,14 +98,14 @@ class GoogleCalendarService {
                 };
             }
 
-            // Pobierz token dla pracownika na podstawie emaila Google Calendar
+            // Pobierz token dla pracownika na podstawie ID kalendarza Google
             const db = getFirestore();
             const tokensQuery = query(
                 collection(db, 'googleTokens'),
-                where('email', '==', employee.googleCalendarEmail)
+                where('calendarId', '==', employee.googleCalendarId)
             );
             
-            const querySnapshot = await getDoc(doc(db, 'googleTokens', employee.googleCalendarEmail));
+            const querySnapshot = await getDoc(doc(db, 'googleTokens', employee.googleCalendarId));
             
             if (!querySnapshot.exists()) {
                 return {
@@ -113,7 +113,7 @@ class GoogleCalendarService {
                     syncEnabled: false,
                     employeeId: employee.id,
                     employeeName: employee.name,
-                    googleCalendarEmail: employee.googleCalendarEmail,
+                    googleCalendarId: employee.googleCalendarId,
                 };
             }
 
@@ -126,7 +126,7 @@ class GoogleCalendarService {
                 syncEnabled: data.isActive === true,
                 employeeId: employee.id,
                 employeeName: employee.name,
-                googleCalendarEmail: employee.googleCalendarEmail,
+                googleCalendarId: employee.googleCalendarId,
             };
         } catch (error) {
             console.error('Error getting employee connection status:', error);
@@ -135,20 +135,20 @@ class GoogleCalendarService {
                 syncEnabled: false,
                 employeeId: employee.id,
                 employeeName: employee.name,
-                googleCalendarEmail: employee.googleCalendarEmail,
+                googleCalendarId: employee.googleCalendarId,
             };
         }
     }
 
     // Get OAuth URL for specific employee
     async getEmployeeAuthUrl(employee: Employee): Promise<string> {
-        if (!employee.googleCalendarEmail) {
-            throw new Error('Pracownik nie ma skonfigurowanego emaila Google Calendar!');
+        if (!employee.googleCalendarId) {
+            throw new Error('Pracownik nie ma skonfigurowanego ID kalendarza Google Calendar!');
         }
 
         try {
             const getAuthUrl = httpsCallable(functions, 'getGoogleAuthUrl');
-            const result = await getAuthUrl({ email: employee.googleCalendarEmail });
+            const result = await getAuthUrl({ calendarId: employee.googleCalendarId });
             return (result.data as { url: string }).url;
         } catch (error) {
             console.error('Error getting Google auth URL for employee:', error);
@@ -169,7 +169,7 @@ class GoogleCalendarService {
         clientEmail?: string;
         serviceName: string;
         clientName: string;
-        googleCalendarEmail?: string;
+        googleCalendarId?: string;
     }): Promise<string | null> {
         try {
             const syncAppointment = httpsCallable(functions, 'syncAppointmentToGoogle');
@@ -197,15 +197,15 @@ class GoogleCalendarService {
         clientName: string;
     }, employee: Employee): Promise<string | null> {
         try {
-            if (!employee.googleCalendarEmail) {
-                console.warn(`Employee ${employee.name} has no Google Calendar email configured`);
+            if (!employee.googleCalendarId) {
+                console.warn(`Employee ${employee.name} has no Google Calendar ID configured`);
                 return null;
             }
 
             const syncAppointment = httpsCallable(functions, 'syncAppointmentToGoogle');
             const result = await syncAppointment({
                 ...appointmentData,
-                googleCalendarEmail: employee.googleCalendarEmail,
+                calendarId: employee.googleCalendarId,
             });
             const syncResult = result.data as SyncResult;
             return syncResult.success ? syncResult.googleEventId || null : null;
@@ -231,12 +231,12 @@ class GoogleCalendarService {
     }
 
     // Delete event from Google Calendar by Google Event ID
-    async deleteGoogleCalendarEvent(googleEventId: string, googleCalendarEmail?: string): Promise<{ success: boolean; error?: string }> {
+    async deleteGoogleCalendarEvent(googleEventId: string, calendarId?: string): Promise<{ success: boolean; error?: string }> {
         try {
             const deleteEvent = httpsCallable(functions, 'deleteGoogleCalendarEvent');
             const result = await deleteEvent({
                 googleEventId,
-                googleCalendarEmail,
+                calendarId,
             });
             return result.data as { success: boolean; error?: string };
         } catch (error) {
@@ -251,18 +251,18 @@ class GoogleCalendarService {
     // Delete event from Google Calendar for specific employee
     async deleteGoogleCalendarEventForEmployee(googleEventId: string, employee: Employee): Promise<{ success: boolean; error?: string }> {
         try {
-            if (!employee.googleCalendarEmail) {
-                console.warn(`Employee ${employee.name} has no Google Calendar email configured`);
+            if (!employee.googleCalendarId) {
+                console.warn(`Employee ${employee.name} has no Google Calendar ID configured`);
                 return {
                     success: false,
-                    error: 'Employee has no Google Calendar email configured'
+                    error: 'Employee has no Google Calendar ID configured'
                 };
             }
 
             const deleteEvent = httpsCallable(functions, 'deleteGoogleCalendarEvent');
             const result = await deleteEvent({
                 googleEventId,
-                googleCalendarEmail: employee.googleCalendarEmail,
+                calendarId: employee.googleCalendarId,
             });
             return result.data as { success: boolean; error?: string };
         } catch (error) {
@@ -305,7 +305,7 @@ class GoogleCalendarService {
         clientEmail?: string;
         serviceName: string;
         clientName: string;
-        googleCalendarEmail?: string;
+        calendarId?: string;
     }): Promise<{ success: boolean; error?: string }> {
         try {
             const updateEvent = httpsCallable(functions, 'updateGoogleCalendarEvent');
@@ -322,7 +322,7 @@ class GoogleCalendarService {
 
     // Update event in Google Calendar for specific employee
     async updateGoogleCalendarEventForEmployee(data: {
-        googleCalendarEventId: string;
+        mainCalendarEventId: string;
         appointment: {
             id: string;
             serviceId: string;
@@ -338,18 +338,18 @@ class GoogleCalendarService {
         clientName: string;
     }, employee: Employee): Promise<{ success: boolean; error?: string }> {
         try {
-            if (!employee.googleCalendarEmail) {
-                console.warn(`Employee ${employee.name} has no Google Calendar email configured`);
+            if (!employee.googleCalendarId) {
+                console.warn(`Employee ${employee.name} has no Google Calendar ID configured`);
                 return {
                     success: false,
-                    error: 'Employee has no Google Calendar email configured'
+                    error: 'Employee has no Google Calendar ID configured'
                 };
             }
 
             const updateEvent = httpsCallable(functions, 'updateGoogleCalendarEvent');
             const result = await updateEvent({
                 ...data,
-                googleCalendarEmail: employee.googleCalendarEmail,
+                calendarId: employee.googleCalendarId,
             });
             return result.data as { success: boolean; error?: string };
         } catch (error) {
@@ -359,6 +359,103 @@ class GoogleCalendarService {
                 error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
+    }
+
+    // Sync appointment to multiple Google Calendars (main + employee)
+    async syncAppointmentToGoogleCalendar(
+        appointment: {
+            id: string;
+            serviceId: string;
+            clientId: string;
+            staffName: string;
+            start: Date;
+            end: Date;
+            status: string;
+            notes?: string;
+            clientEmail?: string;
+            serviceName: string;
+            clientName: string;
+        },
+        employee: Employee
+    ): Promise<{ mainEventId: string; employeeEventId: string | null }> {
+        
+        try {
+            // Pobierz token z głównego konta Google (salonbeautymario@gmail.com)
+            const getMainGoogleToken = httpsCallable(functions, 'getMainGoogleToken');
+            const tokenResult = await getMainGoogleToken();
+            const accessToken = (tokenResult.data as { accessToken: string }).accessToken;
+            
+            // 1. Utwórz na głównym kalendarzu (ZAWSZE)
+            const mainEventId = await this.createGoogleCalendarEvent(
+                "primary",  // Główny kalendarz
+                appointment,
+                accessToken
+            );
+            
+            // 2. Utwórz na kalendarzu pracownika (jeśli ma googleCalendarId)
+            let employeeEventId = null;
+            if (employee.googleCalendarId && employee.googleCalendarId !== "primary") {
+                employeeEventId = await this.createGoogleCalendarEvent(
+                    employee.googleCalendarId,  // np. "c_xyz123@group.calendar.google.com"
+                    appointment,
+                    accessToken  // TEN SAM TOKEN!
+                );
+            }
+            
+            return { mainEventId, employeeEventId };
+        } catch (error) {
+            console.error('Error syncing appointment to Google Calendar:', error);
+            throw error;
+        }
+    }
+
+    // Pomocnicza funkcja do tworzenia wydarzenia w Google Calendar
+    private async createGoogleCalendarEvent(
+        calendarId: string,
+        appointment: {
+            id: string;
+            serviceId: string;
+            clientId: string;
+            staffName: string;
+            start: Date;
+            end: Date;
+            status: string;
+            notes?: string;
+            clientEmail?: string;
+            serviceName: string;
+            clientName: string;
+        },
+        accessToken: string
+    ): Promise<string> {
+        const response = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    summary: `${appointment.serviceName} - ${appointment.clientName}`,
+                    description: appointment.notes || '',
+                    start: {
+                        dateTime: appointment.start.toISOString(),
+                        timeZone: 'Europe/Warsaw',
+                    },
+                    end: {
+                        dateTime: appointment.end.toISOString(),
+                        timeZone: 'Europe/Warsaw',
+                    },
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`Google Calendar API error: ${response.statusText}`);
+        }
+
+        const event = await response.json();
+        return event.id;
     }
 
     // Batch sync multiple appointments
@@ -406,7 +503,7 @@ class GoogleCalendarService {
             const db = getFirestore();
             const appointmentRef = doc(db, 'appointments', appointmentId);
             await updateDoc(appointmentRef, {
-                googleCalendarEventId: googleEventId,
+                mainCalendarEventId: googleEventId,
             });
         } catch (error) {
             console.error('Error updating Google Calendar Event ID:', error);

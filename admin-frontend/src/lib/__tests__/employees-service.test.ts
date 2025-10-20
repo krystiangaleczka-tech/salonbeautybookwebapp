@@ -82,7 +82,7 @@ const mockEmployees: Employee[] = [
     personalBuffers: { service1: 5 },
     defaultBuffer: 0,
     userRole: 'owner',
-    googleCalendarEmail: 'jan@gmail.com',
+    googleCalendarId: 'jan@gmail.com',
     workingHours: [
       { dayOfWeek: 1, startTime: '09:00', endTime: '17:00', isActive: true },
       { dayOfWeek: 2, startTime: '09:00', endTime: '17:00', isActive: true },
@@ -98,7 +98,7 @@ const mockEmployees: Employee[] = [
     personalBuffers: {},
     defaultBuffer: 10,
     userRole: 'employee',
-    googleCalendarEmail: 'anna@gmail.com',
+    googleCalendarId: 'anna@gmail.com',
     workingHours: [
       { dayOfWeek: 3, startTime: '10:00', endTime: '18:00', isActive: true },
       { dayOfWeek: 4, startTime: '10:00', endTime: '18:00', isActive: true },
@@ -163,7 +163,7 @@ describe('EmployeesService', () => {
         isActive: true,
         services: ['service1'],
         userRole: 'employee',
-        googleCalendarEmail: 'nowy@gmail.com',
+        googleCalendarId: 'nowy@gmail.com',
       };
       
       console.log('Before createEmployee - mockCollection calls:', (global as any).mockCollection.mock.calls.length);
@@ -184,7 +184,7 @@ describe('EmployeesService', () => {
           isActive: employeePayload.isActive,
           services: employeePayload.services,
           userRole: employeePayload.userRole,
-          googleCalendarEmail: employeePayload.googleCalendarEmail,
+          googleCalendarId: employeePayload.googleCalendarId,
           createdAt: expect.anything(),
           updatedAt: expect.anything(),
         })
@@ -201,7 +201,7 @@ describe('EmployeesService', () => {
         isActive: false,
         services: ['service2'],
         userRole: 'owner',
-        googleCalendarEmail: 'updated@gmail.com',
+        googleCalendarId: 'updated@gmail.com',
       };
       
       await updateEmployee('emp1', employeePayload);
@@ -216,7 +216,7 @@ describe('EmployeesService', () => {
           isActive: employeePayload.isActive,
           services: employeePayload.services,
           userRole: employeePayload.userRole,
-          googleCalendarEmail: employeePayload.googleCalendarEmail,
+          googleCalendarId: employeePayload.googleCalendarId,
           updatedAt: expect.anything(),
         })
       );

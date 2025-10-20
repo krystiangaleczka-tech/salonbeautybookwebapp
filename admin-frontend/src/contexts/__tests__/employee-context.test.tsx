@@ -46,7 +46,7 @@ const mockEmployees: Employee[] = [
     personalBuffers: { service1: 5 },
     defaultBuffer: 0,
     userRole: 'owner',
-    googleCalendarEmail: 'jan@gmail.com',
+    googleCalendarId: 'primary',
     workingHours: [
       { dayOfWeek: 1, startTime: '09:00', endTime: '17:00', isActive: true },
       { dayOfWeek: 2, startTime: '09:00', endTime: '17:00', isActive: true },
@@ -62,7 +62,7 @@ const mockEmployees: Employee[] = [
     personalBuffers: {},
     defaultBuffer: 10,
     userRole: 'employee',
-    googleCalendarEmail: 'anna@gmail.com',
+    googleCalendarId: 'c_abc123@group.calendar.google.com',
     workingHours: [
       { dayOfWeek: 3, startTime: '10:00', endTime: '18:00', isActive: true },
       { dayOfWeek: 4, startTime: '10:00', endTime: '18:00', isActive: true },
@@ -73,7 +73,7 @@ const mockEmployees: Employee[] = [
     name: 'Piotr Wiśniewski',
     email: 'piotr@example.com',
     phone: '555555555',
-    isActive: false,
+    isActive: true,
     services: ['service4'],
     personalBuffers: {},
     defaultBuffer: 5,
@@ -250,18 +250,18 @@ describe('EmployeeContext', () => {
       expect(employeesWithGoogleCalendar.map(emp => emp.id)).toEqual(['emp1', 'emp2']);
     });
 
-    test('powinien poprawnie pobierać email Google Calendar dla pracownika', async () => {
+    test('powinien poprawnie pobierać ID Google Calendar dla pracownika', async () => {
       const { result } = renderHook(() => useEmployee(), { wrapper: TestWrapper });
       
       await waitFor(() => {
         expect(result.current.allEmployees).toHaveLength(3);
       });
       
-      const googleCalendarEmail = result.current.getEmployeeGoogleCalendarEmail(mockEmployees[0]);
-      expect(googleCalendarEmail).toBe('jan@gmail.com');
+      const googleCalendarId = result.current.getEmployeeGoogleCalendarId(mockEmployees[0]);
+      expect(googleCalendarId).toBe('primary');
     });
 
-    test('powinien zwracać undefined dla pracownika bez emaila Google Calendar', async () => {
+    test('powinien zwracać undefined dla pracownika bez ID Google Calendar', async () => {
       const { result } = renderHook(() => useEmployee(), { wrapper: TestWrapper });
       
       await waitFor(() => {
@@ -270,11 +270,11 @@ describe('EmployeeContext', () => {
       
       const employeeWithoutGoogleCalendar = {
         ...mockEmployees[2],
-        googleCalendarEmail: undefined,
+        googleCalendarId: undefined,
       };
       
-      const googleCalendarEmail = result.current.getEmployeeGoogleCalendarEmail(employeeWithoutGoogleCalendar);
-      expect(googleCalendarEmail).toBeUndefined();
+      const googleCalendarId = result.current.getEmployeeGoogleCalendarId(employeeWithoutGoogleCalendar);
+      expect(googleCalendarId).toBeUndefined();
     });
   });
 });

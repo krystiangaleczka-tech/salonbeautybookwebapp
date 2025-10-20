@@ -22,16 +22,16 @@ export interface Employee {
   phone?: string;
   services?: string[];
   // Bufory czasowe per pracownik (zostaną usunięte w przyszłości)
-  personalBuffers: Record<string, number>; // serviceId -> bufferMinutes
-  defaultBuffer: number; // domyślny buffer w minutach
+  personalBuffers?: Record<string, number>; // serviceId -> bufferMinutes
+  defaultBuffer?: number; // domyślny buffer w minutach
   // Pola wielopracownicze
-  googleCalendarEmail?: string; // osobisty email Google Calendar
-  workingHours?: WorkingHours[]; // osobiste godziny pracy
+  googleCalendarId?: string; // ID kalendarza Google Calendar (np. "c_xyz123@group.calendar.google.com")
+  workingHours?: WorkingHour[]; // osobiste godziny pracy
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
-export interface WorkingHours {
+export interface WorkingHour {
   dayOfWeek: number; // 0 = niedziela, 1 = poniedziałek, etc.
   startTime: string; // "09:00"
   endTime: string; // "17:00"
@@ -48,9 +48,9 @@ export interface EmployeePayload {
   personalBuffers?: Record<string, number>;
   defaultBuffer?: number;
   // Pola wielopracownicze
-  googleCalendarEmail?: string;
+  googleCalendarId?: string;
   userRole?: 'owner' | 'employee' | 'tester';
-  workingHours?: WorkingHours[];
+  workingHours?: WorkingHour[];
 }
 
 const employeesCollection = collection(db, "employees");
@@ -72,8 +72,8 @@ function mapEmployee(docData: DocumentData, id: string): Employee {
       : {},
     defaultBuffer: typeof docData.defaultBuffer === "number" ? docData.defaultBuffer : 0,
     // Pola wielopracownicze - domyślne wartości
-    googleCalendarEmail: typeof docData.googleCalendarEmail === "string" ? docData.googleCalendarEmail : undefined,
-    workingHours: Array.isArray(docData.workingHours) ? docData.workingHours as WorkingHours[] : [],
+    googleCalendarId: typeof docData.googleCalendarId === "string" ? docData.googleCalendarId : undefined,
+    workingHours: Array.isArray(docData.workingHours) ? docData.workingHours as WorkingHour[] : [],
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt : null,
     updatedAt: docData.updatedAt instanceof Timestamp ? docData.updatedAt : null,
   };
@@ -111,9 +111,9 @@ function normalizePayload(payload: EmployeePayload) {
     workingHours: payload.workingHours ?? [],
   };
   
-  // Dodaj googleCalendarEmail tylko jeśli ma wartość
-  if (payload.googleCalendarEmail && payload.googleCalendarEmail.trim() !== "") {
-    normalized.googleCalendarEmail = payload.googleCalendarEmail;
+  // Dodaj googleCalendarId tylko jeśli ma wartość
+  if (payload.googleCalendarId && payload.googleCalendarId.trim() !== "") {
+    normalized.googleCalendarId = payload.googleCalendarId;
   }
   
   return normalized;

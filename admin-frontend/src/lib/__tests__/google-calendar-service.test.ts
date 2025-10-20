@@ -39,7 +39,7 @@ jest.mock('firebase/firestore', () => ({
 const mockEmployee: Employee = {
   id: 'emp1',
   name: 'Jan Kowalski',
-  role: 'Fryzjer',
+  
   email: 'jan@example.com',
   phone: '123456789',
   isActive: true,
@@ -47,7 +47,7 @@ const mockEmployee: Employee = {
   personalBuffers: { service1: 5 },
   defaultBuffer: 0,
   userRole: 'owner',
-  googleCalendarEmail: 'jan@gmail.com',
+  googleCalendarId: 'jan@gmail.com',
   workingHours: [
     { dayOfWeek: 1, startTime: '09:00', endTime: '17:00', isActive: true },
     { dayOfWeek: 2, startTime: '09:00', endTime: '17:00', isActive: true },
@@ -57,7 +57,7 @@ const mockEmployee: Employee = {
 const mockEmployeeWithoutGoogleCalendar: Employee = {
   ...mockEmployee,
   id: 'emp2',
-  googleCalendarEmail: undefined,
+  googleCalendarId: undefined,
 };
 
 // Mock console.error to avoid noise in test output
@@ -106,9 +106,9 @@ describe('GoogleCalendarService', () => {
       expect(status?.syncEnabled).toBe(true);
       expect(status?.employeeId).toBe(mockEmployee.id);
       expect(status?.employeeName).toBe(mockEmployee.name);
-      expect(status?.googleCalendarEmail).toBe(mockEmployee.googleCalendarEmail);
+      expect(status?.googleCalendarId).toBe(mockEmployee.googleCalendarId);
       expect(getFirestore).toHaveBeenCalled();
-      expect(doc).toHaveBeenCalledWith(mockDb, 'googleTokens', mockEmployee.googleCalendarEmail);
+      expect(doc).toHaveBeenCalledWith(mockDb, 'googleTokens', mockEmployee.googleCalendarId);
       expect(getDoc).toHaveBeenCalledWith(mockDocRef);
     });
 
@@ -119,7 +119,7 @@ describe('GoogleCalendarService', () => {
       expect(status?.isConnected).toBe(false);
       expect(status?.syncEnabled).toBe(false);
       expect(status?.employeeId).toBe(mockEmployeeWithoutGoogleCalendar.id);
-      expect(status?.googleCalendarEmail).toBeUndefined();
+      expect(status?.googleCalendarId).toBeUndefined();
     });
 
     test('powinien generować URL autoryzacji dla pracownika', async () => {
@@ -131,13 +131,13 @@ describe('GoogleCalendarService', () => {
       const url = await googleCalendarService.getEmployeeAuthUrl(mockEmployee);
       
       expect(url).toBe('https://accounts.google.com/oauth/authorize?...');
-      expect(mockHttpsCallable).toHaveBeenCalledWith({ email: mockEmployee.googleCalendarEmail });
+      expect(mockHttpsCallable).toHaveBeenCalledWith({ calendarId: mockEmployee.googleCalendarId });
     });
 
     test('powinien rzucić błąd przy próbie uzyskania URL dla pracownika bez Google Calendar', async () => {
       await expect(
         googleCalendarService.getEmployeeAuthUrl(mockEmployeeWithoutGoogleCalendar)
-      ).rejects.toThrow('Pracownik nie ma skonfigurowanego emaila Google Calendar!');
+      ).rejects.toThrow('Pracownik nie ma skonfigurowanego ID kalendarza Google Calendar!');
     });
   });
 
@@ -167,7 +167,7 @@ describe('GoogleCalendarService', () => {
       expect(result).toBe('event123');
       expect(mockHttpsCallable).toHaveBeenCalledWith({
         ...appointmentData,
-        googleCalendarEmail: mockEmployee.googleCalendarEmail,
+        calendarId: mockEmployee.googleCalendarId,
       });
     });
 
@@ -197,7 +197,7 @@ describe('GoogleCalendarService', () => {
       });
 
       const updateData = {
-        googleCalendarEventId: 'event123',
+        mainCalendarEventId: 'event123',
         appointment: {
           id: 'appointment1',
           serviceId: 'service1',
@@ -218,7 +218,7 @@ describe('GoogleCalendarService', () => {
       expect(result.success).toBe(true);
       expect(mockHttpsCallable).toHaveBeenCalledWith({
         ...updateData,
-        googleCalendarEmail: mockEmployee.googleCalendarEmail,
+        calendarId: mockEmployee.googleCalendarId,
       });
     });
 
@@ -233,7 +233,7 @@ describe('GoogleCalendarService', () => {
       expect(result.success).toBe(true);
       expect(mockHttpsCallable).toHaveBeenCalledWith({
         googleEventId: 'event123',
-        googleCalendarEmail: mockEmployee.googleCalendarEmail,
+        calendarId: mockEmployee.googleCalendarId,
       });
     });
   });
