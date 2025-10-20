@@ -147,8 +147,8 @@ describe('EmployeesService', () => {
           services: employeePayload.services,
           userRole: employeePayload.userRole,
           googleCalendarEmail: employeePayload.googleCalendarEmail,
-          createdAt: expect.anything),
-          updatedAt: expect.anything),
+          createdAt: expect.anything(),
+          updatedAt: expect.anything(),
         })
       );
     });
@@ -190,7 +190,7 @@ describe('EmployeesService', () => {
           services: employeePayload.services,
           userRole: employeePayload.userRole,
           googleCalendarEmail: employeePayload.googleCalendarEmail,
-          updatedAt: expect.anything),
+          updatedAt: expect.anything(),
         })
       );
     });
