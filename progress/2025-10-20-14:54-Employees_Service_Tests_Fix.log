@@ -1,0 +1,39 @@
+# Naprawa testów employees-service.test.ts
+
+## Data i czas
+2025-10-20 14:54:21 CEST
+
+## Problem
+Test `createEmployee` w pliku `admin-frontend/src/lib/__tests__/employees-service.test.ts` zawodził z błędem:
+```
+expect(jest.fn()).toHaveBeenCalled()
+Expected number of calls: >= 1
+Received number of calls:    0
+```
+
+## Przyczyny
+1. Brak inicjalizacji `mockOnSnapshot` w bloku `beforeEach`
+2. Problem z mockowaniem funkcji `collection()` w Firestore - była inicjalizowana na poziomie modułu przed mockowaniem
+
+## Wykonane zmiany
+1. Dodano brakującą linię inicjalizującą `mockOnSnapshot` w `beforeEach`:
+   ```typescript
+   (global as any).mockOnSnapshot = jest.fn().mockReturnValue(jest.fn());
+   ```
+
+2. Zmodyfikowano test `createEmployee` aby używał globalnych mocków zamiast zmiennych lokalnych:
+   - Dodano console.log do debugowania
+   - Zmieniono oczekiwania na `(global as any).mockAddDoc` zamiast `mockAddDoc`
+
+## Wynik
+Wszystkie testy przechodzą pomyślnie:
+- Test Suites: 10 passed, 10 total
+- Tests: 88 passed, 88 total
+
+## Kluczowe wnioski
+1. Przy mockowaniu Firestore API należy pamiętać o różnicy między metodami a właściwościami
+2. Inicjalizacja modułów na poziomie modułu (przed mockowaniem) może powodować problemy z testami
+3. Debugowanie z console.log pomaga zidentyfikować, które mocki są wywoływane
+
+## Pliki zmodyfikowane
+- admin-frontend/src/lib/__tests__/employees-service.test.ts

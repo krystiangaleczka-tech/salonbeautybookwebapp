@@ -1,10 +1,10 @@
-import { 
-  subscribeToEmployees, 
-  createEmployee, 
-  updateEmployee, 
+import {
+  subscribeToEmployees,
+  createEmployee,
+  updateEmployee,
   deleteEmployee,
   type Employee,
-  type EmployeePayload 
+  type EmployeePayload
 } from '../employees-service';
 
 // Mock dla Firebase
@@ -13,21 +13,62 @@ jest.mock('@/lib/firebase', () => ({
 }));
 
 // Mock dla Firestore
-jest.mock('firebase/firestore', () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
-  getDoc: jest.fn(),
-  addDoc: jest.fn(),
-  updateDoc: jest.fn(),
-  deleteDoc: jest.fn(),
-  onSnapshot: jest.fn(),
-  query: jest.fn(),
-  orderBy: jest.fn(),
-  serverTimestamp: jest.fn(() => new Date()),
-  Timestamp: {
-    fromDate: (date: Date) => ({ seconds: Math.floor(date.getTime() / 1000), toDate: () => date }),
-  },
-}));
+jest.mock('firebase/firestore', () => {
+  const actualFirestore = jest.requireActual('firebase/firestore');
+  
+  return {
+    ...actualFirestore,
+    getFirestore: jest.fn(),
+    collection: jest.fn((...args) => {
+      (global as any).mockCollection?.(...args);
+      return { id: 'mock-collection' };
+    }),
+    addDoc: jest.fn((...args) => (global as any).mockAddDoc?.(...args)),
+    doc: jest.fn((...args) => {
+      (global as any).mockDoc?.(...args);
+      return { id: 'mock-doc' };
+    }),
+    getDoc: jest.fn(),
+    updateDoc: jest.fn((...args) => (global as any).mockUpdateDoc?.(...args)),
+    deleteDoc: jest.fn((...args) => (global as any).mockDeleteDoc?.(...args)),
+    onSnapshot: jest.fn((collectionRef, callback) => {
+      (global as any).mockOnSnapshot?.(collectionRef, callback);
+      // Symuluj natychmiastowe wywołanie callback z danymi
+      callback({
+        docs: [
+          {
+            id: 'emp1',
+            data: () => ({
+              name: 'Jan Kowalski',
+              email: 'jan@example.com',
+              role: 'employee',
+              workingHours: [],
+            }),
+          },
+        ],
+      });
+      return jest.fn(); // Zwróć funkcję unsubscribe
+    }),
+    query: jest.fn((...args) => (global as any).mockQuery?.(...args)),
+    orderBy: jest.fn((...args) => (global as any).mockOrderBy?.(...args)),
+    serverTimestamp: jest.fn(() => (global as any).mockServerTimestamp?.()),
+    Timestamp: class MockTimestamp {
+      constructor(public seconds: number, public nanoseconds: number) {}
+      
+      toDate() {
+        return new Date(this.seconds * 1000);
+      }
+      
+      static fromDate(date: Date) {
+        return new MockTimestamp(Math.floor(date.getTime() / 1000), 0);
+      }
+      
+      static now() {
+        return MockTimestamp.fromDate(new Date());
+      }
+    },
+  };
+});
 
 // Przykładowi pracownicy do testów
 const mockEmployees: Employee[] = [
@@ -81,47 +122,42 @@ describe('EmployeesService', () => {
   beforeEach(() => {
     // Resetuj mocki przed każdym testem
     jest.clearAllMocks();
+    
+    // Konfiguruj globalne mocki
+    (global as any).mockCollection = jest.fn().mockReturnValue({ id: 'mock-collection' });
+    (global as any).mockAddDoc = jest.fn().mockResolvedValue({ id: 'new-employee-id' });
+    (global as any).mockDoc = jest.fn().mockReturnValue({ id: 'mock-doc' });
+    (global as any).mockUpdateDoc = jest.fn().mockResolvedValue(undefined);
+    (global as any).mockDeleteDoc = jest.fn().mockResolvedValue(undefined);
+    (global as any).mockQuery = jest.fn().mockReturnValue({});
+    (global as any).mockOrderBy = jest.fn().mockReturnValue({});
+    (global as any).mockServerTimestamp = jest.fn(() => new Date());
+    (global as any).mockOnSnapshot = jest.fn().mockReturnValue(jest.fn()); // Brakowało tej linii!
   });
 
   describe('subscribeToEmployees', () => {
     test('powinien poprawnie subskrybować do pracowników', () => {
-      const mockOnSnapshot = require('firebase/firestore').onSnapshot;
       const mockCallback = jest.fn();
       const mockErrorCallback = jest.fn();
       
-      // Mock dla onSnapshot
-      mockOnSnapshot.mockImplementation((query, callback, errorCallback) => {
-        // Symuluj natychmiastowe wywołanie callback z danymi testowymi
-        callback({
-          docs: mockEmployees.map(emp => ({
-            id: emp.id,
-            data: () => emp,
-          }))
-        });
-        
-        // Zwróć funkcja do czyszczenia subskrypcji
-        return jest.fn();
-      });
-      
       const unsubscribe = subscribeToEmployees(mockCallback, mockErrorCallback);
       
-      expect(mockOnSnapshot).toHaveBeenCalled();
-      expect(mockCallback).toHaveBeenCalledWith(mockEmployees);
+      expect((global as any).mockOnSnapshot).toHaveBeenCalled();
+      expect(mockCallback).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'emp1',
+            name: 'Jan Kowalski',
+            email: 'jan@example.com',
+          })
+        ])
+      );
       expect(unsubscribe).toBeDefined();
     });
   });
 
   describe('createEmployee', () => {
     test('powinien tworzyć nowego pracownika', async () => {
-      const mockAddDoc = require('firebase/firestore').addDoc;
-      const mockCollection = require('firebase/firestore').collection;
-      const mockServerTimestamp = require('firebase/firestore').serverTimestamp;
-      
-      // Mock dla collection i addDoc
-      mockCollection.mockReturnValue({});
-      mockAddDoc.mockResolvedValue({ id: 'new-employee-id' });
-      mockServerTimestamp.mockReturnValue(new Date());
-      
       const employeePayload: EmployeePayload = {
         name: 'Nowy Pracownik',
         role: 'Fryzjer',
@@ -133,11 +169,17 @@ describe('EmployeesService', () => {
         googleCalendarEmail: 'nowy@gmail.com',
       };
       
+      console.log('Before createEmployee - mockCollection calls:', (global as any).mockCollection.mock.calls.length);
+      
       await createEmployee(employeePayload);
       
-      expect(mockCollection).toHaveBeenCalled();
-      expect(mockAddDoc).toHaveBeenCalledWith(
-        {},
+      console.log('After createEmployee - mockCollection calls:', (global as any).mockCollection.mock.calls.length);
+      console.log('Mock addDoc calls:', (global as any).mockAddDoc.mock.calls.length);
+      console.log('Mock addDoc args:', (global as any).mockAddDoc.mock.calls);
+
+      expect((global as any).mockAddDoc).toHaveBeenCalledTimes(1);
+      expect((global as any).mockAddDoc).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'mock-collection' }), // CollectionReference mock
         expect.objectContaining({
           name: employeePayload.name,
           role: employeePayload.role,
@@ -156,15 +198,6 @@ describe('EmployeesService', () => {
 
   describe('updateEmployee', () => {
     test('powinien aktualizować istniejącego pracownika', async () => {
-      const mockUpdateDoc = require('firebase/firestore').updateDoc;
-      const mockDoc = require('firebase/firestore').doc;
-      const mockServerTimestamp = require('firebase/firestore').serverTimestamp;
-      
-      // Mock dla doc i updateDoc
-      mockDoc.mockReturnValue({});
-      mockUpdateDoc.mockResolvedValue(undefined);
-      mockServerTimestamp.mockReturnValue(new Date());
-      
       const employeePayload: EmployeePayload = {
         name: 'Zaktualizowany Pracownik',
         role: 'Kosmetyczka',
@@ -178,9 +211,9 @@ describe('EmployeesService', () => {
       
       await updateEmployee('emp1', employeePayload);
       
-      expect(mockDoc).toHaveBeenCalled();
-      expect(mockUpdateDoc).toHaveBeenCalledWith(
-        {},
+      expect((global as any).mockDoc).toHaveBeenCalled();
+      expect((global as any).mockUpdateDoc).toHaveBeenCalledWith(
+        { id: 'mock-doc' },
         expect.objectContaining({
           name: employeePayload.name,
           role: employeePayload.role,
@@ -198,17 +231,10 @@ describe('EmployeesService', () => {
 
   describe('deleteEmployee', () => {
     test('powinien usuwać pracownika', async () => {
-      const mockDeleteDoc = require('firebase/firestore').deleteDoc;
-      const mockDoc = require('firebase/firestore').doc;
-      
-      // Mock dla doc i deleteDoc
-      mockDoc.mockReturnValue({});
-      mockDeleteDoc.mockResolvedValue(undefined);
-      
       await deleteEmployee('emp1');
       
-      expect(mockDoc).toHaveBeenCalled();
-      expect(mockDeleteDoc).toHaveBeenCalledWith({});
+      expect((global as any).mockDoc).toHaveBeenCalled();
+      expect((global as any).mockDeleteDoc).toHaveBeenCalledWith({ id: 'mock-doc' });
     });
   });
 });

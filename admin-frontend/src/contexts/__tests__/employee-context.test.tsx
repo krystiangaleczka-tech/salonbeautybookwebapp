@@ -3,7 +3,7 @@ const mockAuthContextValue = {
   user: {
     uid: 'test-user-id',
     email: 'jan@example.com',
-  },
+  } as unknown as import('firebase/auth').User,
   loading: false,
 };
 
@@ -137,7 +137,7 @@ describe('EmployeeContext', () => {
         user: {
           uid: 'test-user-id-2',
           email: 'anna@example.com',
-        },
+        } as unknown as import('firebase/auth').User,
         loading: false,
       };
 
@@ -192,7 +192,7 @@ describe('EmployeeContext', () => {
         user: {
           uid: 'test-user-id-2',
           email: 'anna@example.com',
-        },
+        } as unknown as import('firebase/auth').User,
         loading: false,
       };
 

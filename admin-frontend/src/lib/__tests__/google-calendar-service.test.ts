@@ -1,13 +1,22 @@
 import { googleCalendarService } from '../google-calendar-service';
 import type { Employee } from '../employees-service';
 
+// Deklaracja mocka przed jest.mock()
+const mockHttpsCallable = jest.fn();
+
+// Mock dla Firebase Functions
+jest.mock('firebase/functions', () => ({
+  getFunctions: jest.fn(),
+  httpsCallable: jest.fn(() => mockHttpsCallable),
+}));
+
 // Mock dla Firebase
 jest.mock('@/lib/firebase', () => ({
   auth: {
     currentUser: {
       uid: 'test-user-id',
       email: 'test@example.com',
-    },
+    } as unknown as import('firebase/auth').User,
   },
   functions: {
     httpsCallable: jest.fn(),
@@ -69,25 +78,38 @@ describe('GoogleCalendarService', () => {
 
   describe('Funkcjonalność per pracownik', () => {
     test('powinien zwrócić status połączenia dla pracownika z Google Calendar', async () => {
-      // Mock dla getDoc
-      const mockGetDoc = require('firebase/firestore').getDoc;
-      const mockDoc = {
-        exists: true,
+      // Mock dla Firestore
+      const { getDoc, doc, getFirestore } = require('firebase/firestore');
+      
+      // Mock dla getFirestore
+      const mockDb = { id: 'mock-db' };
+      getFirestore.mockReturnValue(mockDb);
+      
+      // Mock dla doc
+      const mockDocRef = { id: 'mock-doc-ref' };
+      doc.mockReturnValue(mockDocRef);
+      
+      // Mock dla getDoc - zwróć dane z isActive: true
+      getDoc.mockResolvedValue({
+        exists: () => true, // ← FUNKCJA, nie właściwość!
         data: () => ({
           isActive: true,
           updatedAt: { toDate: () => new Date() },
           calendarId: 'primary',
         }),
-      };
-      mockGetDoc.mockResolvedValue(mockDoc);
-
+      });
+      
       const status = await googleCalendarService.getEmployeeConnectionStatus(mockEmployee);
       
       expect(status).not.toBeNull();
       expect(status?.isConnected).toBe(true);
+      expect(status?.syncEnabled).toBe(true);
       expect(status?.employeeId).toBe(mockEmployee.id);
       expect(status?.employeeName).toBe(mockEmployee.name);
       expect(status?.googleCalendarEmail).toBe(mockEmployee.googleCalendarEmail);
+      expect(getFirestore).toHaveBeenCalled();
+      expect(doc).toHaveBeenCalledWith(mockDb, 'googleTokens', mockEmployee.googleCalendarEmail);
+      expect(getDoc).toHaveBeenCalledWith(mockDocRef);
     });
 
     test('powinien zwrócić status braku połączenia dla pracownika bez Google Calendar', async () => {
@@ -102,10 +124,9 @@ describe('GoogleCalendarService', () => {
 
     test('powinien generować URL autoryzacji dla pracownika', async () => {
       // Mock dla httpsCallable
-      const mockHttpsCallable = require('@/lib/firebase').functions.httpsCallable;
-      mockHttpsCallable.mockReturnValue(() => 
-        Promise.resolve({ data: { url: 'https://accounts.google.com/oauth/authorize?...' } })
-      );
+      mockHttpsCallable.mockResolvedValueOnce({
+        data: { url: 'https://accounts.google.com/oauth/authorize?...' }
+      });
 
       const url = await googleCalendarService.getEmployeeAuthUrl(mockEmployee);
       
@@ -123,10 +144,9 @@ describe('GoogleCalendarService', () => {
   describe('Synchronizacja wizyt per pracownik', () => {
     test('powinien synchronizować wizytę dla pracownika z Google Calendar', async () => {
       // Mock dla httpsCallable
-      const mockHttpsCallable = require('@/lib/firebase').functions.httpsCallable;
-      mockHttpsCallable.mockReturnValue(() => 
-        Promise.resolve({ data: { success: true, googleEventId: 'event123' } })
-      );
+      mockHttpsCallable.mockResolvedValueOnce({
+        data: { success: true, googleEventId: 'event123' }
+      });
 
       const appointmentData = {
         id: 'appointment1',
@@ -172,10 +192,9 @@ describe('GoogleCalendarService', () => {
 
     test('powinien aktualizować wydarzenie w Google Calendar dla pracownika', async () => {
       // Mock dla httpsCallable
-      const mockHttpsCallable = require('@/lib/firebase').functions.httpsCallable;
-      mockHttpsCallable.mockReturnValue(() => 
-        Promise.resolve({ data: { success: true } })
-      );
+      mockHttpsCallable.mockResolvedValueOnce({
+        data: { success: true }
+      });
 
       const updateData = {
         googleCalendarEventId: 'event123',
@@ -205,10 +224,9 @@ describe('GoogleCalendarService', () => {
 
     test('powinien usuwać wydarzenie z Google Calendar dla pracownika', async () => {
       // Mock dla httpsCallable
-      const mockHttpsCallable = require('@/lib/firebase').functions.httpsCallable;
-      mockHttpsCallable.mockReturnValue(() => 
-        Promise.resolve({ data: { success: true } })
-      );
+      mockHttpsCallable.mockResolvedValueOnce({
+        data: { success: true }
+      });
 
       const result = await googleCalendarService.deleteGoogleCalendarEventForEmployee('event123', mockEmployee);
       
