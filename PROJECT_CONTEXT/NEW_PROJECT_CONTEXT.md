@@ -62,14 +62,17 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 #### Contexts and Hooks
 - **`src/contexts/auth-context.ts`** - Authentication context
 - **`src/contexts/AuthProvider.tsx`** - Authentication provider
+- **`src/contexts/employee-context.tsx`** - Employee management context with roles (owner/employee/tester)
 - **`src/contexts/theme-context.tsx`** - Theme context
 - **`src/hooks/useAuth.ts`** - Authentication hook
 - **`src/hooks/usePendingTimeChanges.ts`** - Pending time changes hook
+- **`src/hooks/useEmployee.ts`** - Employee management hook
+- **`src/hooks/useOptimisticUpdates.ts`** - Optimistic updates hook
 
 #### Services
 - **`src/lib/appointments-service.ts`** - Appointments CRUD service with Google Calendar sync
 - **`src/lib/customers-service.ts`** - Customers CRUD service
-- **`src/lib/employees-service.ts`** - Employees CRUD service
+- **`src/lib/employees-service.ts`** - Employees CRUD service with auto-creation of admin
 - **`src/lib/services-service.ts`** - Services CRUD service
 - **`src/lib/dashboard-service.ts`** - Dashboard data service
 - **`src/lib/notifications-service.ts`** - Notifications service
@@ -78,6 +81,10 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 - **`src/lib/firebase.ts`** - Firebase configuration
 - **`src/lib/dashboard-data.ts`** - Dashboard data and mock data
 - **`src/lib/dashboard-theme.ts`** - Theme configuration
+- **`src/lib/google-calendar-service.ts`** - Advanced Google Calendar service with batch operations
+- **`src/lib/optimistic-updates.ts`** - Optimistic updates for better UX
+- **`src/lib/init-employees.ts`** - Employee initialization service
+- **`src/lib/test-firebase.ts`** - Firebase testing utilities
 
 ## Backend Functions (`booking-functions/`)
 ### Configuration
@@ -87,6 +94,7 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 
 ### Source
 - **`src/index.ts`** - Main functions entry point
+- **`src/firestore-triggers.ts`** - Firestore triggers for automatic synchronization
 - **`src/google-calendar/`** - Google Calendar integration
   - **`auth.ts`** - Google OAuth authentication
   - **`config.ts`** - Google Calendar configuration
@@ -118,14 +126,18 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 - Calendar and scheduling with time zones
 - Customer management with blacklisting
 - Service management with buffers
+- **NEW**: Multi-employee system with roles (owner/employee/tester)
 - Employee management with personal buffers
 - Reports and analytics
 - Real-time notifications
 - Settings management (working hours, holidays, buffers, etc.)
-- Advanced filtering and search
+- Advanced filtering and search with presets
 - Mobile and tablet responsive design
 - **NEW**: Google Calendar two-way synchronization
 - **NEW**: OAuth2 authentication for Google Calendar
+- **NEW**: Optimistic updates for better UX
+- **NEW**: Firestore triggers for automatic synchronization
+- **NEW**: Static fetch instead of realtime listeners for stability
 
 ## Recent Changes
 - Implemented comprehensive calendar with multiple views
@@ -141,19 +153,30 @@ Beauty salon management application focused on the admin interface. Poprzedni mo
 - **NEW**: Fixed Firestore CORS and infinite loop issues
 - **NEW**: Implemented frontend refresh after CRUD operations
 - **NEW**: Added Google Calendar event ID protection in appointments
+- **NEW**: Multi-employee system implementation (2025-10-20)
+- **NEW**: Employee roles system (owner/employee/tester)
+- **NEW**: Automatic admin employee creation
+- **NEW**: Google Calendar multi-employee sync
+- **NEW**: Firestore triggers for background synchronization
+- **NEW**: Optimistic updates implementation
+- **NEW**: Advanced testing structure for usePendingTimeChanges
 
 ## Development Notes
 - Admin uses Next.js App Router with protected routes
 - Tailwind CSS for styling with custom themes
 - Firebase provides backend services (Auth, Firestore, Functions)
-- Real-time updates using Firestore listeners (with fallback to static fetch)
+- **NEW**: Static fetch instead of realtime listeners for stability
 - Comprehensive error handling and loading states
 - Responsive design optimized for tablets and desktop
 - **NEW**: Google Calendar integration uses OAuth2 flow with refresh tokens
 - **NEW**: Firestore region set to eur3 for stability
 - **NEW**: Functions region set to europe-central2
+- **NEW**: Employee context provides role-based access control
+- **NEW**: Optimistic updates improve user experience
+- **NEW**: Firestore triggers handle background synchronization
+- **NEW**: Comprehensive test coverage for critical hooks
 
-## Complete graph up-to-date 17.10.2025-12:02
+## Complete graph up-to-date 21.10.2025-12:38
 graph TB
     %% ========== FRONTEND NEXT.JS ==========
     subgraph Frontend["🖥️ Frontend Next.js Application"]
