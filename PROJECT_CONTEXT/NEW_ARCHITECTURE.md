@@ -43,20 +43,28 @@ admin-frontend/
 │   │   └── ui/                # Bazowe komponenty UI
 │   ├── contexts/              # React Context
 │   │   ├── auth-context.ts    # Kontekst autentykacji
+│   │   ├── AuthProvider.tsx   # Provider autentykacji
+│   │   ├── employee-context.tsx  # Kontekst pracowników z rolami (owner/employee/tester)
 │   │   └── theme-context.tsx  # Kontekst motywu
 │   ├── hooks/                 # Custom hooks
 │   │   ├── useAuth.ts         # Hook autentykacji
-│   │   └── usePendingTimeChanges.ts  # Hook zmian czasu
+│   │   ├── usePendingTimeChanges.ts  # Hook zmian czasu
+│   │   ├── useEmployee.ts     # Hook zarządzania pracownikami
+│   │   └── useOptimisticUpdates.ts  # Hook optymistycznych aktualizacji
 │   ├── lib/                   # Biblioteki i usługi
 │   │   ├── appointments-service.ts  # Serwis wizyt z Google Calendar sync
 │   │   ├── customers-service.ts     # Serwis klientów
-│   │   ├── employees-service.ts     # Serwis pracowników
+│   │   ├── employees-service.ts     # Serwis pracowników z auto-kreacją admina
 │   │   ├── services-service.ts      # Serwis usług
 │   │   ├── notifications-service.ts # Serwis powiadomień
 │   │   ├── dashboard-service.ts     # Serwis dashboard
 │   │   ├── filters-service.ts       # Serwis filtrów
 │   │   ├── settings-data.ts         # Dane ustawień
-│   │   └── firebase.ts              # Konfiguracja Firebase
+│   │   ├── firebase.ts              # Konfiguracja Firebase
+│   │   ├── google-calendar-service.ts  # Zaawansowany serwis Google Calendar z batch operations
+│   │   ├── optimistic-updates.ts    # Optymistyczne aktualizacje dla lepszej UX
+│   │   ├── init-employees.ts        # Serwis inicjalizacji pracowników
+│   │   └── test-firebase.ts         # Utilities testowe Firebase
 │   └── types/                 # Definicje typów TypeScript
 ├── public/                    # Zasoby statyczne
 ├── docs/                      # Dokumentacja
@@ -73,6 +81,7 @@ Struktura backend
 booking-functions/
 ├── src/
 │   ├── index.ts               # Główny plik functions
+│   ├── firestore-triggers.ts  # Firestore triggers dla automatycznej synchronizacji
 │   └── google-calendar/       # Google Calendar integration
 │       ├── auth.ts            # OAuth2 authentication
 │       ├── config.ts          # Configuration
@@ -139,13 +148,14 @@ Employees (Pracownicy)
 interface Employee {
   id: string;
   name: string;
-  role: string;
+  role: 'owner' | 'employee' | 'tester';  // ✅ NOWE: System ról
   email?: string;
   phone?: string;
   isActive: boolean;
   services: string[];
   personalBuffers?: Record<string, number>;
   defaultBuffer: number;
+  userId?: string;  // ✅ NOWE: Powiązanie z użytkownikiem Firebase Auth
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -209,6 +219,7 @@ Komponenty autentykacji
 AuthGuard - Ochrona tras chronionych
 LoginProvider - Provider dla kontekstu logowania
 LoginForm - Formularz logowania
+GoogleCallback - Callback dla OAuth2 Google Calendar
 Komponenty kalendarza
 CalendarPage - Główna strona kalendarza
 WeekBoard - Widok tygodniowy kalendarza
@@ -219,6 +230,8 @@ CalendarToolbar - Narzędzia kalendarza
 AppointmentCard - Karta wizyty
 QuickEdit - Szybka edycja wizyty
 TimeAdjustment - Regulacja czasu wizyty
+EmployeeSelector - ✅ NOWE: Selektor pracowników
+AppointmentFilters - ✅ NOWE: Filtry wizyt z presetami
 Komponenty dashboard
 DashboardLayout - Layout dashboard
 CalendarCard - Karta kalendarza na dashboard
@@ -309,6 +322,12 @@ class EmployeesService {
   // Pobranie wszystkich pracowników
   async getAllEmployees(): Promise<Employee[]>
   
+  // ✅ NOWE: Pobranie pracownika po userId
+  async getEmployeeByUserId(userId: string): Promise<Employee | null>
+  
+  // ✅ NOWE: Auto-kreacja pracownika admina
+  async ensureAdminEmployee(user: User): Promise<Employee>
+  
   // Tworzenie nowego pracownika
   async createEmployee(employee: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>): Promise<string>
   
@@ -317,6 +336,9 @@ class EmployeesService {
   
   // Usuwanie pracownika
   async deleteEmployee(id: string): Promise<void>
+  
+  // ✅ NOWE: Pobranie pracowników według roli
+  async getEmployeesByRole(role: 'owner' | 'employee' | 'tester'): Promise<Employee[]>
 }
 Notifications Service
 class NotificationsService {
@@ -362,6 +384,19 @@ interface ThemeContextType {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
+
+// ✅ NOWE: Employee Context
+interface EmployeeContextType {
+  employees: Employee[];
+  currentEmployee: Employee | null;
+  loading: boolean;
+  error: string | null;
+  refreshEmployees: () => Promise<void>;
+  createEmployee: (employee: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  updateEmployee: (id: string, updates: Partial<Employee>) => Promise<void>;
+  deleteEmployee: (id: string) => Promise<void>;
+  setCurrentEmployee: (employee: Employee | null) => void;
+}
 Custom Hooks
 useAuth Hook
 const useAuth = () => {
@@ -391,6 +426,33 @@ const usePendingTimeChanges = (appointmentId: string) => {
   };
   
   return { pendingChanges, isDirty, updatePendingTime, commitChanges, revertChanges };
+};
+
+// ✅ NOWE: useEmployee Hook
+const useEmployee = () => {
+  const context = useContext(EmployeeContext);
+  if (!context) {
+    throw new Error('useEmployee must be used within an EmployeeProvider');
+  }
+  return context;
+};
+
+// ✅ NOWE: useOptimisticUpdates Hook
+const useOptimisticUpdates = () => {
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Record<string, any>>({});
+  
+  const addOptimisticUpdate = (key: string, data: any) => {
+    setOptimisticUpdates(prev => ({ ...prev, [key]: data }));
+  };
+  
+  const removeOptimisticUpdate = (key: string) => {
+    setOptimisticUpdates(prev => {
+      const { [key]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+  
+  return { optimisticUpdates, addOptimisticUpdate, removeOptimisticUpdate };
 };
 Architektura bezpieczeństwa - ZAIMPLEMENTOWANE ✅
 Firebase Security Rules

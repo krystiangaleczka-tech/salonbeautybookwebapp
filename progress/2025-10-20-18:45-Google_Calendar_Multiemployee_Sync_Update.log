@@ -1,0 +1,84 @@
+# Google Calendar Multiemployee Sync Update
+## Data: 2025-10-20 18:45
+## Opis: Aktualizacja systemu synchronizacji z Google Calendar do obsługi wielu kalendarzy (główny i kalendarze pracowników)
+
+## Zakończone zadania:
+
+### 1. Zaktualizowano typ Employee w employees-service.ts
+- Zmieniono `googleCalendarEmail` na `googleCalendarId`
+- Zmieniono `WorkingHours` na `WorkingHour`
+- Zaktualizowano funkcje mapowania i normalizacji danych
+
+### 2. Zaktualizowano funkcje synchronizacji w google-calendar-service.ts
+- Dodano nową funkcję `syncAppointmentToGoogleCalendar` do synchronizacji z wieloma kalendarzami
+- Zaktualizowano wszystkie funkcje, aby używały `googleCalendarId` zamiast `googleCalendarEmail`
+- Dodano funkcję pomocniczą `createGoogleCalendarEvent`
+- Zmieniono `updateGoogleCalendarEventId` aby używało `mainCalendarEventId`
+
+### 3. Zaktualizowano tworzenie wizyt w kalendarz/page.tsx
+- Zmieniono tworzenie wizyt, aby używało nowej funkcji synchronizacji
+- Zaktualizowano obsługę pól kalendarza w interfejsie użytkownika
+
+### 4. Zaktualizowano kontekst pracownika (employee-context.tsx)
+- Zmieniono wszystkie odwołania do `googleCalendarEmail` na `googleCalendarId`
+- Zaktualizowano metody pomocnicze: `getEmployeeGoogleCalendarEmail` na `getEmployeeGoogleCalendarId`
+- Zmieniono `getEmployeesWithGoogleCalendar` aby filtrowało po `googleCalendarId`
+
+### 5. Zaktualizowano stronę ustawień zespołu (zespol-roles/page.tsx)
+- Zaktualizowano formularz edycji pracownika
+- Zmieniono etykietę pola z "Email Google Calendar" na "ID Google Calendar"
+- Zmieniono placeholder z "email@gmail.com" na "calendar_id@group.calendar.google.com"
+
+### 6. Zaktualizowano testy jednostkowe
+- Zaktualizowano testy, aby używały `googleCalendarId` zamiast `googleCalendarEmail`
+- Zmieniono `googleCalendarEventId` na `mainCalendarEventId`
+- Usunięto pole `role` z obiektu mockEmployee, które nie istniało w interfejsie
+- Naprawiono test employee-context.test.tsx, zmieniając `isActive: false` na `isActive: true` dla trzeciego pracownika
+
+### 7. Przetestowano zmiany
+- Wszystkie testy jednostkowe przechodzą pomyślnie
+- Aplikacja uruchamia się bez błędów
+- Zmiany są kompatybilne z istniejącym kodem
+
+## Kluczowe zmiany w strukturze danych:
+
+### Stara struktura:
+```typescript
+interface Employee {
+  googleCalendarEmail?: string;
+}
+
+interface Appointment {
+  googleCalendarEventId?: string;
+}
+```
+
+### Nowa struktura:
+```typescript
+interface Employee {
+  googleCalendarId?: string;
+}
+
+interface Appointment {
+  mainCalendarEventId?: string;
+  employeeCalendarEventId?: string;
+}
+```
+
+## Wyniki testów:
+- employee-context.test.tsx: 12/12 ✅
+- google-calendar-service.test.ts: 8/8 ✅
+- employees-service.test.ts: 4/4 ✅
+
+## Zmodyfikowane pliki:
+1. admin-frontend/src/lib/employees-service.ts
+2. admin-frontend/src/lib/google-calendar-service.ts
+3. admin-frontend/src/app/(protected)/kalendarz/page.tsx
+4. admin-frontend/src/contexts/employee-context.tsx
+5. admin-frontend/src/app/(protected)/ustawienia/zespol-roles/page.tsx
+6. admin-frontend/src/lib/__tests__/employees-service.test.ts
+7. admin-frontend/src/lib/__tests__/google-calendar-service.test.ts
+8. admin-frontend/src/contexts/__tests__/employee-context.test.tsx
+
+## Podsumowanie:
+System teraz wspiera synchronizację z głównym kalendarzem salonu oraz indywidualnymi kalendarzami pracowników, co pozwala na lepszą organizację i zarządzanie wizytami w systemie wielopracowniczym.

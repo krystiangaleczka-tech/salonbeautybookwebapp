@@ -108,6 +108,7 @@ graph TD
             subgraph "📂 auth/"
                 AUTH_C --> AUTH_GUARD[AuthGuard.tsx]
                 AUTH_C --> LOGIN_FORM[LoginForm.tsx]
+                AUTH_C --> GOOGLE_CALLBACK[GoogleCallback.tsx]
             end
             
             subgraph "📂 calendar/"
@@ -120,6 +121,8 @@ graph TD
                 CALENDAR --> APPOINTMENT_CARD[AppointmentCard.tsx]
                 CALENDAR --> QUICK_EDIT[QuickEdit.tsx]
                 CALENDAR --> TIME_ADJUSTMENT[TimeAdjustment.tsx]
+                CALENDAR --> EMP_SELECTOR[EmployeeSelector.tsx]
+                CALENDAR --> APPOINTMENT_FILTERS[AppointmentFilters.tsx]
             end
             
             subgraph "📂 dashboard/"
@@ -155,11 +158,15 @@ graph TD
         subgraph "📂 contexts/"
             CTX --> AUTH_CTX[auth-context.ts]
             CTX --> THEME_CTX[theme-context.tsx]
+            CTX --> EMP_CTX[employee-context.tsx]
+            CTX --> AUTH_PROVIDER[AuthProvider.tsx]
         end
         
         subgraph "📂 hooks/"
             HOOKS --> USE_AUTH[useAuth.ts]
             HOOKS --> USE_PENDING[usePendingTimeChanges.ts]
+            HOOKS --> USE_EMP[useEmployee.ts]
+            HOOKS --> USE_OPT[useOptimisticUpdates.ts]
         end
         
         subgraph "📂 lib/"
@@ -174,6 +181,10 @@ graph TD
             LIB --> FIREBASE[firebase.ts]
             LIB --> DASHBOARD_DATA[dashboard-data.ts]
             LIB --> DASHBOARD_THEME[dashboard-theme.ts]
+            LIB --> GOOGLE_CAL[google-calendar-service.ts]
+            LIB --> OPT_UPDATES[optimistic-updates.ts]
+            LIB --> INIT_EMP[init-employees.ts]
+            LIB --> TEST_FIREBASE[test-firebase.ts]
         end
         
         subgraph "📂 types/"
@@ -183,6 +194,7 @@ graph TD
             TYPES --> EMPLOYEE_TYPES[employee.types.ts]
             TYPES --> NOTIFICATION_TYPES[notification.types.ts]
             TYPES --> SETTINGS_TYPES[settings.types.ts]
+            TYPES --> TEST_D[test.d.ts]
         end
     end
 
@@ -195,6 +207,7 @@ graph TD
         subgraph "📂 src/"
             SRC_F --> INDEX_F[index.ts]
             SRC_F --> GOOGLE[google-calendar/]
+            SRC_F --> TRIGGERS[firestore-triggers.ts]
             
             subgraph "📂 google-calendar/"
                 GOOGLE --> AUTH[auth.ts]
@@ -226,6 +239,10 @@ graph TD
         PROGRESS --> FIRESTORE[2025-10-16-17:23-Firestore_Realtime_Listeners_Fix.log]
         PROGRESS --> INFINITE[2025-10-16-17:35-Infinite_Loop_Fix.log]
         PROGRESS --> FRONTEND[2025-10-16-18:26-Frontend_Refresh_Fix.log]
+        PROGRESS --> MULTIEMP[2025-10-20-13:17-BeautyBook_Multiemployee_System_Implementation.log]
+        PROGRESS --> EMP_TESTS[2025-10-20-14:54-Employees_Service_Tests_Fix.log]
+        PROGRESS --> ADMIN_EMP[2025-10-20-17:08-Admin_Employee_Auto_Creation_Fix.log]
+        PROGRESS --> GOOGLE_MULTI[2025-10-20-18:45-Google_Calendar_Multiemployee_Sync_Update.log]
     end
 
     subgraph "📁 archives/"
@@ -421,4 +438,4 @@ graph TD
 ```
 
 ## Podpis
-Struktura Folderów Aplikacji_NEW - Aktualny stan z Google Calendar i nowymi komponentami (2025-10-17)
+Struktura Folderów Aplikacji_NEW - Aktualny stan z systemem wielopracowniczym, Google Calendar i nowymi komponentami (2025-10-21)

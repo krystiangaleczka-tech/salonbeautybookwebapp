@@ -28,10 +28,11 @@ export default function TeamAndRolesPage() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
     name: "",
-    role: "",
     email: "",
     phone: "",
     isActive: true,
+    userRole: "employee" as 'owner' | 'employee' | 'tester',
+    googleCalendarId: "",
   });
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<string | null>(null);
@@ -70,19 +71,21 @@ export default function TeamAndRolesPage() {
       setEditingEmployee(employee);
       setFormData({
         name: employee.name,
-        role: employee.role,
         email: employee.email,
         phone: employee.phone || "",
         isActive: employee.isActive,
+        userRole: employee.userRole || 'employee',
+        googleCalendarId: employee.googleCalendarId || "",
       });
     } else {
       setEditingEmployee(null);
       setFormData({
         name: "",
-        role: "",
         email: "",
         phone: "",
         isActive: true,
+        userRole: "employee",
+        googleCalendarId: "",
       });
     }
     setIsFormOpen(true);
@@ -94,17 +97,18 @@ export default function TeamAndRolesPage() {
     setEditingEmployee(null);
     setFormData({
       name: "",
-      role: "",
       email: "",
       phone: "",
       isActive: true,
+      userRole: "employee",
+      googleCalendarId: "",
     });
     setFeedback(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.role || !formData.email) {
+    if (!formData.name || !formData.email) {
       setError("Wszystkie pola oznaczone gwiazdką są wymagane.");
       return;
     }
@@ -233,7 +237,7 @@ export default function TeamAndRolesPage() {
                 employees.map((employee) => (
                   <tr key={employee.id} className="hover:bg-muted/40">
                     <td className="px-4 py-3 font-medium text-foreground">{employee.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{employee.role}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{employee.userRole}</td>
                     <td className="px-4 py-3 text-muted-foreground">{employee.email}</td>
                     <td className="px-4 py-3 text-muted-foreground">{employee.phone || "–"}</td>
                     <td className="px-4 py-3">
@@ -349,8 +353,8 @@ export default function TeamAndRolesPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.role}
-                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                  value={formData.userRole}
+                  onChange={(e) => setFormData(prev => ({ ...prev, userRole: e.target.value as 'owner' | 'employee' | 'tester' }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
                   required
                 />
@@ -376,6 +380,33 @@ export default function TeamAndRolesPage() {
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Rola systemowa *
+                </label>
+                <select
+                  value={formData.userRole}
+                  onChange={(e) => setFormData(prev => ({ ...prev, userRole: e.target.value as 'owner' | 'employee' | 'tester' }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  required
+                >
+                  <option value="employee">Pracownik</option>
+                  <option value="owner">Właściciel</option>
+                  <option value="tester">Tester</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  ID Google Calendar
+                </label>
+                <input
+                  type="email"
+                  value={formData.googleCalendarId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, googleCalendarId: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-ring"
+                  placeholder="calendar_id@group.calendar.google.com"
                 />
               </div>
               <div className="flex items-center">

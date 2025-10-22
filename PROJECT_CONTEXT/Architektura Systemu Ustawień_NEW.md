@@ -29,6 +29,9 @@ graph TB
             RL[Role Management]
             EM[Employee Settings]
             PB[Personal Buffers]
+            AA[Admin Auto-creation]
+            ER[Employee Roles]
+            GC[Google Calendar Integration]
         end
         
         subgraph "🔔 Powiadomienia"
@@ -50,6 +53,8 @@ graph TB
             GP[Payment Providers]
             SM[SMS Providers]
             EM2[Email Providers]
+            FT[Firestore Triggers]
+            OS[Optimistic Updates]
         end
     end
 

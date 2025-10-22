@@ -40,12 +40,15 @@ graph TB
         AA --> HH(filters-service.ts)
         AA --> II(settings-data.ts)
         AA --> JJ(firebase.ts)
+        AA --> JJ2(google-calendar-service.ts)
+        AA --> JJ3(optimistic-updates.ts)
         
         KK[src/hooks] --> LL(useAuth.ts)
         KK --> MM(usePendingTimeChanges.ts)
         
         NN[src/contexts] --> OO(auth-context.ts)
         NN --> PP(theme-context.tsx)
+        NN --> QQ(employee-context.tsx)
     end
 
     subgraph "📅 System Kalendarza"
@@ -180,6 +183,8 @@ graph TB
             CF3[Google Calendar API]
             CF4[Notifications]
             CF5[OAuth2 Handlers]
+            CF6[Firestore Triggers]
+            CF7[Auto Sync Logic]
         end
         
         subgraph "🔐 Authentication"

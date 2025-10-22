@@ -21,6 +21,9 @@ graph TB
             UL[User Login]
             ULG[User Logout]
             UR[User Role Change]
+            UE[Employee Created]
+            UE2[Employee Updated]
+            UA[Admin Auto-creation]
         end
         
         subgraph "⚙️ Zdarzenia Systemowe"
@@ -33,6 +36,8 @@ graph TB
             GCS[Google Calendar Synced]
             GCE[Google Calendar Error]
             GCR[Google Calendar Retry]
+            GCA[Google Calendar Auth Required]
+            GCB[Google Calendar Batch Sync]
         end
     end
 

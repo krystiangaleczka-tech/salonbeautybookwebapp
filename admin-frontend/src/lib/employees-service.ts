@@ -16,28 +16,41 @@ import { db } from "@/lib/firebase";
 export interface Employee {
   id: string;
   name: string;
-  role: string;
   email: string;
-  phone?: string;
+  userRole: 'owner' | 'employee' | 'tester'; // rola użytkownika w systemie
   isActive: boolean;
+  phone?: string;
   services?: string[];
-  // Bufory czasowe per pracownik
-  personalBuffers: Record<string, number>; // serviceId -> bufferMinutes
-  defaultBuffer: number; // domyślny buffer w minutach
+  // Bufory czasowe per pracownik (zostaną usunięte w przyszłości)
+  personalBuffers?: Record<string, number>; // serviceId -> bufferMinutes
+  defaultBuffer?: number; // domyślny buffer w minutach
+  // Pola wielopracownicze
+  googleCalendarId?: string; // ID kalendarza Google Calendar (np. "c_xyz123@group.calendar.google.com")
+  workingHours?: WorkingHour[]; // osobiste godziny pracy
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
+export interface WorkingHour {
+  dayOfWeek: number; // 0 = niedziela, 1 = poniedziałek, etc.
+  startTime: string; // "09:00"
+  endTime: string; // "17:00"
+  isActive: boolean;
+}
+
 export interface EmployeePayload {
   name: string;
-  role: string;
   email: string;
   phone?: string;
   isActive?: boolean;
   services?: string[];
-  // Bufory czasowe per pracownik
+  // Bufory czasowe per pracownik (zostaną usunięte w przyszłości)
   personalBuffers?: Record<string, number>;
   defaultBuffer?: number;
+  // Pola wielopracownicze
+  googleCalendarId?: string;
+  userRole?: 'owner' | 'employee' | 'tester';
+  workingHours?: WorkingHour[];
 }
 
 const employeesCollection = collection(db, "employees");
@@ -46,16 +59,21 @@ function mapEmployee(docData: DocumentData, id: string): Employee {
   return {
     id,
     name: typeof docData.name === "string" ? docData.name : "",
-    role: typeof docData.role === "string" ? docData.role : "",
     email: typeof docData.email === "string" ? docData.email : "",
-    phone: typeof docData.phone === "string" ? docData.phone : undefined,
+    userRole: typeof docData.userRole === "string" && ['owner', 'employee', 'tester'].includes(docData.userRole)
+      ? docData.userRole as 'owner' | 'employee' | 'tester'
+      : 'employee', // domyślnie employee
     isActive: typeof docData.isActive === "boolean" ? docData.isActive : true,
+    phone: typeof docData.phone === "string" ? docData.phone : undefined,
     services: Array.isArray(docData.services) ? docData.services as string[] : [],
     // Bufory czasowe - domyślne wartości dla kompatybilności wstecznej
-    personalBuffers: typeof docData.personalBuffers === "object" && docData.personalBuffers !== null 
-      ? docData.personalBuffers as Record<string, number> 
+    personalBuffers: typeof docData.personalBuffers === "object" && docData.personalBuffers !== null
+      ? docData.personalBuffers as Record<string, number>
       : {},
     defaultBuffer: typeof docData.defaultBuffer === "number" ? docData.defaultBuffer : 0,
+    // Pola wielopracownicze - domyślne wartości
+    googleCalendarId: typeof docData.googleCalendarId === "string" ? docData.googleCalendarId : undefined,
+    workingHours: Array.isArray(docData.workingHours) ? docData.workingHours as WorkingHour[] : [],
     createdAt: docData.createdAt instanceof Timestamp ? docData.createdAt : null,
     updatedAt: docData.updatedAt instanceof Timestamp ? docData.updatedAt : null,
   };
@@ -79,9 +97,8 @@ export function subscribeToEmployees(
 }
 
 function normalizePayload(payload: EmployeePayload) {
-  return {
+  const normalized: any = {
     name: payload.name,
-    role: payload.role,
     email: payload.email,
     phone: payload.phone ?? "",
     isActive: payload.isActive ?? true,
@@ -89,7 +106,17 @@ function normalizePayload(payload: EmployeePayload) {
     // Bufory czasowe - domyślne wartości dla kompatybilności wstecznej
     personalBuffers: payload.personalBuffers ?? {},
     defaultBuffer: payload.defaultBuffer ?? 0,
+    // Pola wielopracownicze - domyślne wartości
+    userRole: payload.userRole ?? 'employee',
+    workingHours: payload.workingHours ?? [],
   };
+  
+  // Dodaj googleCalendarId tylko jeśli ma wartość
+  if (payload.googleCalendarId && payload.googleCalendarId.trim() !== "") {
+    normalized.googleCalendarId = payload.googleCalendarId;
+  }
+  
+  return normalized;
 }
 
 export async function createEmployee(payload: EmployeePayload) {

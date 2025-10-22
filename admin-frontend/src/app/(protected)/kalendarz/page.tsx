@@ -28,6 +28,8 @@ import { createAppointment, subscribeToAppointments, getAppointments, updateAppo
 import { subscribeToCustomers, type Customer } from "@/lib/customers-service";
 import { subscribeToEmployees, type Employee } from "@/lib/employees-service";
 import { usePendingTimeChanges } from "@/hooks/usePendingTimeChanges";
+import { useEmployee } from "@/contexts/employee-context";
+import { EmployeeSelector } from "@/components/calendar/employee-selector";
 import { AppointmentFilters } from "@/components/calendar/appointment-filters";
 import { type AppointmentFilter, type FilterPreset } from "@/lib/filters-service";
 import { googleCalendarService } from "@/lib/google-calendar-service";
@@ -61,7 +63,8 @@ export interface CalendarEvent {
   price?: string;
   offline?: boolean;
   notes?: string;
-  googleCalendarEventId?: string; // ID wydarzenia w Google Calendar
+  mainCalendarEventId?: string; // ID wydarzenia w głównym kalendarzu Google
+  employeeCalendarEventId?: string; // ID wydarzenia w kalendarzu pracownika Google
   isGoogleSynced?: boolean; // Czy wydarzenie jest zsynchronizowane z Google Calendar
 }
 
@@ -253,11 +256,28 @@ function formatTimeRange(start: Date, end: Date) {
   return `${pad(start.getHours())}:${pad(start.getMinutes())} – ${pad(end.getHours())}:${pad(end.getMinutes())}`;
 }
 
-function getWorkingWindow(day: Date): WorkingHours | null {
+function getWorkingWindow(day: Date, selectedEmployee?: Employee): WorkingHours | null {
   const override = dailyOverrides[toDateKey(day)];
   if (override) {
     return override;
   }
+  
+  // Jeśli wybrano pracownika i ma zdefiniowane godziny pracy, użyj ich
+  if (selectedEmployee && selectedEmployee.workingHours && selectedEmployee.workingHours.length > 0) {
+    const dayOfWeek = day.getDay();
+    const employeeWorkingHours = selectedEmployee.workingHours.find(
+      (wh: any) => wh.dayOfWeek === dayOfWeek && wh.isActive
+    );
+    
+    if (employeeWorkingHours) {
+      return {
+        start: employeeWorkingHours.startTime,
+        end: employeeWorkingHours.endTime
+      };
+    }
+  }
+  
+  // W przeciwnym razie użyj globalnych godzin salonu
   const base = baseSalonHours[day.getDay()];
   return base ?? null;
 }
@@ -266,7 +286,8 @@ function buildEventsForRange(
   events: CalendarEvent[],
   weekStart: Date,
   services: CalendarService[],
-  minutesWindow: TimeRange
+  minutesWindow: TimeRange,
+  selectedEmployee?: Employee
 ) {
   const pedicureIds = new Set(services.filter((service) => service.noParallel).map((service) => service.id));
   const serviceLookup = new Map(services.map((service) => [service.id, service]));
@@ -309,7 +330,7 @@ function buildEventsForRange(
     const minutesEnd = minutesSinceStartOfDay(end) - minutesWindow.start;
     const top = Math.max(0, minutesStart);
     const height = Math.max(30, minutesEnd - minutesStart);
-    const workingWindow = getWorkingWindow(start);
+    const workingWindow = getWorkingWindow(start, selectedEmployee);
     const isOutsideWorkingHours = workingWindow
       ? minutesSinceStartOfDay(start) < timeStringToMinutes(workingWindow.start) ||
         minutesSinceStartOfDay(end) > timeStringToMinutes(workingWindow.end)
@@ -404,11 +425,13 @@ function WeekBoard({
   events,
   selectedDate,
   onSelectDate,
+  selectedEmployee,
 }: {
   weekDays: Date[];
   events: PositionedEvent[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
+  selectedEmployee?: Employee;
 }) {
   const hours = useMemo(() => {
     const range: number[] = [];
@@ -423,10 +446,10 @@ function WeekBoard({
   const workingWindows = useMemo(() => {
     const entries = new Map<string, WorkingHours | null>();
     weekDays.forEach((day) => {
-      entries.set(toDateKey(day), getWorkingWindow(day));
+      entries.set(toDateKey(day), getWorkingWindow(day, selectedEmployee));
     });
     return entries;
-  }, [weekDays]);
+  }, [weekDays, selectedEmployee]);
 
   return (
     <div className="rounded-3xl border border-[#f2dcd4] bg-[#f8f3ec] p-2 sm:p-4">
@@ -549,11 +572,13 @@ function DayBoard({
   events,
   onSelectAppointment,
   selectedAppointmentId,
+  selectedEmployee,
 }: {
   date: Date;
   events: PositionedEvent[];
   onSelectAppointment: (appointmentId: string) => void;
   selectedAppointmentId: string;
+  selectedEmployee?: Employee;
 }) {
   const timeSlots = useMemo(() => {
     const slots: { hour: number; minute: number; showLabel: boolean }[] = [];
@@ -583,7 +608,7 @@ function DayBoard({
 
   const timelineWidth = (minutesWindow.end - minutesWindow.start) * DAY_PIXELS_PER_MINUTE;
   const hourWidth = 60 * DAY_PIXELS_PER_MINUTE;
-  const workingWindow = getWorkingWindow(date);
+  const workingWindow = getWorkingWindow(date, selectedEmployee);
   const workingLeft = workingWindow
     ? clamp((timeStringToMinutes(workingWindow.start) - minutesWindow.start) * DAY_PIXELS_PER_MINUTE, 0, timelineWidth)
     : 0;
@@ -1063,6 +1088,13 @@ export default function CalendarPage() {
     hasPendingChange,
     getPendingChange
   } = usePendingTimeChanges();
+  // Hook do zarządzania pracownikami z uprawnieniami
+  const { 
+    currentEmployee, 
+    filteredEmployees, 
+    canViewAllEmployees,
+    isLoading: employeesLoading 
+  } = useEmployee();
 
   // Funkcja do poprawnego tworzenia daty w lokalnej strefie czasowej
   function createLocalDate(dateString: string, timeString: string): Date {
@@ -1073,6 +1105,10 @@ export default function CalendarPage() {
     // Miesiące w JavaScript są numerowane od 0 (styczeń = 0)
     return new Date(year, month - 1, day, hours, minutes);
   }
+  // Stan dla selektora pracowników
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(
+    currentEmployee?.id
+  );
 
   // Funkcja do szybkiej korekty czasu wizyty - teraz używa stanu lokalnego
   const adjustAppointmentTime = (appointmentId: string, minutesDelta: number) => {
@@ -1134,7 +1170,7 @@ export default function CalendarPage() {
     if (!pendingChange) return;
 
     // Znajdź pracownika, aby uwzględnić jego bufory czasowe
-    const selectedEmployee = employees.find(emp => emp.name === pendingChange.staffName);
+    const selectedEmployee = filteredEmployees.find(emp => emp.name === pendingChange.staffName);
     
     if (!selectedEmployee) {
       setAppointmentFormError("Nie znaleziono pracownika.");
@@ -1168,10 +1204,10 @@ export default function CalendarPage() {
         const selectedService = calendarServices.find(s => s.id === pendingChange.serviceId);
         
         if (selectedCustomer && selectedService) {
-          if (originalAppointment?.googleCalendarEventId) {
-            // Ma googleCalendarEventId - normalna aktualizacja W TLE
-            googleCalendarService.updateGoogleCalendarEvent({
-              googleCalendarEventId: originalAppointment.googleCalendarEventId,
+          if (originalAppointment?.mainCalendarEventId || originalAppointment?.employeeCalendarEventId) {
+            // Ma mainCalendarEventId lub employeeCalendarEventId - normalna aktualizacja W TLE per pracownik
+            googleCalendarService.updateGoogleCalendarEventForEmployee({
+              mainCalendarEventId: originalAppointment.employeeCalendarEventId || originalAppointment.mainCalendarEventId,
               appointment: {
                 id: appointmentId,
                 serviceId: pendingChange.serviceId,
@@ -1185,7 +1221,7 @@ export default function CalendarPage() {
               clientEmail: selectedCustomer.email,
               serviceName: selectedService.name,
               clientName: selectedCustomer.fullName,
-            })
+            }, selectedEmployee)
             .then(() => {
               console.log('✅ Google Calendar event updated for time change');
             })
@@ -1296,9 +1332,7 @@ export default function CalendarPage() {
   
   // Dane dla formularza
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [customersLoaded, setCustomersLoaded] = useState(false);
-  const [employeesLoaded, setEmployeesLoaded] = useState(false);
   
   // Funkcja do przełączania zaznaczenia wizyty
   const toggleAppointmentSelection = (appointmentId: string) => {
@@ -1388,7 +1422,7 @@ export default function CalendarPage() {
     }
     
     // Znajdź wybranego pracownika
-    const selectedEmployee = employees.find(emp => emp.name === editForm.staffName);
+    const selectedEmployee = filteredEmployees.find(emp => emp.name === editForm.staffName);
     if (!selectedEmployee) {
       setEditFormError("Wybrany pracownik jest nieprawidłowy.");
       return;
@@ -1600,10 +1634,23 @@ export default function CalendarPage() {
         if (eventDate > filters.dateRange.to) return false;
       }
 
-      // Employee filter
+      // Employee filter - użyj filteredEmployees z EmployeeContext
       if (filters.employees.length > 0) {
-        const employee = employees.find(emp => emp.name === event.staffName);
+        const employee = filteredEmployees.find(emp => emp.name === event.staffName);
         if (!employee || !filters.employees.includes(employee.id)) return false;
+      }
+      
+      // Automatyczne filtrowanie per pracownik na podstawie uprawnień
+      if (!canViewAllEmployees && currentEmployee) {
+        if (event.staffName !== currentEmployee.name) return false;
+      }
+      
+      // Filtruj według wybranego pracownika w selektorze
+      if (selectedEmployeeId && selectedEmployeeId !== "all") {
+        const selectedEmployee = filteredEmployees.find(emp => emp.id === selectedEmployeeId);
+        if (selectedEmployee && event.staffName !== selectedEmployee.name) {
+          return false;
+        }
       }
 
       // Service filter
@@ -1624,7 +1671,7 @@ export default function CalendarPage() {
 
       return true;
     });
-  }, [calendarEvents, filters, employees, customers, calendarServices]);
+  }, [calendarEvents, filters, filteredEmployees, customers, calendarServices, selectedEmployeeId, currentEmployee, canViewAllEmployees]);
 
   // Pobierz listę wizyt z nowego serwisu
   const loadAppointments = useCallback(async () => {
@@ -1653,8 +1700,9 @@ export default function CalendarPage() {
           price: appointment.price ? formatPrice(appointment.price) : undefined,
           offline: false,
           notes: appointment.notes,
-          googleCalendarEventId: appointment.googleCalendarEventId,
-          isGoogleSynced: !!appointment.googleCalendarEventId,
+          mainCalendarEventId: appointment.mainCalendarEventId,
+          employeeCalendarEventId: appointment.employeeCalendarEventId,
+          isGoogleSynced: !!(appointment.mainCalendarEventId || appointment.employeeCalendarEventId),
           clientId: appointment.clientId,
           createdAt: appointment.createdAt,
           updatedAt: appointment.updatedAt,
@@ -1716,23 +1764,12 @@ export default function CalendarPage() {
       }
     );
 
-    // Pobierz listę pracowników
-    const unsubscribeEmployees = subscribeToEmployees(
-      (fetchedEmployees) => {
-        setEmployees(fetchedEmployees);
-        setEmployeesLoaded(true);
-      },
-      (error) => {
-        console.error("Nie udało się pobrać listy pracowników", error);
-        setEmployeesLoaded(true);
-      }
-    );
+    // Subskrypcja pracowników jest obsługiwana przez useEmployee hook
 
     return () => {
       unsubscribeServices();
       unsubscribeAppointments();
       unsubscribeCustomers();
-      unsubscribeEmployees();
     };
   }, []); // Puste dependencies - wykonaj raz
 
@@ -1743,12 +1780,16 @@ export default function CalendarPage() {
     }
   }, [customersLoaded, servicesLoaded, loadAppointments]);
 
-  const loadingData = !servicesLoaded || !eventsLoaded;
+  const loadingData = !servicesLoaded || !eventsLoaded || employeesLoading;
 
   const { start, days } = useWeek(referenceDate);
   const positionedEvents = useMemo(
-    () => buildEventsForRange(filteredCalendarEvents, start, calendarServices, minutesWindow),
-    [filteredCalendarEvents, calendarServices, start]
+    () => buildEventsForRange(filteredCalendarEvents, start, calendarServices, minutesWindow,
+      selectedEmployeeId && selectedEmployeeId !== "all"
+        ? filteredEmployees.find(emp => emp.id === selectedEmployeeId)
+        : currentEmployee
+    ),
+    [filteredCalendarEvents, calendarServices, start, selectedEmployeeId, filteredEmployees, currentEmployee]
   );
 
   const monthInfo = useMonth(referenceDate);
@@ -1853,6 +1894,20 @@ export default function CalendarPage() {
               </span>
             </div>
           </div>
+          
+          {/* Selektor pracowników - tylko dla użytkowników z uprawnieniami */}
+          {canViewAllEmployees && (
+            <div className="flex items-center gap-2 min-w-[200px]">
+              <span className="text-xs font-semibold uppercase text-muted-foreground">Pracownik:</span>
+              <EmployeeSelector
+                selectedEmployeeId={selectedEmployeeId}
+                onEmployeeChange={setSelectedEmployeeId}
+                showAllOption={true}
+                placeholder="Wszyscy pracownicy"
+              />
+            </div>
+          )}
+          
           <ViewSwitcher value={view} onChange={(next) => {
             setView(next);
             setReferenceDate((prev) => new Date(prev));
@@ -1984,7 +2039,7 @@ export default function CalendarPage() {
                     onFiltersChange={handleFiltersChange}
                     appointments={calendarEvents.map(event => {
                       const customer = customers.find(c => c.fullName === event.clientName);
-                      const employee = employees.find(e => e.name === event.staffName);
+                      const employee = filteredEmployees.find(e => e.name === event.staffName);
                       return {
                         id: event.id,
                         customerId: customer?.id || "",
@@ -1996,7 +2051,7 @@ export default function CalendarPage() {
                         notes: event.notes,
                       };
                     })}
-                    employees={employees}
+                    employees={filteredEmployees}
                     services={calendarServices}
                     customers={customers}
                     onBatchAction={handleBatchAction}
@@ -2019,7 +2074,7 @@ export default function CalendarPage() {
             onFiltersChange={handleFiltersChange}
             appointments={calendarEvents.map(event => {
               const customer = customers.find(c => c.fullName === event.clientName);
-              const employee = employees.find(e => e.name === event.staffName);
+              const employee = filteredEmployees.find(e => e.name === event.staffName);
               return {
                 id: event.id,
                 customerId: customer?.id || "",
@@ -2031,7 +2086,7 @@ export default function CalendarPage() {
                 notes: event.notes,
               };
             })}
-            employees={employees}
+            employees={filteredEmployees}
             services={calendarServices}
             customers={customers}
             onBatchAction={handleBatchAction}
@@ -2045,13 +2100,28 @@ export default function CalendarPage() {
 
         <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1.1fr)] lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           {view === "week" ? (
-            <WeekBoard weekDays={days} events={positionedEvents} selectedDate={referenceDate} onSelectDate={setReferenceDate} />
+            <WeekBoard
+              weekDays={days}
+              events={positionedEvents}
+              selectedDate={referenceDate}
+              onSelectDate={setReferenceDate}
+              selectedEmployee={
+                selectedEmployeeId && selectedEmployeeId !== "all"
+                  ? filteredEmployees.find(emp => emp.id === selectedEmployeeId)
+                  : currentEmployee
+              }
+            />
           ) : null}
           {view === "day" ? <DayBoard
             date={referenceDate}
             events={dayEvents}
             onSelectAppointment={toggleAppointmentSelection}
             selectedAppointmentId={selectedAppointmentId}
+            selectedEmployee={
+              selectedEmployeeId && selectedEmployeeId !== "all"
+                ? filteredEmployees.find(emp => emp.id === selectedEmployeeId)
+                : currentEmployee
+            }
           /> : null}
           {view === "month" ? (
             <div className="rounded-2xl sm:rounded-3xl border border-[#f2dcd4] bg-[#fdf7f3] p-2 sm:p-4">
@@ -2269,11 +2339,15 @@ export default function CalendarPage() {
                     required
                   >
                     <option value="">Wybierz pracownika</option>
-                    {employees.filter(emp => emp.isActive).map((employee) => (
-                      <option key={employee.id} value={employee.name}>
-                        {employee.name} ({employee.role})
-                      </option>
-                    ))}
+                    {filteredEmployees.length === 0 ? (
+                      <option value="" disabled>Brak dostępnych pracowników</option>
+                    ) : (
+                      filteredEmployees.filter(emp => emp.isActive !== false).map((employee) => (
+                        <option key={employee.id} value={employee.name}>
+                          {employee.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -2359,7 +2433,7 @@ export default function CalendarPage() {
                     }
                     
                     // Znajdź wybranego pracownika, aby uwzględnić jego bufory czasowe
-                    const selectedEmployee = employees.find(emp => emp.name === appointmentForm.staffName);
+                    const selectedEmployee = filteredEmployees.find(emp => emp.name === appointmentForm.staffName);
                     if (!selectedEmployee) {
                       setAppointmentFormError("Wybrany pracownik jest nieprawidłowy.");
                       return;
@@ -2396,7 +2470,8 @@ export default function CalendarPage() {
                           createdAt: undefined,
                           updatedAt: undefined,
                           clientName: selectedCustomer?.fullName || "Nieznany klient",
-                          googleCalendarEventId: undefined,
+                          mainCalendarEventId: undefined,
+                          employeeCalendarEventId: undefined,
                           isGoogleSynced: false,
                           offline: false,
                           start: startDateTime.toISOString(),
@@ -2415,10 +2490,32 @@ export default function CalendarPage() {
                           notes: ""
                         });
 
-                        // ✅ 2. SAVE TO FIRESTORE (w tle)
-                        const result = await createAppointment(newAppointmentData);
+                        // ✅ 2. SYNCHRONIZACJA Z GOOGLE CALENDAR
+                        const { mainEventId, employeeEventId } = await googleCalendarService.syncAppointmentToGoogleCalendar(
+                          {
+                            id: tempId, // Tymczasowe ID
+                            serviceId: newAppointmentData.serviceId,
+                            clientId: newAppointmentData.clientId,
+                            staffName: newAppointmentData.staffName,
+                            start: startDateTime,
+                            end: effectiveEndDateTime,
+                            status: newAppointmentData.status,
+                            notes: newAppointmentData.notes?.trim() || undefined,
+                            serviceName: selectedService.name,
+                            clientName: selectedCustomer.fullName,
+                            clientEmail: selectedCustomer.email,
+                          },
+                          selectedEmployee
+                        );
 
-                        // ✅ 3. REPLACE OPTIMISTIC with REAL
+                        // ✅ 3. SAVE TO FIRESTORE (w tle) z ID wydarzeń Google Calendar
+                        const result = await createAppointment({
+                          ...newAppointmentData,
+                          mainCalendarEventId: mainEventId,
+                          employeeCalendarEventId: employeeEventId
+                        });
+
+                        // ✅ 4. REPLACE OPTIMISTIC with REAL
                         setCalendarEvents(prev =>
                           replaceOptimistic(prev, tempId, {
                             id: result.id,
@@ -2431,14 +2528,13 @@ export default function CalendarPage() {
                             price: newAppointmentData.price,
                             offline: false,
                             notes: newAppointmentData.notes,
-                            googleCalendarEventId: undefined,
-                            isGoogleSynced: false,
+                            mainCalendarEventId: mainEventId,
+                            employeeCalendarEventId: employeeEventId,
+                            isGoogleSynced: !!(mainEventId || employeeEventId),
                           })
                         );
 
                         setAppointmentFormSuccess("✅ Wizyta dodana pomyślnie!");
-                        
-                        // ✅ 4. GOOGLE CALENDAR SYNC happens automatically via Firestore Trigger!
                         
                         // Wyczyść komunikat po 2 sekundach
                         setTimeout(() => {
@@ -2553,9 +2649,9 @@ export default function CalendarPage() {
                     required
                   >
                     <option value="">Wybierz pracownika</option>
-                    {employees.filter(emp => emp.isActive).map((employee) => (
+                    {filteredEmployees.filter(emp => emp.isActive !== false).map((employee) => (
                       <option key={employee.id} value={employee.name}>
-                        {employee.name} ({employee.role})
+                        {employee.name}
                       </option>
                     ))}
                   </select>

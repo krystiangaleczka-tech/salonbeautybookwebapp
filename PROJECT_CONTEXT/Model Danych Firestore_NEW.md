@@ -62,6 +62,9 @@ erDiagram
             array services
             object personalBuffers
             number defaultBuffer
+            string userRole
+            string googleCalendarId
+            object workingHours
             timestamp createdAt
             timestamp updatedAt
         }

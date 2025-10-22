@@ -37,12 +37,15 @@ graph TB
             UF[useFilters]
             UP[usePendingTimeChanges]
             UE[useEvents]
+            UEM[useEmployeeManagement]
+            UO[useOptimisticUpdates]
         end
         
         subgraph "📦 Konteksty"
             ACX[AuthContext]
             TCX[ThemeContext]
             NCX[NotificationsContext]
+            ECX[EmployeeContext]
         end
     end
 
@@ -53,6 +56,7 @@ graph TB
         SS[ServiceService]
         FS[FilterService]
         GS[GoogleCalendarService]
+        OS[OptimisticService]
     end
 
     subgraph "🔥 Firebase Integration"
@@ -69,6 +73,8 @@ graph TB
             GCU[updateGoogleCalendarEvent]
             GCD[deleteGoogleCalendarEvent]
             GCB[batchSyncAppointments]
+            GCE[getCalendarEvents]
+            GCT[triggerAutoSync]
         end
     end
 
